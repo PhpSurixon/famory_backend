@@ -10,7 +10,7 @@ use App\Http\Controllers\AdvertiserController;
 use Illuminate\Http\Request;
 
 Route::get('/', function () {
-    // return redirect('login');
+    // return redirect('login'); 
     return redirect('admin/login');
 });
 
