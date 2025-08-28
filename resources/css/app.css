@@ -1,0 +1,6 @@
+.menu-item.active a {
+    color: blue;
+}
+i::before{
+        font-family: "boxicons" !important;
+}

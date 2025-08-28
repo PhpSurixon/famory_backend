@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "imperium-fb452",
+  "private_key_id": "6b12764ec264b2460cded1a0ba00584a9e32698e",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCcjoGxr5iI1Irc\ndVCPNkwTFO0mmMzCNhcBzyXFq8Alza6guH9D9LKe2UxZXqJU6uY5a3WjJcI9pXuW\ncd/GmlcLIRnGZ5h5IjQn7SMbZtuvda6GJIgWk/MT9P00g/gkdO05LZ96muMg7uq0\nVrJFd4qMAB6+ZoNW2btIv5A6rcGeb5eAVtw3NP37eg98bmbn6ieQID1cGv+11lI2\nqE4iQx06dljau4tbnm0FU0p9KpjQ47Vahz+cKb+Mw71b6qnIF8zRrc0uwSil5fis\nSP8J7H2yz+1zg7AchjMxu32O3p56El+rY5exAYbL4AQe4VJ5BP1FpP223bSu0Oi7\njyI4LLgvAgMBAAECggEAJ60R/1cSIDNFUePFW9YV54wZIfv9gIa2w/WcjAEf/DSp\nOgAn+K/uCMXnTIroNv8lA45RTNyH4pmqvZD0dl+tCZwE7TxZ7vEVKL03dX1W1ZvM\ndCCUAKzUIM2o0gNUAuFDMYd3cFoKj9Ec2EFUgrht+1cYc4aFaKBbj29E/SoF9MHL\nOn98sBoE8F0ysfFa0eklN0opRakgmek1RbxGG4R+JjeIvLezlKF+AmWkAqgi/XFI\nsXv5VncaMfk31XVKiM0nrhoMM80Ltbibn5KN/vAfW+qayQI+n56wkbdkLi8OzZ90\neOk3v2pPx8Q+ZEhqAhsDyvlJmwF4Flbfs4V2CSNzGQKBgQDc/T1aZY/PA9LI/p4a\nPnNKg3sRXeEsaCCTAdAJLJU/JcZzfv5YyyGnzethvAuvUGsvo4s2K1mX9KmeDEGf\nIkfaLUqmDOFrjh3x/zB5yIZUfYzI3ehYh5onyG0BGhrJvy1/eoDVIySh0NdFuC4t\nQbjm7l+e/h0WwsEWzkYvGn5AvQKBgQC1XAvwxToDkq23m5N3eeJG6rbzPnJzL3jQ\nr5501jImW79XPlq/e71rX7Ok3pa5sjiGKlPdYfKnqY8Y17JKKiP5T+k6jjHuGHBx\nNdcRF8/kT1Onuhrok7cJBBpv2sRHNbQXUZzxXr5Pt3onEKJ+lwN99wN0JEZPiGpL\nr6UBQZJZWwKBgCSCJb+oZbCylgEkp2P4iz11KUC+PLQEY9VFiGPrnKB5EicEhOqQ\nbHf3efqEgX2uEHcnUplZYgzLm7YDmle65xnxP5LdL+R/7wyKtyx3Z1HQCBErL/Zo\nOJx37SIweNp5nf+gcmZDzwp4oQfgnKhXYj+sg9mVa6LV++ZTn56qhs8VAoGAEsX0\ndnf0CWqlkNwJ59Q2GCEzzvon3sSLPQ7w2CdUCaR1qhJKUof8k6DUd7yS3aYVM84t\n4DzDYZeruGabjhHOp4AeJHGTuZHOEeoA2UQdwQR1JGefYXPo/oXuNqXuq3BjtAY+\nuL2V9aqIeoK+T1xSgDeRo/QdUx5L4onMCtU+0QECgYAVaKdgLlBNP01HOO5Z497T\nze7nm7crRwKTmdKDtb0odvMcXQWk8aFjm6CyAqaGHsKbkSEKYMVx5q6/NsOTqBzY\n4AH7sFNCIrfZA3KG4pwcKQgqPqlSPaovr93IyV9z6YcgdM2bvmtVHYnZ4RBkvgLr\nxDmev+8tviPhE03zgY8Y6A==\n-----END PRIVATE KEY-----\n",
+  "client_email": "imperium@imperium-fb452.iam.gserviceaccount.com",
+  "client_id": "113276993700495135470",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/imperium%40imperium-fb452.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}

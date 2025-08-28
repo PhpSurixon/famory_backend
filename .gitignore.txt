@@ -1,0 +1,20 @@
+# Laravel
+/vendor
+/node_modules
+/public/storage
+/storage/*.key
+.env
+.env.local
+.env.*.local
+
+# Laravel 5 & 6 specific
+Homestead.yaml
+Homestead.json
+
+# IDEs
+.idea
+.vscode
+
+# Operating System Files
+.DS_Store
+Thumbs.db
