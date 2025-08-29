@@ -53,7 +53,7 @@ class Post extends Model
         $newBaseUrl = config('services.s3.cdn_url');
 
         // Check if the current value contains the old S3 URL
-        $oldBaseUrl = 'https://fam-cam-output.s3.amazonaws.com';
+        $oldBaseUrl = 'https://famorys3.s3.amazonaws.com';
 
         // If the image path starts with a slash (relative path), prepend the new base URL
         if (strpos($value, '/') === 0) {
@@ -80,7 +80,7 @@ class Post extends Model
         }
 
         // Define the old and new base URLs
-        $oldBaseUrl = 'https://fam-cam-output.s3.amazonaws.com';
+        $oldBaseUrl = 'https://famorys3.s3.amazonaws.com';
         $newBaseUrl = config('services.s3.cdn_url');
 
         // Iterate over the video formats and update the URLs

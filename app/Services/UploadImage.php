@@ -169,7 +169,7 @@ class UploadImage
                 // return $s3Paths;
                 
                 
-                $baseUrl = "https://fam-cam-output.s3.amazonaws.com";
+                $baseUrl = "https://famorys3.s3.amazonaws.com";
                 
                 // Function to remove the base URL from any full S3 path
                 function removeBaseUrl($url, $baseUrl) {

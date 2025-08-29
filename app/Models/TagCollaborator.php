@@ -32,7 +32,7 @@ class TagCollaborator extends Model
     public function getAvatarAttribute($value)
     {
         $newBaseUrl = config('services.s3.cdn_url');
-        $oldBaseUrl = 'https://fam-cam-output.s3.amazonaws.com';
+        $oldBaseUrl = 'https://famorys3.s3.amazonaws.com';
 
         if (strpos($value, '/') === 0) {
             return $newBaseUrl . $value;

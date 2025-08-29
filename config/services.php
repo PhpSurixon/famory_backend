@@ -36,10 +36,10 @@ return [
     ],
     
     'aws' => [
-        'key'    => 'AKIAZPPF7YMND7SXUBWX',
-        'secret' => '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',
+        'key'    => 'AKIAUGAXWKTSR75TFR2O',
+        'secret' => '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',
         'region' => 'us-east-1',
-        'bucket' => 'fam-cam-output',
+        'bucket' => 'famorys3',
     ],
 
     's3' => [
