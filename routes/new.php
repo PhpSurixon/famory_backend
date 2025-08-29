@@ -49,7 +49,7 @@ Route::post('follow', [FollowController::class, 'follow']);
 Route::post('unfollow', [FollowController::class, 'unfollow']);
 Route::get('followers-list', [FollowController::class, 'followers']);
 Route::get('following-list', [FollowController::class, 'following']);
-
+ 
 
 
 });
