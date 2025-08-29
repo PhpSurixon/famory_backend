@@ -45,7 +45,7 @@ class TrustedPartners extends Model
         $newBaseUrl = config('services.s3.cdn_url');
 
         // Check if the current value contains the old S3 URL
-        $oldBaseUrl = 'https://fam-cam-output.s3.amazonaws.com';
+        $oldBaseUrl = 'https://famorys3.s3.amazonaws.com';
 
         // Check if the value is null or empty
         if (empty($value)) {
