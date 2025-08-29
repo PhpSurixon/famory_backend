@@ -36,10 +36,10 @@ return [
     ],
     
     'aws' => [
-        'key'    => 'AKIAUGAXWKTSR75TFR2O',
-        'secret' => '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',
-        'region' => 'us-east-1',
-        'bucket' => 'famorys3',
+        'key'    => env('AWS_ACCESS_KEY_ID'), 
+        'secret' => env('AWS_SECRET_ACCESS_KEY'),
+        'region' => env('AWS_DEFAULT_REGION', 'us-east-1'), 
+        'bucket' => env('AWS_BUCKET', 'famorys3'),
     ],
 
     's3' => [
