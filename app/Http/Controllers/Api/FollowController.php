@@ -67,27 +67,43 @@ class FollowController extends Controller
             Follow::where('follower_id', Auth::id())
                     ->where('following_id', $id)
                     ->delete();
-
-            return response()->json(['message' => "You unfollowed user"]);
+            return response()->json(['message' => "You unfollowed user", 'status' => 'success'], 200);
             
         } catch (Exception $e) {
               return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
         }
     }
 
-    
+
     public function followers(Request $request)
     {
         $authUser = Auth::user();
+
+        // Custom pagination params
+        $limit = (int) $request->get('limit', 1); // default 10
+        $page  = (int) $request->get('page', 1);   // default 1
+        $offset = ($page - 1) * $limit;
+
+        // Total followers count
+        $totalFollowers = Follow::where('following_id', $authUser->id)->count();
+
+        // Fetch paginated followers
         $followers = Follow::where('following_id', $authUser->id)
                             ->with('follower:id,first_name,last_name,email')
+                            ->skip($offset)
+                            ->take($limit)
                             ->get()
                             ->pluck('follower');
 
         return response()->json([
+            'status' => true,
+            'message' => 'Followers fetched successfully',
             'user_id' => $authUser->id,
-            'followers_count' => $followers->count(),
-            'followers' => $followers
+            'followers_count' => $totalFollowers,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => ceil($totalFollowers / $limit),
+            'followers' => $followers,
         ]);
     }
 
@@ -95,15 +111,32 @@ class FollowController extends Controller
     public function following(Request $request)
     {
         $authUser = Auth::user();
+
+        // Custom pagination params
+        $limit = (int) $request->get('limit', 10); // default 10
+        $page  = (int) $request->get('page', 1);   // default 1
+        $offset = ($page - 1) * $limit;
+
+        // Total following count
+        $totalFollowing = Follow::where('follower_id', $authUser->id)->count();
+
+        // Fetch paginated following users
         $following = Follow::where('follower_id', $authUser->id)
-            ->with('following:id,first_name,last_name,email')
-            ->get()
-            ->pluck('following');
+                            ->with('following:id,first_name,last_name,email')
+                            ->skip($offset)
+                            ->take($limit)
+                            ->get()
+                            ->pluck('following');
 
         return response()->json([
+            'status' => true,
+            'message' => 'Following list fetched successfully',
             'user_id' => $authUser->id,
-            'following_count' => $following->count(),
-            'following' => $following
+            'following_count' => $totalFollowing,
+            'page' => $page,
+            'limit' => $limit,
+            'total_pages' => ceil($totalFollowing / $limit),
+            'following' => $following,
         ]);
     }
 }
