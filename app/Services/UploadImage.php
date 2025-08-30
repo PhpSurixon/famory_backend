@@ -349,7 +349,6 @@ class UploadImage
 
             // ---------------- VIDEO ----------------
             if (in_array($fileExtension, $videoExtensions)) {
-                dd($file,'ss');
                 $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
                 $videoBaseName = pathinfo($sanitizedOriginalFileName, PATHINFO_FILENAME);
 
@@ -523,7 +522,6 @@ class UploadImage
             ], 200);
     
         } catch (\Exception $e) {
-            dd($e,"s3");
             fclose($file); // Ensure the file is closed even if there's an error
             return response()->json(['message' => $e->getMessage(), 'status' => 'failed'], 500);
         }
