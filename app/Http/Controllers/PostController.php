@@ -178,7 +178,7 @@ class PostController extends Controller
  
      // google cloud stoorage to upload post images, videos , documents
     
-    public function createPostOLD(Request $request)
+    public function createPost(Request $request)
     {
         
         $validator = Validator::make($request->all(), [
@@ -331,7 +331,7 @@ class PostController extends Controller
         }
     }
 
-    public function createPost(Request $request)
+    public function createPostNEW(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required',

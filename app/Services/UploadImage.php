@@ -35,7 +35,7 @@ class UploadImage
         $this->cdn_url = config('services.s3.cdn_url');
     }
     
-    public function saveMedia($image,$user_id){
+    public function saveMediaOLD($image,$user_id){
         try {
            
             
@@ -326,7 +326,7 @@ class UploadImage
         }
     }
 
-    public function saveMediaNew($image, $user_id)
+    public function saveMedia($image, $user_id)
     {
         try {
             $file = $image;
