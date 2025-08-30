@@ -178,7 +178,7 @@ class PostController extends Controller
  
      // google cloud stoorage to upload post images, videos , documents
     
-    public function createPost(Request $request)
+    public function createPostOLD(Request $request)
     {
         
         $validator = Validator::make($request->all(), [
@@ -331,7 +331,7 @@ class PostController extends Controller
         }
     }
 
-    public function createPostNEW(Request $request)
+    public function createPost(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required',
@@ -384,7 +384,6 @@ class PostController extends Controller
                     }
                 } catch (\Exception $e) {
                     $fileUploadSuccess = false;
-                    \Log::error("Upload error 1: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
                     return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
                 }
             }
@@ -454,8 +453,7 @@ class PostController extends Controller
 
         } catch (\Exception $exception) {
             DB::rollBack();
-            \Log::error("Upload error: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
+            return response()->json(['message' => $exception->getMessage().' ss', 'status' => 'failed'], 500);
         }
     }
 
