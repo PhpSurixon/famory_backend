@@ -348,7 +348,9 @@ class UploadImage
             $audioExtensions = ['mp3', 'wav', 'ogg'];
 
             // ---------------- VIDEO ----------------
-            if (in_array($fileExtension, $videoExtensions)) {
+            if (in_array($fileExtension, $videoExtensions)) 
+            {
+                dd(1);
                 $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
                 $videoBaseName = pathinfo($sanitizedOriginalFileName, PATHINFO_FILENAME);
 
