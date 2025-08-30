@@ -453,7 +453,6 @@ class PostController extends Controller
 
         } catch (\Exception $exception) {
             DB::rollBack();
-            dd($exception,'$exception');
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
