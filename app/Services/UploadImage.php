@@ -367,7 +367,7 @@ class UploadImage
                 if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
                     $ffmpegPath = "C:/ffmpeg/bin/ffmpeg.exe";
                 } else {
-                    $ffmpegPath = "/usr/bin/ffmpeg";
+                    $ffmpegPath = "ffmpeg";
                 }
 
                 // ✅ Generate thumbnails
