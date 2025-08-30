@@ -369,6 +369,7 @@ class PostController extends Controller
             $videoPath = null;
 
             if ($request->hasFile('media') && $request->file('media')->isValid()) {
+                dd($request->media);
                 $file = $request->file('media');
                 $extension = $file->getClientOriginalExtension();
                 $folder = $this->getFolderName($extension);

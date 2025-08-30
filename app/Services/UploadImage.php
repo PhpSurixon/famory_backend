@@ -350,7 +350,7 @@ class UploadImage
             // ---------------- VIDEO ----------------
             if (in_array($fileExtension, $videoExtensions)) 
             {
-                dd(1);
+                
                 $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
                 $videoBaseName = pathinfo($sanitizedOriginalFileName, PATHINFO_FILENAME);
 
@@ -479,7 +479,7 @@ class UploadImage
                 throw new \Exception("Unsupported file type: {$fileExtension}");
             }
         } catch (\Exception $e) {
-            dd($e);
+
             throw $e; // 👈 propagate to createPost()
         }
     }
