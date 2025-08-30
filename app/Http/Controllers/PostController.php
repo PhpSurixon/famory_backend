@@ -376,7 +376,7 @@ class PostController extends Controller
 
                 try {
                     $res = $this->UploadImage->saveMedia($file, $userId);
-                    dd($res);
+                    dd($res,2);
 
                     if ($folder === 'videos') {
                         $videoPath = $res;
