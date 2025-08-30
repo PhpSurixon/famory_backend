@@ -28,3 +28,8 @@ Homestead.json
 .env.production
 .phpactor.json
 auth.json
+
+/public/assets/tmp_media/
+/public/assets/post
+/public/assets/profile_image
+/public/assets/company_logo
