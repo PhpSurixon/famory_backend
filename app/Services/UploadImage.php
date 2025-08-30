@@ -35,7 +35,7 @@ class UploadImage
         $this->cdn_url = config('services.s3.cdn_url');
     }
     
-    public function saveMedia($image,$user_id){
+    public function saveMediaOLD($image,$user_id){
         try {
            
             
@@ -325,6 +325,162 @@ class UploadImage
             // return response()->json(['message' => "Something went wrong", 'status' => 'failed'], 500);
         }
     }
+
+    public function saveMedia($image, $user_id)
+    {
+        try {
+            $file = $image;
+
+            if ($image instanceof \Illuminate\Http\UploadedFile) {
+                $fileExtension = strtolower($image->getClientOriginalExtension());
+            } elseif (is_string($image)) {
+                $fileExtension = pathinfo($image, PATHINFO_EXTENSION);
+            } else {
+                throw new \Exception("Invalid file input");
+            }
+
+            $userId = $user_id;
+            $timestamp = time();
+            $uniqueFolder = $timestamp . $userId;
+
+            $imgExtensions = ['jpeg', 'png', 'jpg', 'gif', 'svg'];
+            $videoExtensions = ['mp4', 'mov','MOV','mkv','avi','wmv'];
+            $audioExtensions = ['mp3', 'wav', 'ogg'];
+
+            // ---------------- VIDEO ----------------
+            if (in_array($fileExtension, $videoExtensions)) {
+                $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
+                $videoBaseName = pathinfo($sanitizedOriginalFileName, PATHINFO_FILENAME);
+
+                $baseDir = public_path("assets/tmp_media/videos/user_{$userId}/{$uniqueFolder}");
+                if (!file_exists($baseDir)) mkdir($baseDir, 0755, true);
+
+                $renamedVideoFilename = "video.{$fileExtension}";
+                $originalVideoPath = $baseDir . DIRECTORY_SEPARATOR . $renamedVideoFilename;
+                $file->move($baseDir, $renamedVideoFilename);
+
+                if (!file_exists($originalVideoPath)) {
+                    throw new \Exception("Video not saved locally");
+                }
+
+                // ✅ FFmpeg path detect
+                if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                    $ffmpegPath = "C:/ffmpeg/bin/ffmpeg.exe";
+                } else {
+                    $ffmpegPath = "ffmpeg";
+                }
+
+                // ✅ Generate thumbnails
+                $sizes = ['small'=>'320x180','medium'=>'640x360','large'=>'1280x720'];
+                $thumbnailPaths = [];
+                foreach ($sizes as $size => $dimensions) {
+                    $thumbnailFilename = $baseDir . DIRECTORY_SEPARATOR . "{$size}.jpeg";
+                    $command = "$ffmpegPath -i " . escapeshellarg($originalVideoPath) .
+                    " -ss 00:00:01.000 -vframes 1 -s {$dimensions} " .
+                    escapeshellarg($thumbnailFilename) . " -y";
+                    shell_exec($command);
+
+                    if (!file_exists($thumbnailFilename)) {
+                        throw new \Exception("Failed to generate {$size} thumbnail");
+                    }
+                    $thumbnailPaths[$size] = $thumbnailFilename;
+                }
+
+                // ✅ Compress video
+                $compressedVideoPath = $baseDir . DIRECTORY_SEPARATOR . "{$videoBaseName}_compressed.mp4";
+                $command = "$ffmpegPath -i " . escapeshellarg($originalVideoPath) .
+                " -vcodec libx264 -crf 28 " . escapeshellarg($compressedVideoPath) . " -y";
+                shell_exec($command);
+
+                if (!file_exists($compressedVideoPath)) {
+                    throw new \Exception("Compressed video not generated");
+                }
+
+                // ✅ Upload to S3
+                $s3Paths = [];
+
+                $key = "videos/user_{$userId}/{$uniqueFolder}/{$renamedVideoFilename}";
+                $res = $this->uploadStreamingObject($key, $originalVideoPath);
+                $responseData = json_decode($res->getContent(), true);
+                if ($responseData['status'] !== "success") throw new \Exception("Original video upload failed");
+                $s3Paths['original'] = $responseData['data']['filePath'];
+
+                $compressedKey = "videos/user_{$userId}/{$uniqueFolder}/{$videoBaseName}_compressed.mp4";
+                $res = $this->uploadStreamingObject($compressedKey, $compressedVideoPath);
+                $responseData = json_decode($res->getContent(), true);
+                if ($responseData['status'] !== "success") throw new \Exception("Compressed video upload failed");
+                $s3Paths['compressed'] = $responseData['data']['filePath'];
+
+                foreach ($thumbnailPaths as $size => $thumbnailPath) {
+                    $thumbnailKey = "videos/user_{$userId}/{$uniqueFolder}/{$size}.jpeg";
+                    $res = $this->uploadStreamingObject($thumbnailKey, $thumbnailPath);
+                    $responseData = json_decode($res->getContent(), true);
+                    if ($responseData['status'] !== "success") throw new \Exception("{$size} thumbnail upload failed");
+                    $s3Paths['thumbnails'][$size] = $responseData['data']['filePath'];
+                }
+
+                \File::deleteDirectory($baseDir);
+
+                $baseUrl = "https://famorys3.s3.amazonaws.com";
+                $removeBase = fn($url) => str_replace($baseUrl, '', $url);
+
+                return [
+                    'original'   => $removeBase($s3Paths['original']),
+                    'compressed' => $removeBase($s3Paths['compressed']),
+                    'thumbnails' => array_map($removeBase, $s3Paths['thumbnails']),
+                ];
+            }
+
+            // ---------------- IMAGE ----------------
+            elseif (in_array($fileExtension, $imgExtensions)) {
+                $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
+                $localFolderPath = public_path("assets/tmp_media/images/user_{$userId}/{$uniqueFolder}");
+                if (!file_exists($localFolderPath)) mkdir($localFolderPath, 0755, true);
+
+                $localImagePath = $localFolderPath . DIRECTORY_SEPARATOR . $sanitizedOriginalFileName;
+                $file->move($localFolderPath, $sanitizedOriginalFileName);
+
+                $key = "images/user_{$userId}/{$uniqueFolder}/{$sanitizedOriginalFileName}";
+                $res = $this->uploadStreamingObject($key, $localImagePath);
+                $responseData = json_decode($res->getContent(), true);
+                if ($responseData['status'] !== "success") throw new \Exception("Image upload failed");
+
+                \File::delete($localImagePath);
+                \File::deleteDirectory($localFolderPath);
+
+                $fullUrl = $responseData['data']['filePath'];
+                return parse_url($fullUrl, PHP_URL_PATH);
+            }
+
+            // ---------------- AUDIO ----------------
+            elseif (in_array($fileExtension, $audioExtensions)) {
+                $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
+                $audioDir = public_path("assets/tmp_media/audio/user_{$userId}");
+                if (!file_exists($audioDir)) mkdir($audioDir, 0755, true);
+
+                $path = "{$audioDir}/{$sanitizedOriginalFileName}";
+                $file->move($audioDir, $sanitizedOriginalFileName);
+
+                $key = "audio/user_{$userId}/{$sanitizedOriginalFileName}";
+                $res = $this->uploadStreamingObject($key, $path);
+                $responseData = json_decode($res->getContent(), true);
+                if ($responseData['status'] !== "success") throw new \Exception("Audio upload failed");
+
+                unlink($path);
+                if (is_dir($audioDir) && count(scandir($audioDir)) === 2) rmdir($audioDir);
+
+                $fullUrl = $responseData['data']['filePath'];
+                return parse_url($fullUrl, PHP_URL_PATH);
+            }
+
+            else {
+                throw new \Exception("Unsupported file type: {$fileExtension}");
+            }
+        } catch (\Exception $e) {
+            throw $e; // 👈 propagate to createPost()
+        }
+    }
+
     
     
     private function sanitizeFileName($fileName) {
@@ -346,7 +502,7 @@ class UploadImage
                 'Bucket' => $this->bucket,
                 'Key'    => $key,
                 'Body'   => $file,
-                'ACL'    => 'public-read', // Set access control as needed
+                // 'ACL'    => 'public-read', // Set access control as needed
             ]);
     
             fclose($file); // Close the file after the upload

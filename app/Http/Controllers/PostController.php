@@ -178,7 +178,7 @@ class PostController extends Controller
  
      // google cloud stoorage to upload post images, videos , documents
     
-    public function createPost(Request $request)
+    public function createPostOLD(Request $request)
     {
         
         $validator = Validator::make($request->all(), [
@@ -330,6 +330,135 @@ class PostController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
+
+    public function createPost(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required',
+            'post_type' => 'required',
+            'tag_id' => 'nullable',
+            'description' => 'required',
+            'schedule_type' => 'required',
+            'reoccurring_type' => 'required',
+            'media' => 'nullable|file',
+            'video_formats' => 'nullable|file',
+            'album_id' => 'nullable|exists:albums,id',
+            'media_type' => 'required|in:audio,video,picture,note',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $getHeaders = apache_request_headers();
+            $timezone = $getHeaders['time_zone'] ?? 'UTC';
+
+            // Validate Tag
+            if ($request->tag_id) {
+                $isValid = FamilyTagId::where(['family_tag_id' => $request->tag_id, 'user_id' => Auth::id()])->first();
+                if (!$isValid) {
+                    return $this->errorResponse("Famery Tag is not valid, please check", 'id_not_valid', 400);
+                }
+            }
+
+            // Upload media if present
+            $fileUploadSuccess = true;
+            $filePath = null;
+            $videoPath = null;
+
+            if ($request->hasFile('media') && $request->file('media')->isValid()) {
+                $file = $request->file('media');
+                $extension = $file->getClientOriginalExtension();
+                $folder = $this->getFolderName($extension);
+                $userId = Auth::id();
+
+                try {
+                    $res = $this->UploadImage->saveMedia($file, $userId);
+
+                    if ($folder === 'videos') {
+                        $videoPath = $res;
+                    } else {
+                        $filePath = $res;
+                    }
+                } catch (\Exception $e) {
+                    $fileUploadSuccess = false;
+                    return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
+                }
+            }
+
+            // Only create post if file upload succeeded
+            if ($fileUploadSuccess) {
+                $post = new Post();
+                $post->tag_id = $request->tag_id;
+                $post->title = $request->title;
+                $post->description = $request->description;
+                $post->media_type = $request->media_type;
+                $post->file = $filePath;
+                $post->video_formats = $videoPath;
+                $post->post_type = $request->post_type;
+                $post->album_id = $request->album_id ?? null;
+                $post->user_id = Auth::id();
+                $post->save();
+
+                // Scheduling
+                $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)
+                                          ->setTimezone('UTC');
+
+                $schedule = new SchedulingPost();
+                $schedule->post_id = $post->id;
+                $schedule->timezone = $timezone;
+                $schedule->schedule_type = $request->schedule_type;
+                $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
+                $schedule->schedule_date = $scheduledDateTime->toDateString();
+                $schedule->schedule_time = $scheduledDateTime->toTimeString();
+                $schedule->reoccurring_type = $request->reoccurring_type;
+                if ($request->reoccurring_type == "yes") {
+                    $schedule->reoccurring_time = $request->reoccurring_time;
+                }
+                $schedule->save();
+
+                // Album post logic
+                if ($request->schedule_type == "now" && $request->album_id) {
+                    $albumPost = new AlbumPost();
+                    $albumPost->album_id = $request->album_id;
+                    $albumPost->post_id = $post->id;
+                    $albumPost->user_id = Auth::id();
+                    $albumPost->save();
+                }
+
+                // Family post member logic
+                if ($post->post_type == "family" && !empty($request->member_id)) {
+                    foreach ($request->member_id as $memberId) {
+                        $memberIdsArray = explode(',', $memberId);
+                        foreach ($memberIdsArray as $singleMemberId) {
+                            if (!empty($singleMemberId)) {
+                                $newMember = new PostMember();
+                                $newMember->post_id = $post->id;
+                                $newMember->post_by = $post->user_id;
+                                $newMember->member_id = intval($singleMemberId);
+                                $newMember->save();
+                                $this->notifyMessage(Auth::user(), $singleMemberId, null, 'post');
+                            }
+                        }
+                    }
+                }
+
+                DB::commit();
+                return response()->json(['message' => 'You have created a new post!', 'status' => 'success', 'data' => $post], 200);
+            }
+
+            return response()->json(['message' => 'No file uploaded, post not created', 'status' => 'failed'], 400);
+
+        } catch (\Exception $exception) {
+            DB::rollBack();
+            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
+        }
+    }
+
+
+
     public function editPost(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
