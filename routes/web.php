@@ -9,6 +9,11 @@ use App\Http\Controllers\PageInfoController;
 use App\Http\Controllers\AdvertiserController;
 use Illuminate\Http\Request;
 
+
+Route::get('chek',function(){
+     phpinfo();
+});
+
 Route::get('/', function () {
     // return redirect('login'); 
     return redirect('admin/login');
