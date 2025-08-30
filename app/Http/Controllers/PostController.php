@@ -375,7 +375,6 @@ class PostController extends Controller
                 $userId = Auth::id();
 
                 try {
-                    dd($file);
                     $res = $this->UploadImage->saveMedia($file, $userId);
 
                     if ($folder === 'videos') {
@@ -385,6 +384,7 @@ class PostController extends Controller
                     }
                 } catch (\Exception $e) {
                     $fileUploadSuccess = false;
+                    \Log::error("Upload error 1: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
                     return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
                 }
             }
@@ -454,6 +454,7 @@ class PostController extends Controller
 
         } catch (\Exception $exception) {
             DB::rollBack();
+            \Log::error("Upload error: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
