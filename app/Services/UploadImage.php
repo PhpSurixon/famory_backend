@@ -349,6 +349,7 @@ class UploadImage
 
             // ---------------- VIDEO ----------------
             if (in_array($fileExtension, $videoExtensions)) {
+                dd($file,'ss');
                 $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
                 $videoBaseName = pathinfo($sanitizedOriginalFileName, PATHINFO_FILENAME);
 

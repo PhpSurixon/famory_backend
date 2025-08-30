@@ -376,7 +376,6 @@ class PostController extends Controller
 
                 try {
                     $res = $this->UploadImage->saveMedia($file, $userId);
-                    dd($res,2);
 
                     if ($folder === 'videos') {
                         $videoPath = $res;
@@ -384,7 +383,6 @@ class PostController extends Controller
                         $filePath = $res;
                     }
                 } catch (\Exception $e) {
-                    dd($e,1);
                     $fileUploadSuccess = false;
                     return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
                 }
