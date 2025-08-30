@@ -375,6 +375,7 @@ class PostController extends Controller
                 $userId = Auth::id();
 
                 try {
+                    dd(1222);
                     $res = $this->UploadImage->saveMedia($file, $userId);
                     dd($res,12);
 
