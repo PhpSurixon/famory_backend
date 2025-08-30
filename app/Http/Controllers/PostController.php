@@ -333,7 +333,6 @@ class PostController extends Controller
 
     public function createPost(Request $request)
     {
-        dd($request->all());
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'post_type' => 'required',
@@ -368,8 +367,6 @@ class PostController extends Controller
             $fileUploadSuccess = true;
             $filePath = null;
             $videoPath = null;
-
-            dd($request->all());
 
             if ($request->hasFile('media') && $request->file('media')->isValid()) {
                 $file = $request->file('media');
