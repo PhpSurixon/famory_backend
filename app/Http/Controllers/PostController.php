@@ -333,6 +333,7 @@ class PostController extends Controller
 
     public function createPost(Request $request)
     {
+        dd($request->all());
         $validator = Validator::make($request->all(), [
             'title' => 'required',
             'post_type' => 'required',
