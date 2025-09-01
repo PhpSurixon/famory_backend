@@ -31,6 +31,7 @@ use App\Traits\OneSignalTrait;
 use App\Mail\SendMailreset;
 use App\Mail\InviteGuestUserMail;
 use App\Models\Notification;
+use App\Models\Follow;
 use App\Services\UploadImage;
 
 use Illuminate\Support\Facades\Log;
@@ -1985,6 +1986,83 @@ class UserController extends Controller
         } catch (\Exception $e) {
             return response()->json(['message' => 'An error occurred: ' . $e->getMessage(), 'status' => 'fail', 'data' => null], 500);
         } 
+    }
+
+
+    public function userList(Request $request)
+    {
+        try {
+            // Custom pagination params
+            $limit = (int) $request->get('limit', 30); // default 30
+            $page  = (int) $request->get('page', 1);   // default 1
+            $offset = ($page - 1) * $limit;
+            $authUser = Auth::user();
+            $search = $request->get('search'); // search keyword
+
+            // Get all user IDs that are already connected (follower/following)
+            $relatedUserIds = Follow::where(function($q) use ($authUser) {
+                                        $q->where('follower_id', $authUser->id)
+                                        ->orWhere('following_id', $authUser->id);
+                                    })
+                                    ->pluck('follower_id')
+                                    ->merge(
+                                        Follow::where(function($q) use ($authUser) {
+                                            $q->where('follower_id', $authUser->id)
+                                            ->orWhere('following_id', $authUser->id);
+                                        })->pluck('following_id')
+                                    )
+                                    ->unique()
+                                    ->toArray();
+
+            // Exclude myself
+            $relatedUserIds[] = $authUser->id;
+
+            // Base query
+            $query = User::select('id','first_name','last_name','email','username','image')
+                        ->whereNotIn('id', $relatedUserIds)
+                        ->whereNull('deleted_at')
+                        ->where('role_id', 2);
+
+            // Apply search filter if provided
+            if (!empty($search)) {
+                $query->where(function($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            // Get total count
+            $totalUsers = $query->count();
+
+            // Get paginated result
+            $users = $query->orderBy('id', 'desc')
+                        ->skip($offset)
+                        ->take($limit)
+                        ->get();
+
+            $data = [
+                'user_id'     => $authUser->id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $users
+            ];
+
+            return response()->json([
+                'message' => 'User List fetched successfully',
+                'status'  => "success",
+                'data'    => $data
+            ],200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! ".$e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
     }
 
 

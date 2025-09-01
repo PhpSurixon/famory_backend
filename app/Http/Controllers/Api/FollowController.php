@@ -77,87 +77,93 @@ class FollowController extends Controller
 
     public function followers(Request $request)
     {
-        try 
-        {
-            $authUser = Auth::user();
-
-                // Custom pagination params
-                $limit = (int) $request->get('limit', 1); // default 10
-                $page  = (int) $request->get('page', 1);   // default 1
-                $offset = ($page - 1) * $limit;
-
-                // Total followers count
-                $totalFollowers = Follow::where('following_id', $authUser->id)->count();
-                // Fetch paginated followers
-                $followers = Follow::where('following_id', $authUser->id)
-                                    ->with('follower:id,first_name,last_name,email')
-                                    ->skip($offset)
-                                    ->take($limit)
-                                    ->get()
-                                    ->pluck('follower');
-                $data = [
-                           'user_id'         => $authUser->id,
-                           'followers_count' => $totalFollowers,
-                           'page'            => $page,
-                           'limit'           => $limit,
-                           'total_pages'     => ceil($totalFollowers / $limit),
-                           'followers'       => $followers
-                        ];
-
-                return response()->json([
-                    'message' => 'Followers fetched successfully',
-                    'status'  => "success",
-                    'data'    => $data
-                    
-                ]);
-            
-        } catch (Exception $e) {
-             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
-        }
-        
-    }
-
-    
-    public function following(Request $request)
-    {
-        try 
-        {
-            $authUser = Auth::user();
-
-            // Custom pagination params
-            $limit  = (int) $request->get('limit', 10); // default 10
-            $page   = (int) $request->get('page', 1);   // default 1
+        try {
+            $limit = (int) $request->get('limit', 30);
+            $page  = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
+            $authUser = Auth::user();
 
-            // Total following count
-            $totalFollowing = Follow::where('follower_id', $authUser->id)->count();
+            $query = Follow::where('following_id', $authUser->id)
+                            // ->where('status', 'approved')
+                            ->with('follower:id,first_name,last_name,email,username,image');
 
-            // Fetch paginated following users
-            $following = Follow::where('follower_id', $authUser->id)
-                                ->with('following:id,first_name,last_name,email')
-                                ->skip($offset)
-                                ->take($limit)
-                                ->get()
-                                ->pluck('following');
+            $totalUsers = $query->count();
 
-            $data =    [
-                           'user_id' => $authUser->id,
-                           'following_count' => $totalFollowing,
-                           'page' => $page,
-                           'limit' => $limit,
-                           'total_pages' => ceil($totalFollowing / $limit),
-                           'following' => $following,
-                       ];
+            $followers = $query->orderBy('id','desc')
+                               ->skip($offset)
+                               ->take($limit)
+                               ->get()
+                               ->pluck('follower'); // only return user info
+
+            $data = [
+                'user_id'     => $authUser->id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $followers
+            ];
 
             return response()->json([
-                'message' => 'Following list fetched successfully',
-                'status' => "success",
+                'message' => 'Followers fetched successfully',
+                'status'  => "success",
                 'data'    => $data
-                
             ]);
-            
-        } catch (Exception $e) {
-            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! ".$e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
         }
     }
+
+
+    public function following(Request $request)
+    {
+        try {
+            $limit = (int) $request->get('limit', 30);
+            $page  = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $authUser = Auth::user();
+
+            $query = Follow::where('follower_id', $authUser->id)
+                            // ->where('status', 'approved')
+                            ->with('following:id,first_name,last_name,email,username,image');
+
+            $totalUsers = $query->count();
+
+            $following = $query->orderBy('id','desc')
+                               ->skip($offset)
+                               ->take($limit)
+                               ->get()
+                               ->pluck('following'); // only return user info
+
+            $data = [
+                'user_id'     => $authUser->id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $following
+            ];
+
+            return response()->json([
+                'message' => 'Following fetched successfully',
+                'status'  => "success",
+                'data'    => $data
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! ".$e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+
+
+
+
 }
