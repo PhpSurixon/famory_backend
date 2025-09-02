@@ -12,6 +12,7 @@ class Follow extends Model
     protected $fillable = [
         'follower_id',
         'following_id',
+        'status',
     ];
 
     // User who is following
