@@ -52,10 +52,10 @@ class FollowController extends Controller
 
             if ($status == 'pending') {
                 $msg = "Follow request sent to {$targetUser->first_name}";
-                $this->notifyMessage($authUser, $targetUser->id, null, "follow_request"); // pending request
+                $this->notifyMessage($authUser, $targetUser->id, $authUser->id, "follow_request"); // pending request
             } else {
                 $msg = "You are now following {$targetUser->first_name}";
-                $this->notifyMessage($authUser, $targetUser->id, null, "follow"); // auto follow
+                $this->notifyMessage($authUser, $targetUser->id, $authUser->id, "follow"); // auto follow
             }
 
             return response()->json(['message' => $msg, 'status' => 'success'], 200);
@@ -331,10 +331,10 @@ class FollowController extends Controller
 
             if ($action === 'approve') {
                 $followRequest->status = 'approved';
-                $this->notifyMessage($authUser,$followRequest->follower_id,null,"follow_accept");
+                $this->notifyMessage($authUser,$followRequest->follower_id,$authUser->id,"follow_accept");
             } elseif ($action === 'reject') {
                 $followRequest->status = 'rejected';
-                $this->notifyMessage($authUser,$followRequest->follower_id,null,"follow_reject");
+                // $this->notifyMessage($authUser,$followRequest->follower_id,null,"follow_reject");
             } else {
                 return response()->json(['message' => 'Invalid action'], 400);
             }

@@ -90,6 +90,7 @@ trait OneSignalTrait
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
+                    "post" => $item
                 ];
 
                 break;
@@ -111,6 +112,7 @@ trait OneSignalTrait
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
+                    "post" => $item
                 ];
                 break;
             case "deceased":
@@ -176,6 +178,7 @@ trait OneSignalTrait
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
+                    "post" => $item
                 ];
                 break;
             case "follow_reject":
@@ -192,6 +195,7 @@ trait OneSignalTrait
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
+                    "post" => $item
                 ];
                 break;
 
@@ -220,9 +224,16 @@ trait OneSignalTrait
         $noti->title = $title;
         $noti->message = $message;
         $noti->type = $type;
-        $noti->post_id = is_object($item) ? $item->id : null;
-        $noti->group_id = is_object($item) ? $item->id : null;
         $noti->marked_user_id = $deceasedById;
+        if (is_object($item)) {
+            $noti->item_id  =  $item->id;
+            $noti->post_id  =  $item->id;
+            $noti->group_id = $item->id; 
+        } elseif (is_numeric($item)) {
+            $noti->item_id = $item;  // if you passed just an ID instead of object
+        } else {
+            $noti->item_id = 0;      // default (system notification, no redirection)
+        }
         $noti->save();
 
         if ($noti) {
