@@ -67,6 +67,7 @@ use App\Models\SubscribedPartner;
 use App\Models\FeaturedCompanyPrice;
 use App\Models\SubscriptionSetting;
 use App\Models\InviteGuestUser;
+use App\Models\Follow;
 
 use App\Services\StripeService;
 use App\Services\UploadImage;
@@ -1289,7 +1290,7 @@ class ApiController extends Controller
         }
     }
     
-    public function getUserById(Request $request, $user_id)
+    public function getUserByIdOLD(Request $request, $user_id)
     {
         // $user = User::find($user_id);
         $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
@@ -1335,6 +1336,85 @@ class ApiController extends Controller
             return response()->json(['message' => 'User not found','status' => 'error','data' => null], 404);
         }
     }
+
+    public function getUserById(Request $request, $user_id)
+    {
+        $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
+                    ->find($user_id);
+                    
+        if($user) {
+            $user->is_live = true;
+            $user->passed_date = null;
+
+            // ✅ Live status check
+            $isExist = UserLiveStatus::where('user_id',$user_id)->orderBy('id','DESC')->first();
+            if($isExist){
+                if($isExist->is_alive == 0){
+                    $update_time = $isExist->created_at->addHours(72)->toDateTimeString();
+                    $current_time = Carbon::now()->toDateTimeString();
+                    if($current_time >= $update_time){
+                        $user->is_live = false;
+                        $user->passed_date = $isExist->created_at->format('m/d/y');
+                    }else{
+                        $user->is_live = true;
+                    }
+                }else{
+                    $user->is_live = true;
+                }
+            }else{
+                $user->is_live = null;
+            }
+            
+            // Is Following check
+            $isFollowing = Follow::where('follower_id', Auth::id())
+                                 ->where('following_id', $user_id)
+                                 ->where('status', 'approved') // only approved requests
+                                 ->exists();
+            $user->is_following = $isFollowing;
+
+            // Is Family Member check
+            $member = FamilyMember::where(function ($query) use ($user_id) {
+                $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
+                      ->orWhere(function ($query) use ($user_id) {
+                          $query->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
+                      });
+            })->first();
+            $user->is_family_member = (!empty($member)) ? true : false;
+
+            // Add Counts
+            $followerCount  = Follow::where('following_id', $user_id)
+                                    ->where('status', 'approved')
+                                    ->count();
+
+            $followingCount = Follow::where('follower_id', $user_id)
+                                    ->where('status', 'approved')
+                                    ->count();
+
+            $postCount      = Post::where('user_id', $user_id)->count(); // assuming you have Post model
+
+            $user->follower_count  = $followerCount;
+            $user->following_count = $followingCount;
+            $user->post_count      = $postCount;
+
+            unset($user->userLiveStatus);
+
+            return response()->json([
+                'message' => 'Successfully retrieved user data',
+                'status'  => 'success',
+                'data'    => $user
+            ], 200);
+
+        } else {
+            return response()->json([
+                'message' => 'User not found',
+                'status'  => 'error',
+                'data'    => null
+            ], 404);
+        }
+    }
+
+
+
 
 
     public function createAlbum(Request $request)
