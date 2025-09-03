@@ -354,6 +354,64 @@ class FollowController extends Controller
         }
     }
 
+    public function getFollowRequestDetail(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'follow_id' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            }
+
+            $authUser = Auth::user();
+            $followRequest = Follow::where('id', $request->follow_id)
+                ->where('following_id', $authUser->id)
+                ->where('status', 'pending')
+                ->with([
+                    'follower:id,first_name,last_name,username,email,image',
+                ])
+                ->first();
+
+            if (!$followRequest) {
+                return response()->json([
+                    'message' => 'Follow request not found or not pending',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            $user = $followRequest->follower;
+
+            $data = [
+                'request_id'   => $followRequest->id,
+                'status'       => $followRequest->status,
+                'created_at'   => $followRequest->created_at->diffForHumans(),
+                'user' => [
+                    'id'         => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name'  => $user->last_name,
+                    'username'   => $user->username,
+                    'email'      => $user->email,
+                    'image'      => $user->image,
+                ]
+            ];
+
+            return response()->json([
+                'message' => 'Follow request details fetched successfully',
+                'status'  => 'success',
+                'data'    => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! ' . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+
 
 
 
