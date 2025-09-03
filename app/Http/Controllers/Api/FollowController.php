@@ -104,10 +104,21 @@ class FollowController extends Controller
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
             $authUser = Auth::user();
+            $search = $request->get('search'); // optional search param
 
             $query = Follow::where('following_id', $authUser->id)
                             ->where('status', 'approved')
                             ->with('follower:id,first_name,last_name,email,username,image');
+
+            // 🔍 Apply search if present
+            if (!empty($search)) {
+                $query->whereHas('follower', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
 
             $totalUsers = $query->count();
 
@@ -135,30 +146,30 @@ class FollowController extends Controller
                 }
 
                 return [
-                    'follow_id'   => $follow->id,   // unique follow table row id
-                    'user_id'     => $follower->id,
-                    'first_name'  => $follower->first_name,
-                    'last_name'   => $follower->last_name,
-                    'email'       => $follower->email,
-                    'username'    => $follower->username,
-                    'image'       => $follower->image,
+                    'follow_id'     => $follow->id,
+                    'user_id'       => $follower->id,
+                    'first_name'    => $follower->first_name,
+                    'last_name'     => $follower->last_name,
+                    'email'         => $follower->email,
+                    'username'      => $follower->username,
+                    'image'         => $follower->image,
                     'action_button' => $action
                 ];
             });
 
             $data = [
-                'user_id' => $authUser->id,
-                'count' => $totalUsers,
-                'page' => $page,
-                'limit' => $limit,
+                'user_id'     => $authUser->id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
                 'total_pages' => ceil($totalUsers / $limit),
-                'users' => $users
+                'users'       => $users
             ];
 
             return response()->json([
                 'message' => 'Followers fetched successfully',
-                'status' => "success",
-                'data' => $data
+                'status'  => "success",
+                'data'    => $data
             ]);
 
         } catch (\Exception $e) {
@@ -176,10 +187,21 @@ class FollowController extends Controller
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
             $authUser = Auth::user();
+            $search = $request->get('search'); // 🔍 search query
 
             $query = Follow::where('follower_id', $authUser->id)
                 ->where('status', 'approved')
                 ->with('following:id,first_name,last_name,email,username,image');
+
+            // Apply search on "following" user details
+            if (!empty($search)) {
+                $query->whereHas('following', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                    ->orWhere('last_name', 'like', "%{$search}%")
+                    ->orWhere('username', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
 
             $totalUsers = $query->count();
 
@@ -203,27 +225,28 @@ class FollowController extends Controller
             });
 
             $data = [
-                'user_id' => $authUser->id,
-                'count' => $totalUsers,
-                'page' => $page,
-                'limit' => $limit,
+                'user_id'     => $authUser->id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
                 'total_pages' => ceil($totalUsers / $limit),
-                'users' => $users
+                'users'       => $users
             ];
 
             return response()->json([
                 'message' => 'Following fetched successfully',
-                'status' => "success",
-                'data' => $data
+                'status'  => "success",
+                'data'    => $data
             ]);
 
         } catch (\Exception $e) {
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
-                'status' => 'failed'
+                'status'  => 'failed'
             ], 400);
         }
     }
+
 
 
     public function pendingRequests(Request $request)
