@@ -52,7 +52,7 @@ Route::post('follow/request-status', [FollowController::class, 'respondToRequest
 Route::get('followers-list', [FollowController::class, 'followers']);
 Route::get('following-list', [FollowController::class, 'following']);
 Route::get('follow/pending', [FollowController::class, 'pendingRequests']);
-Route::post('follow/pending-requests-detail', [FollowController::class, 'getFollowRequestDetail']);
+Route::post('follow/requests-detail', [FollowController::class, 'getFollowRequestDetail']);
 
 
 Route::get('user-list', [UserController::class,'userList']);

@@ -369,7 +369,7 @@ class FollowController extends Controller
             $authUser = Auth::user();
             $followRequest = Follow::where('id', $request->follow_id)
                 ->where('following_id', $authUser->id)
-                ->where('status', 'pending')
+                // ->where('status', 'pending')
                 ->with([
                     'follower:id,first_name,last_name,username,email,image',
                 ])
