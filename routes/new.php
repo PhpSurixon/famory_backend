@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\ContactController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\UserReportController;
 
 
 
@@ -62,5 +63,8 @@ Route::get('notification/list', [NotificationController::class,'notificationList
 Route::post('notification/mark-all-seen', [NotificationController::class, 'markAllSeen']);
 Route::post('notification/mark-single-seen', [NotificationController::class, 'markSingleSeen']);
 Route::post('notification/single-delete', [NotificationController::class, 'notificationSingleDelete']);
+
+#user report
+Route::post('report-user', [UserReportController::class, 'storeReport']);
 
 });
