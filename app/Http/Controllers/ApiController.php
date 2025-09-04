@@ -831,6 +831,13 @@ class ApiController extends Controller
             $isExist = UserLiveStatus::where('user_id', $current_user)->latest()->first();
             $data['is_live'] = $isExist ? $isExist->is_alive == 1 : true;
 
+            $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
+            $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
+            $postCount      = Post::where('user_id', $current_user)->count();
+            $data['follower_count'] = $followerCount;
+            $data['following_count'] = $followingCount;
+            $data['post_count'] = $postCount;
+
             return response()->json([
                 "message" => "Profile retrieved successfully",
                 "status"  => "success",
