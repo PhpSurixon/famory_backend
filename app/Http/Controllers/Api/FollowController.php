@@ -103,10 +103,25 @@ class FollowController extends Controller
             $limit = (int) $request->get('limit', 30);
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
-            $authUser = Auth::user();
             $search = $request->get('search'); // optional search param
+            $user_id = $request->get('user_id'); // optional search param
 
-            $query = Follow::where('following_id', $authUser->id)
+            if(!empty($user_id))
+            {
+                $checkUser = User::find($user_id);
+                if (!$checkUser) {
+                    return response()->json([
+                        'message' => 'User not found',
+                        'status'  => 'failed'
+                    ], 404);
+                }
+                $get_follower_user_id = $user_id;
+            }else{
+                $authUser = Auth::user();
+                $get_follower_user_id = $authUser->id;
+            }
+
+            $query = Follow::where('following_id', $get_follower_user_id)
                             ->where('status', 'approved')
                             ->with('follower:id,first_name,last_name,email,username,image');
 
@@ -127,11 +142,11 @@ class FollowController extends Controller
                 ->take($limit)
                 ->get();
 
-            $users = $followers->map(function ($follow) use ($authUser) {
+            $users = $followers->map(function ($follow) use ($get_follower_user_id) {
                 $follower = $follow->follower;
 
                 // Check if I already follow this user back
-                $relation = Follow::where('follower_id', $authUser->id)
+                $relation = Follow::where('follower_id', $get_follower_user_id)
                                 ->where('following_id', $follower->id)
                                 ->first();
 
@@ -159,7 +174,7 @@ class FollowController extends Controller
             });
 
             $data = [
-                'user_id'     => $authUser->id,
+                'user_id'     => (int)$get_follower_user_id,
                 'count'       => $totalUsers,
                 'page'        => $page,
                 'limit'       => $limit,
@@ -174,6 +189,7 @@ class FollowController extends Controller
             ]);
 
         } catch (\Exception $e) {
+           
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
                 'status' => 'failed'
@@ -188,9 +204,24 @@ class FollowController extends Controller
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
             $authUser = Auth::user();
-            $search = $request->get('search'); // 🔍 search query
+            $search = $request->get('search'); 
+            $user_id = $request->get('user_id');
+            if(!empty($user_id))
+            {
+                $checkUser = User::find($user_id);
+                if (!$checkUser) {
+                    return response()->json([
+                        'message' => 'User not found',
+                        'status'  => 'failed'
+                    ], 404);
+                }
+                $get_follower_user_id = $user_id;
+            }else{
+                $authUser = Auth::user();
+                $get_follower_user_id = $authUser->id;
+            }
 
-            $query = Follow::where('follower_id', $authUser->id)
+            $query = Follow::where('follower_id', $get_follower_user_id)
                 ->where('status', 'approved')
                 ->with('following:id,first_name,last_name,email,username,image');
 
@@ -227,7 +258,7 @@ class FollowController extends Controller
             });
 
             $data = [
-                'user_id'     => $authUser->id,
+                'user_id'     => (int)$get_follower_user_id,
                 'count'       => $totalUsers,
                 'page'        => $page,
                 'limit'       => $limit,
