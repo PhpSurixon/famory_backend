@@ -144,7 +144,8 @@ class FollowController extends Controller
                 } else {
                     $action = "Follow Back"; // fallback
                 }
-
+                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+                
                 return [
                     'follow_id'     => $follow->id,
                     'user_id'       => $follower->id,
@@ -152,7 +153,7 @@ class FollowController extends Controller
                     'last_name'     => $follower->last_name,
                     'email'         => $follower->email,
                     'username'      => $follower->username,
-                    'image'         => $follower->image,
+                    'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
                     'action_button' => $action
                 ];
             });
@@ -212,6 +213,7 @@ class FollowController extends Controller
 
             $users = $following->map(function ($follow) {
                 $user = $follow->following;
+                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
                 return [
                     'follow_id'   => $follow->id,   // unique row id from follows table
@@ -220,7 +222,7 @@ class FollowController extends Controller
                     'last_name'   => $user->last_name,
                     'email'       => $user->email,
                     'username'    => $user->username,
-                    'image'       => $user->image,
+                    'image'       => $user->image ? $s3BaseUrl . $user->image : null,
                 ];
             });
 

@@ -1998,6 +1998,7 @@ class UserController extends Controller
             $offset = ($page - 1) * $limit;
             $authUser = Auth::user();
             $search = $request->get('search'); // search keyword
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
             // Get all user IDs that are already connected (follower/following)
             $relatedUserIds = Follow::where(function($q) use ($authUser) {
@@ -2041,6 +2042,18 @@ class UserController extends Controller
                         ->skip($offset)
                         ->take($limit)
                         ->get();
+
+            $users = $users->map(function ($user) use ($s3BaseUrl) {
+            $userArray = $user->toArray(); // convert to array
+
+            if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
+            $userArray['image'] = rtrim($s3BaseUrl, '/') . '/' . ltrim($userArray['image'], '/');
+            } else {
+            $userArray['image'] = null;
+            }
+
+            return $userArray;
+            });
 
             $data = [
                 'user_id'     => $authUser->id,

@@ -576,7 +576,7 @@ class ApiController extends Controller
         return response()->json(['message' => 'Your email is not verified yet.', "status" => "failed", "data" => NULL, 'isEmailVerfied' => 0], 400);
     }
     
-    public function getProfile(Request $request)
+    public function getProfileOLD(Request $request)
     {
         try {
         
@@ -697,6 +697,157 @@ class ApiController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', 'error_type' => $exception->getMessage(), "data" => []], 401);
         }
     }
+
+    public function getProfile(Request $request)
+    {
+        try {
+            $current_user = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            // Fetch user with relations
+            $user = User::where('id', $current_user)
+                ->with([
+                    'group',
+                    'group.group_name',
+                    'burialinfo',
+                    'last_will_url',
+                    'post',
+                    'album' => function ($query) {
+                        $query->orderBy('created_at', 'desc')
+                            ->take(5)
+                            ->withCount('posts');
+                    },
+                    'album.posts',
+                ])
+                ->first();
+
+            if (!$user) {
+                return response()->json([
+                    "message" => "Oops!, profile not found",
+                    "status"  => "failed",
+                    "data"    => []
+                ], 404);
+            }
+
+            // Convert Eloquent object to array (so we can transform images easily)
+            $data = $user->toArray();
+
+            // ✅ Fix main user image
+            $data['image'] = !empty($data['image']) ? $s3BaseUrl . $data['image'] : null;
+
+            // Default values
+            $data['saved_post_count'] = 0;
+            $data['saved_album_count'] = 0;
+
+            // Last will handling
+            $data['last_will'] = $user->last_will_url->video ?? "";
+            $data['last_will_updated_at'] = $user->last_will_url->updated_at ?? null;
+            unset($data['last_will_url']);
+
+            // Family Members
+            $familyMembers = FamilyMember::where('user_id', $current_user)
+                ->orWhere('member_id', $current_user)
+                ->orderBy('id', 'desc')
+                ->limit(20)
+                ->get();
+
+            $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
+                if ($familyMember->member_id == Auth::id()) {
+                    if (empty($familyMember->member)) return null;
+
+                    $user = $familyMember->member;
+                    $userId = $familyMember->member_id;
+                    $memberId = $familyMember->user_id;
+                } else {
+                    if (empty($familyMember->user)) return null;
+
+                    $user = $familyMember->user;
+                    $userId = $familyMember->user_id;
+                    $memberId = $familyMember->member_id;
+                }
+
+                return [
+                    'id'        => $familyMember->id,
+                    'user_id'   => $userId,
+                    'member_id' => $memberId,
+                    'user'      => [
+                        'id'         => $user->id,
+                        'first_name' => $user->first_name,
+                        'last_name'  => $user->last_name,
+                        'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+                    ],
+                ];
+            })
+            ->whereNotIn('user.id', $blockedUserIds)
+            ->filter()
+            ->values();
+
+            $data['family'] = $simplifiedData;
+
+            // ✅ Fix group images
+            if (!empty($data['group'])) {
+                foreach ($data['group'] as &$group) {
+                    if (!empty($group['group_name']['image'])) {
+                        $group['group_name']['image'] = $s3BaseUrl . $group['group_name']['image'];
+                    }
+                }
+            }
+
+            // ✅ Fix album cover & posts images
+            if (!empty($data['album'])) {
+                foreach ($data['album'] as &$album) {
+                    if (!empty($album['album_cover'])) {
+                        $album['album_cover'] = $s3BaseUrl . $album['album_cover'];
+                    }
+
+                    if (!empty($album['posts'])) {
+                        foreach ($album['posts'] as &$post) {
+                            if (!empty($post['image'])) {
+                                $post['image'] = $s3BaseUrl . $post['image'];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Subscription
+            $subscribed_user = Subscription::where('user_id', $current_user)->first();
+            $subscriptionCheck = $this->subscribe_validation()->original['data'] ?? "";
+
+            if ($subscribed_user) {
+                if ($subscribed_user->subscription == 'free') {
+                    $data['is_subscription'] = "true";
+                } else {
+                    $data['is_subscription'] = $subscriptionCheck == "" ? "false" : "true";
+                }
+            } else {
+                $data['is_subscription'] = $subscriptionCheck == "" ? "false" : "true";
+            }
+
+            $data['subscribed'] = $subscriptionCheck == "" ? null : $subscriptionCheck;
+
+            // Live Status
+            $isExist = UserLiveStatus::where('user_id', $current_user)->latest()->first();
+            $data['is_live'] = $isExist ? $isExist->is_alive == 1 : true;
+
+            return response()->json([
+                "message" => "Profile retrieved successfully",
+                "status"  => "success",
+                "data"    => $data
+            ], 200);
+
+        } catch (\Exception $exception) {
+            return response()->json([
+                'message'    => $exception->getMessage(),
+                'status'     => 'failed',
+                'error_type' => $exception->getMessage(),
+                "data"       => []
+            ], 500);
+        }
+    }
+
+
 
 
     
@@ -1337,7 +1488,7 @@ class ApiController extends Controller
         }
     }
 
-    public function getUserById(Request $request, $user_id)
+    public function getUserByIdOLD2(Request $request, $user_id)
     {
         $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
                     ->find($user_id);
@@ -1413,10 +1564,91 @@ class ApiController extends Controller
         }
     }
 
+    public function getUserById(Request $request, $user_id)
+    {
+        $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
+        $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
+                    ->find($user_id);
 
+        if (! $user) {
+            return response()->json([
+                'message' => 'User not found',
+                'status'  => 'error',
+                'data'    => null
+            ], 404);
+        }
 
+        // --- Live status calculation (same logic as you had) ---
+        $isExist = UserLiveStatus::where('user_id', $user_id)->orderBy('id', 'DESC')->first();
+        $is_live = null;
+        $passed_date = null;
 
+        if ($isExist) {
+            if ($isExist->is_alive == 0) {
+                $update_time  = $isExist->created_at->addHours(72)->toDateTimeString();
+                $current_time = \Carbon\Carbon::now()->toDateTimeString();
+                if ($current_time >= $update_time) {
+                    $is_live = false;
+                    $passed_date = $isExist->created_at->format('m/d/y');
+                } else {
+                    $is_live = true;
+                }
+            } else {
+                $is_live = true;
+            }
+        } else {
+            $is_live = null;
+        }
+
+        // --- Following / Family checks / Counts ---
+        $isFollowing = Follow::where('follower_id', Auth::id())
+                            ->where('following_id', $user_id)
+                            ->where('status', 'approved')
+                            ->exists();
+
+        $member = FamilyMember::where(function ($query) use ($user_id) {
+                    $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
+                        ->orWhere(function ($q) use ($user_id) {
+                            $q->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
+                        });
+                })->first();
+
+        $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
+        $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
+        $postCount      = Post::where('user_id', $user_id)->count();
+
+        // --- Convert to array and modify image paths safely (avoid double-prefix) ---
+        $userArray = $user->toArray();
+
+        // helper to prefix only when value exists and doesn't already start with http
+        $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+            if (empty($path)) return null;
+            if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
+            return $s3BaseUrl . $path;
+        };
+
+        // main profile image
+        $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
+        $userArray['is_live'] = $is_live;
+        $userArray['passed_date'] = $passed_date;
+        $userArray['is_following'] = (bool) $isFollowing;
+        $userArray['is_family_member'] = !empty($member) ? true : false;
+        $userArray['follower_count'] = (int) $followerCount;
+        $userArray['following_count'] = (int) $followingCount;
+        $userArray['post_count'] = (int) $postCount;
+
+        // remove the relationship we don't want in response (if present)
+        if (isset($userArray['userLiveStatus'])) unset($userArray['userLiveStatus']);
+        if (isset($userArray['user_live_status'])) unset($userArray['user_live_status']);
+
+        return response()->json([
+            'message' => 'Successfully retrieved user data',
+            'status'  => 'success',
+            'data'    => $userArray
+        ], 200);
+    }
+    
     public function createAlbum(Request $request)
     {
         try {

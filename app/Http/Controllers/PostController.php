@@ -833,6 +833,8 @@ class PostController extends Controller
             });
 
             foreach ($getPost as $post) {
+
+                
                 
                 $post->like_count = Like::where('post_id', $post->id)->count();
                 $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $currentUser])->exists();
