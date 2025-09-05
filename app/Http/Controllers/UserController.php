@@ -331,13 +331,13 @@ class UserController extends Controller
 
             // Format data
             $data = $users->map(function ($user) use ($relations, $s3BaseUrl) {
-                $followStatus = "Follow"; // default
+                $followStatus = 1; // default
 
                 if (isset($relations[$user->id])) {
                     if ($relations[$user->id] === "approved") {
-                        $followStatus = "Following";
+                        $followStatus = 2;
                     } elseif ($relations[$user->id] === "pending") {
-                        $followStatus = "Requested";
+                        $followStatus = 3;
                     }
                 }
 
