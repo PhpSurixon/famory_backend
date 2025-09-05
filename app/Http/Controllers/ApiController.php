@@ -698,6 +698,162 @@ class ApiController extends Controller
         }
     }
 
+    // public function getProfile(Request $request)
+    // {
+    //     try {
+    //         $current_user = Auth::id();
+    //         $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+    //         $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //         // Fetch user with relations
+    //         $user = User::where('id', $current_user)
+    //             ->with([
+    //                 'group',
+    //                 'group.group_name',
+    //                 'burialinfo',
+    //                 'last_will_url',
+    //                 'post',
+    //                 'album' => function ($query) {
+    //                     $query->orderBy('created_at', 'desc')
+    //                         ->take(5)
+    //                         ->withCount('posts');
+    //                 },
+    //                 'album.posts',
+    //             ])
+    //             ->first();
+
+    //         if (!$user) {
+    //             return response()->json([
+    //                 "message" => "Oops!, profile not found",
+    //                 "status"  => "failed",
+    //                 "data"    => []
+    //             ], 404);
+    //         }
+
+    //         // Convert Eloquent object to array (so we can transform images easily)
+    //         $data = $user->toArray();
+
+    //         // ✅ Fix main user image
+    //         $data['image'] = !empty($data['image']) ? $s3BaseUrl . $data['image'] : null;
+
+    //         // Default values
+    //         $data['saved_post_count'] = 0;
+    //         $data['saved_album_count'] = 0;
+
+    //         // Last will handling
+    //         $data['last_will'] = $user->last_will_url->video ?? "";
+    //         $data['last_will_updated_at'] = $user->last_will_url->updated_at ?? null;
+    //         unset($data['last_will_url']);
+
+    //         // Family Members
+    //         $familyMembers = FamilyMember::where('user_id', $current_user)
+    //             ->orWhere('member_id', $current_user)
+    //             ->orderBy('id', 'desc')
+    //             ->limit(20)
+    //             ->get();
+
+    //         $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
+    //             if ($familyMember->member_id == Auth::id()) {
+    //                 if (empty($familyMember->member)) return null;
+
+    //                 $user = $familyMember->member;
+    //                 $userId = $familyMember->member_id;
+    //                 $memberId = $familyMember->user_id;
+    //             } else {
+    //                 if (empty($familyMember->user)) return null;
+
+    //                 $user = $familyMember->user;
+    //                 $userId = $familyMember->user_id;
+    //                 $memberId = $familyMember->member_id;
+    //             }
+
+    //             return [
+    //                 'id'        => $familyMember->id,
+    //                 'user_id'   => $userId,
+    //                 'member_id' => $memberId,
+    //                 'user'      => [
+    //                     'id'         => $user->id,
+    //                     'first_name' => $user->first_name,
+    //                     'last_name'  => $user->last_name,
+    //                     'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+    //                 ],
+    //             ];
+    //         })
+    //         ->whereNotIn('user.id', $blockedUserIds)
+    //         ->filter()
+    //         ->values();
+
+    //         $data['family'] = $simplifiedData;
+
+    //         // ✅ Fix group images
+    //         if (!empty($data['group'])) {
+    //             foreach ($data['group'] as &$group) {
+    //                 if (!empty($group['group_name']['image'])) {
+    //                     $group['group_name']['image'] = $s3BaseUrl . $group['group_name']['image'];
+    //                 }
+    //             }
+    //         }
+
+    //         // ✅ Fix album cover & posts images
+    //         if (!empty($data['album'])) {
+    //             foreach ($data['album'] as &$album) {
+    //                 if (!empty($album['album_cover'])) {
+    //                     $album['album_cover'] = $s3BaseUrl . $album['album_cover'];
+    //                 }
+
+    //                 if (!empty($album['posts'])) {
+    //                     foreach ($album['posts'] as &$post) {
+    //                         if (!empty($post['image'])) {
+    //                             $post['image'] = $s3BaseUrl . $post['image'];
+    //                         }
+    //                     }
+    //                 }
+    //             }
+    //         }
+
+    //         // Subscription
+    //         $subscribed_user = Subscription::where('user_id', $current_user)->first();
+    //         $subscriptionCheck = $this->subscribe_validation()->original['data'] ?? "";
+
+    //         if ($subscribed_user) {
+    //             if ($subscribed_user->subscription == 'free') {
+    //                 $data['is_subscription'] = "true";
+    //             } else {
+    //                 $data['is_subscription'] = $subscriptionCheck == "" ? "false" : "true";
+    //             }
+    //         } else {
+    //             $data['is_subscription'] = $subscriptionCheck == "" ? "false" : "true";
+    //         }
+
+    //         $data['subscribed'] = $subscriptionCheck == "" ? null : $subscriptionCheck;
+
+    //         // Live Status
+    //         $isExist = UserLiveStatus::where('user_id', $current_user)->latest()->first();
+    //         $data['is_live'] = $isExist ? $isExist->is_alive == 1 : true;
+
+    //         $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
+    //         $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
+    //         $postCount      = Post::where('user_id', $current_user)->count();
+    //         $data['follower_count'] = $followerCount;
+    //         $data['following_count'] = $followingCount;
+    //         $data['post_count'] = $postCount;
+
+    //         return response()->json([
+    //             "message" => "Profile retrieved successfully",
+    //             "status"  => "success",
+    //             "data"    => $data
+    //         ], 200);
+
+    //     } catch (\Exception $exception) {
+    //         return response()->json([
+    //             'message'    => $exception->getMessage(),
+    //             'status'     => 'failed',
+    //             'error_type' => $exception->getMessage(),
+    //             "data"       => []
+    //         ], 500);
+    //     }
+    // }
+
     public function getProfile(Request $request)
     {
         try {
@@ -712,7 +868,10 @@ class ApiController extends Controller
                     'group.group_name',
                     'burialinfo',
                     'last_will_url',
-                    'post',
+                    'post' => function($query1){
+                        $query1->orderBy('updated_at', 'desc')
+                               ->take(10);
+                    },
                     'album' => function ($query) {
                         $query->orderBy('created_at', 'desc')
                             ->take(5)
@@ -730,7 +889,7 @@ class ApiController extends Controller
                 ], 404);
             }
 
-            // Convert Eloquent object to array (so we can transform images easily)
+            // Convert Eloquent object to array
             $data = $user->toArray();
 
             // ✅ Fix main user image
@@ -838,6 +997,55 @@ class ApiController extends Controller
             $data['following_count'] = $followingCount;
             $data['post_count'] = $postCount;
 
+            // ✅ Add all posts in same format as my-post
+            $postsQuery = Post::where('user_id', $current_user)
+                ->whereHas('scheduling_post', function ($q) {
+                    $q->whereIn('is_post', [0, 1]);
+                })
+                ->with('user')
+                ->orderBy('updated_at', 'desc');
+
+            if (!empty($blockedUserIds)) {
+                $postsQuery->whereNotIn('user_id', $blockedUserIds);
+            }
+
+            $posts = $postsQuery->take(10)->get();
+
+            foreach ($posts as $post) {
+                $post->like_count = Like::where('post_id', $post->id)->count();
+                $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $current_user])->exists();
+                $post->is_following = Follow::where([
+                    'follower_id' => $current_user,
+                    'following_id' => $post->user_id
+                ])->where('status', 'approved')->exists();
+
+                if ($post->scheduling_post) {
+                    $created_at_in_timezone = Carbon::createFromFormat(
+                        'Y-m-d H:i:s',
+                        $post->scheduling_post->created_at,
+                        'UTC'
+                    )->setTimezone($post->scheduling_post->timezone);
+
+                    $post->created_date = date('m/d/y', strtotime($created_at_in_timezone));
+                    $post->posted_date = $post->scheduling_post->schedule_type == "now"
+                        ? date('m/d/y', strtotime($created_at_in_timezone))
+                        : Carbon::parse($post->scheduling_post->schedule_date)->format('m/d/y');
+                    $post->scheduling_post->schedule_time = $post->scheduling_post->schedule_type == "now"
+                        ? date('h:i A', strtotime($created_at_in_timezone))
+                        : date('h:i A', strtotime($post->scheduling_post->schedule_time));
+                    $post->scheduling_post->schedule_date = Carbon::parse($post->scheduling_post->schedule_date)->format('m/d/y');
+
+                    $post->scheduling_post->makeHidden(['id', 'post_id']);
+                }
+
+                if ($post->post_type == "family") {
+                    $familyMemberIds = PostMember::where('post_id', $post->id)->pluck('member_id')->toArray();
+                    $post->member_ids = $familyMemberIds;
+                }
+            }
+
+            $data['post_data'] = $posts;
+
             return response()->json([
                 "message" => "Profile retrieved successfully",
                 "status"  => "success",
@@ -853,6 +1061,7 @@ class ApiController extends Controller
             ], 500);
         }
     }
+
 
 
 
