@@ -67,4 +67,10 @@ Route::post('notification/single-delete', [NotificationController::class, 'notif
 #user report
 Route::post('report-user', [UserReportController::class, 'storeReport']);
 
+#Block User
+Route::post('user-block', [UserReportController::class, 'blockUser']);
+Route::get('block-user-list', [UserReportController::class, 'blockedUsers']);
+
+
+
 });

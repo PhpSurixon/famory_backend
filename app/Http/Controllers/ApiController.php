@@ -1649,6 +1649,15 @@ class ApiController extends Controller
         if (isset($userArray['userLiveStatus'])) unset($userArray['userLiveStatus']);
         if (isset($userArray['user_live_status'])) unset($userArray['user_live_status']);
 
+        $authUser = $authUser = Auth::user();
+
+        $blockUser = BlockUser::where('user_id', $authUser->id)
+                               ->where('marked_user_id', $user_id)
+                               ->where('block',1)
+                               ->first();
+
+        $userArray['is_block'] = !empty($blockUser)?true:false;
+
         return response()->json([
             'message' => 'Successfully retrieved user data',
             'status'  => 'success',
