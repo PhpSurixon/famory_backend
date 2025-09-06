@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\UserReport;
 use App\Models\User;
 use App\Models\BlockUser;
+use App\Models\Follow;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
@@ -14,69 +15,6 @@ use DB;
 
 class UserReportController extends Controller
 {
-    public function storeReport(Request $request)
-    {
-        try {
-            // ✅ Validation
-            $validator = Validator::make($request->all(), [
-                'reported_user_id' => 'required|exists:users,id',
-                'reason' => 'required|string|max:255',
-                'description' => 'nullable|string',
-            ]);
-
-            if ($validator->fails()) {
-                return response()->json([
-                    'message' => $validator->errors()->first(),
-                    'status' => 'failed'
-                ], 400);
-            }
-
-            $authUser = Auth::user();
-            $reportedUser = User::findOrFail($request->reported_user_id);
-
-            //Prevent self-report
-            if ($reportedUser->id === $authUser->id) {
-                return response()->json([
-                    'message' => "You cannot report yourself",
-                    'status' => 'failed'
-                ], 400);
-            }
-
-            //Already reported check
-            $exists = UserReport::where('reporter_id', $authUser->id)
-                ->where('reported_user_id', $reportedUser->id)
-                ->first();
-
-            if ($exists) {
-                return response()->json([
-                    'message' => "You have already reported this user",
-                    'status' => 'failed'
-                ], 400);
-            }
-
-            //Create report
-            $report = UserReport::create([
-                'reporter_id'      => $authUser->id,
-                'reported_user_id' => $reportedUser->id,
-                'reason'           => $request->reason,
-                'description'      => $request->description,
-            ]);
-
-            //Success response
-            return response()->json([
-                'message' => "You reported {$reportedUser->first_name} successfully",
-                'status'  => 'success',
-                'data'    => $report
-            ], 201);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => "Something went wrong! " . $e->getMessage(),
-                'status' => 'failed'
-            ], 400);
-        }
-    }
-
 
     public function blockUser(Request $request)
     {
@@ -94,6 +32,7 @@ class UserReportController extends Controller
 
             $authUser = Auth::user();
             $targetId = $request->marked_user_id;
+            DB::beginTransaction();
 
             if ($authUser->id == $targetId) {
                 return response()->json([
@@ -125,9 +64,20 @@ class UserReportController extends Controller
                     'block'         => 1,
                     'is_live'       => 0
                 ]);
+
+                // remove follow relations
+                Follow::where(function ($q) use ($authUser, $targetId) {
+                    $q->where('follower_id', $authUser->id)->where('following_id', $targetId);
+                })->orWhere(function ($q) use ($authUser, $targetId) {
+                    $q->where('follower_id', $targetId)->where('following_id', $authUser->id);
+                })->delete();
+
+
                 $msg = "User blocked successfully";
                 $action = "blocked";
             }
+
+            DB::commit();
 
             return response()->json([
                 'message' => $msg,

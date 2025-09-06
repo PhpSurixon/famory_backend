@@ -2083,27 +2083,118 @@ class UserController extends Controller
     }
 
 
+    // public function userList(Request $request)
+    // {
+    //     try {
+    //         // Custom pagination params
+    //         $limit = (int) $request->get('limit', 30); // default 30
+    //         $page  = (int) $request->get('page', 1);   // default 1
+    //         $offset = ($page - 1) * $limit;
+    //         $authUser = Auth::user();
+    //         $search = $request->get('search'); // search keyword
+    //         $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //         // Get all user IDs that are already connected (follower/following)
+    //         $relatedUserIds = Follow::where(function($q) use ($authUser) {
+    //                                     $q->where('follower_id', $authUser->id)
+    //                                     ->orWhere('following_id', $authUser->id);
+    //                                 })
+    //                                 ->pluck('follower_id')
+    //                                 ->merge(
+    //                                     Follow::where(function($q) use ($authUser) {
+    //                                         $q->where('follower_id', $authUser->id)
+    //                                         ->orWhere('following_id', $authUser->id);
+    //                                     })->pluck('following_id')
+    //                                 )
+    //                                 ->unique()
+    //                                 ->toArray();
+
+    //         // Exclude myself
+    //         $relatedUserIds[] = $authUser->id;
+
+    //         // Base query
+    //         $query = User::select('id','first_name','last_name','email','username','image')
+    //                     ->whereNotIn('id', $relatedUserIds)
+    //                     ->whereNull('deleted_at')
+    //                     ->where('role_id', 2);
+
+    //         // Apply search filter if provided
+    //         if (!empty($search)) {
+    //             $query->where(function($q) use ($search) {
+    //                 $q->where('first_name', 'like', "%{$search}%")
+    //                 ->orWhere('last_name', 'like', "%{$search}%")
+    //                 ->orWhere('username', 'like', "%{$search}%")
+    //                 ->orWhere('email', 'like', "%{$search}%");
+    //             });
+    //         }
+
+    //         // Get total count
+    //         $totalUsers = $query->count();
+
+    //         // Get paginated result
+    //         $users = $query->orderBy('id', 'desc')
+    //                     ->skip($offset)
+    //                     ->take($limit)
+    //                     ->get();
+
+    //         $users = $users->map(function ($user) use ($s3BaseUrl) {
+    //         $userArray = $user->toArray(); // convert to array
+
+    //         if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
+    //         $userArray['image'] = rtrim($s3BaseUrl, '/') . '/' . ltrim($userArray['image'], '/');
+    //         } else {
+    //         $userArray['image'] = null;
+    //         }
+
+    //         return $userArray;
+    //         });
+
+    //         $data = [
+    //             'user_id'     => $authUser->id,
+    //             'count'       => $totalUsers,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => ceil($totalUsers / $limit),
+    //             'users'       => $users
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'User List fetched successfully',
+    //             'status'  => "success",
+    //             'data'    => $data
+    //         ],200);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! ".$e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function userList(Request $request)
     {
         try {
-            // Custom pagination params
-            $limit = (int) $request->get('limit', 30); // default 30
-            $page  = (int) $request->get('page', 1);   // default 1
+            $limit = (int) $request->get('limit', 30);
+            $page  = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
             $authUser = Auth::user();
-            $search = $request->get('search'); // search keyword
+            $search = $request->get('search');
             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
-            // Get all user IDs that are already connected (follower/following)
+            //  Get blocked users (middleware set blocked_user_ids)
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            //  Get all user IDs that are already connected (follower/following)
             $relatedUserIds = Follow::where(function($q) use ($authUser) {
                                         $q->where('follower_id', $authUser->id)
-                                        ->orWhere('following_id', $authUser->id);
+                                          ->orWhere('following_id', $authUser->id);
                                     })
                                     ->pluck('follower_id')
                                     ->merge(
                                         Follow::where(function($q) use ($authUser) {
                                             $q->where('follower_id', $authUser->id)
-                                            ->orWhere('following_id', $authUser->id);
+                                              ->orWhere('following_id', $authUser->id);
                                         })->pluck('following_id')
                                     )
                                     ->unique()
@@ -2112,41 +2203,43 @@ class UserController extends Controller
             // Exclude myself
             $relatedUserIds[] = $authUser->id;
 
-            // Base query
+            // Merge with blocked users
+            $excludeUserIds = array_unique(array_merge($relatedUserIds, $blockedUserIds));
+
+            //  Base query
             $query = User::select('id','first_name','last_name','email','username','image')
-                        ->whereNotIn('id', $relatedUserIds)
+                        ->whereNotIn('id', $excludeUserIds)
                         ->whereNull('deleted_at')
                         ->where('role_id', 2);
 
-            // Apply search filter if provided
+            //  Apply search filter if provided
             if (!empty($search)) {
                 $query->where(function($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('username', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
-            // Get total count
+            //  Get total count
             $totalUsers = $query->count();
 
-            // Get paginated result
+            //  Get paginated result
             $users = $query->orderBy('id', 'desc')
                         ->skip($offset)
                         ->take($limit)
                         ->get();
 
+            //  Format users + image URL
             $users = $users->map(function ($user) use ($s3BaseUrl) {
-            $userArray = $user->toArray(); // convert to array
-
-            if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
-            $userArray['image'] = rtrim($s3BaseUrl, '/') . '/' . ltrim($userArray['image'], '/');
-            } else {
-            $userArray['image'] = null;
-            }
-
-            return $userArray;
+                $userArray = $user->toArray();
+                if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
+                    $userArray['image'] = rtrim($s3BaseUrl, '/') . '/' . ltrim($userArray['image'], '/');
+                } else {
+                    $userArray['image'] = null;
+                }
+                return $userArray;
             });
 
             $data = [
@@ -2171,6 +2264,7 @@ class UserController extends Controller
             ], 400);
         }
     }
+
 
 
     

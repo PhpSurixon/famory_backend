@@ -1780,9 +1780,104 @@ class ApiController extends Controller
         }
     }
 
+    // public function getUserById(Request $request, $user_id)
+    // {
+    //     $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //     $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
+    //                 ->find($user_id);
+
+    //     if (! $user) {
+    //         return response()->json([
+    //             'message' => 'User not found',
+    //             'status'  => 'error',
+    //             'data'    => null
+    //         ], 404);
+    //     }
+
+    //     // --- Live status calculation (same logic as you had) ---
+    //     $isExist = UserLiveStatus::where('user_id', $user_id)->orderBy('id', 'DESC')->first();
+    //     $is_live = null;
+    //     $passed_date = null;
+
+    //     if ($isExist) {
+    //         if ($isExist->is_alive == 0) {
+    //             $update_time  = $isExist->created_at->addHours(72)->toDateTimeString();
+    //             $current_time = \Carbon\Carbon::now()->toDateTimeString();
+    //             if ($current_time >= $update_time) {
+    //                 $is_live = false;
+    //                 $passed_date = $isExist->created_at->format('m/d/y');
+    //             } else {
+    //                 $is_live = true;
+    //             }
+    //         } else {
+    //             $is_live = true;
+    //         }
+    //     } else {
+    //         $is_live = null;
+    //     }
+
+    //     // --- Following / Family checks / Counts ---
+    //     $isFollowing = Follow::where('follower_id', Auth::id())
+    //                         ->where('following_id', $user_id)
+    //                         ->where('status', 'approved')
+    //                         ->exists();
+
+    //     $member = FamilyMember::where(function ($query) use ($user_id) {
+    //                 $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
+    //                     ->orWhere(function ($q) use ($user_id) {
+    //                         $q->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
+    //                     });
+    //             })->first();
+
+    //     $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
+    //     $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
+    //     $postCount      = Post::where('user_id', $user_id)->count();
+
+    //     // --- Convert to array and modify image paths safely (avoid double-prefix) ---
+    //     $userArray = $user->toArray();
+
+    //     // helper to prefix only when value exists and doesn't already start with http
+    //     $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+    //         if (empty($path)) return null;
+    //         if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
+    //         return $s3BaseUrl . $path;
+    //     };
+
+    //     // main profile image
+    //     $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
+    //     $userArray['is_live'] = $is_live;
+    //     $userArray['passed_date'] = $passed_date;
+    //     $userArray['is_following'] = (bool) $isFollowing;
+    //     $userArray['is_family_member'] = !empty($member) ? true : false;
+    //     $userArray['follower_count'] = (int) $followerCount;
+    //     $userArray['following_count'] = (int) $followingCount;
+    //     $userArray['post_count'] = (int) $postCount;
+
+    //     // remove the relationship we don't want in response (if present)
+    //     if (isset($userArray['userLiveStatus'])) unset($userArray['userLiveStatus']);
+    //     if (isset($userArray['user_live_status'])) unset($userArray['user_live_status']);
+
+    //     $authUser = $authUser = Auth::user();
+
+    //     $blockUser = BlockUser::where('user_id', $authUser->id)
+    //                            ->where('marked_user_id', $user_id)
+    //                            ->where('block',1)
+    //                            ->first();
+
+    //     $userArray['is_block'] = !empty($blockUser)?true:false;
+
+    //     return response()->json([
+    //         'message' => 'Successfully retrieved user data',
+    //         'status'  => 'success',
+    //         'data'    => $userArray
+    //     ], 200);
+    // }
+
     public function getUserById(Request $request, $user_id)
     {
         $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+        $authUser  = Auth::user();
 
         $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
                     ->find($user_id);
@@ -1795,7 +1890,26 @@ class ApiController extends Controller
             ], 404);
         }
 
-        // --- Live status calculation (same logic as you had) ---
+        
+        $iBlockedOther = BlockUser::where('user_id', $authUser->id)
+                                  ->where('marked_user_id', $user_id)
+                                  ->where('block', 1)
+                                  ->exists();
+
+        $otherBlockedMe = BlockUser::where('user_id', $user_id)
+                                   ->where('marked_user_id', $authUser->id)
+                                   ->where('block', 1)
+                                   ->exists();
+
+        if ($otherBlockedMe) {
+            return response()->json([
+                'message' => 'User not found',
+                'status'  => 'error',
+                'data'    => null
+            ], 404);
+        }
+
+        
         $isExist = UserLiveStatus::where('user_id', $user_id)->orderBy('id', 'DESC')->first();
         $is_live = null;
         $passed_date = null;
@@ -1813,20 +1927,18 @@ class ApiController extends Controller
             } else {
                 $is_live = true;
             }
-        } else {
-            $is_live = null;
         }
 
-        // --- Following / Family checks / Counts ---
-        $isFollowing = Follow::where('follower_id', Auth::id())
+        
+        $isFollowing = Follow::where('follower_id', $authUser->id)
                             ->where('following_id', $user_id)
                             ->where('status', 'approved')
                             ->exists();
 
-        $member = FamilyMember::where(function ($query) use ($user_id) {
-                    $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
-                        ->orWhere(function ($q) use ($user_id) {
-                            $q->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
+        $member = FamilyMember::where(function ($query) use ($user_id, $authUser) {
+                    $query->where(['user_id' => $authUser->id, 'member_id' => $user_id])
+                        ->orWhere(function ($q) use ($user_id, $authUser) {
+                            $q->where(['user_id' => $user_id, 'member_id' => $authUser->id]);
                         });
                 })->first();
 
@@ -1834,38 +1946,49 @@ class ApiController extends Controller
         $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
         $postCount      = Post::where('user_id', $user_id)->count();
 
-        // --- Convert to array and modify image paths safely (avoid double-prefix) ---
+        // --- Convert to array ---
         $userArray = $user->toArray();
 
-        // helper to prefix only when value exists and doesn't already start with http
+        // helper to prefix only when needed
         $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
             if (empty($path)) return null;
             if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
             return $s3BaseUrl . $path;
         };
+        
 
-        // main profile image
         $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
         $userArray['is_live'] = $is_live;
         $userArray['passed_date'] = $passed_date;
         $userArray['is_following'] = (bool) $isFollowing;
-        $userArray['is_family_member'] = !empty($member) ? true : false;
+        $userArray['is_family_member'] = !empty($member);
         $userArray['follower_count'] = (int) $followerCount;
         $userArray['following_count'] = (int) $followingCount;
         $userArray['post_count'] = (int) $postCount;
 
-        // remove the relationship we don't want in response (if present)
-        if (isset($userArray['userLiveStatus'])) unset($userArray['userLiveStatus']);
-        if (isset($userArray['user_live_status'])) unset($userArray['user_live_status']);
+        // Clean unwanted
+        unset($userArray['userLiveStatus'], $userArray['user_live_status']);
 
-        $authUser = $authUser = Auth::user();
 
-        $blockUser = BlockUser::where('user_id', $authUser->id)
-                               ->where('marked_user_id', $user_id)
-                               ->where('block',1)
-                               ->first();
-
-        $userArray['is_block'] = !empty($blockUser)?true:false;
+        if ($iBlockedOther) {
+            $userArray = [
+                'id'             => $user->id,
+                'first_name'     => $user->first_name,
+                'last_name'      => $user->last_name,
+                'username'       => $user->username,
+                'image'          => $prefixIfNeeded($user->image),
+                'post_count'     => $postCount, // ✅ only post count visible
+                'follower_count' => 0,
+                'following_count'=> 0,
+                'is_following'   => false,
+                'is_family_member' => false,
+                'is_live'        => null,
+                'passed_date'    => null,
+                'is_block'       => true
+            ];
+        } else {
+            $userArray['is_block'] = false;
+        }
 
         return response()->json([
             'message' => 'Successfully retrieved user data',
@@ -1873,6 +1996,7 @@ class ApiController extends Controller
             'data'    => $userArray
         ], 200);
     }
+
     
     public function createAlbum(Request $request)
     {

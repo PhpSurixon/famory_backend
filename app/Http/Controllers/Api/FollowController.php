@@ -97,17 +97,202 @@ class FollowController extends Controller
     }
 
 
+    // public function followers(Request $request)
+    // {
+    //     try {
+    //         $limit = (int) $request->get('limit', 30);
+    //         $page = (int) $request->get('page', 1);
+    //         $offset = ($page - 1) * $limit;
+    //         $search = $request->get('search'); // optional search param
+    //         $user_id = $request->get('user_id'); // optional search param
+
+    //         if(!empty($user_id))
+    //         {
+    //             $checkUser = User::find($user_id);
+    //             if (!$checkUser) {
+    //                 return response()->json([
+    //                     'message' => 'User not found',
+    //                     'status'  => 'failed'
+    //                 ], 404);
+    //             }
+    //             $get_follower_user_id = $user_id;
+    //         }else{
+    //             $authUser = Auth::user();
+    //             $get_follower_user_id = $authUser->id;
+    //         }
+
+    //         $query = Follow::where('following_id', $get_follower_user_id)
+    //                         ->where('status', 'approved')
+    //                         ->with('follower:id,first_name,last_name,email,username,image');
+
+    //         // 🔍 Apply search if present
+    //         if (!empty($search)) {
+    //             $query->whereHas('follower', function ($q) use ($search) {
+    //                 $q->where('first_name', 'like', "%{$search}%")
+    //                 ->orWhere('last_name', 'like', "%{$search}%")
+    //                 ->orWhere('username', 'like', "%{$search}%")
+    //                 ->orWhere('email', 'like', "%{$search}%");
+    //             });
+    //         }
+
+    //         $totalUsers = $query->count();
+
+    //         $followers = $query->orderBy('id', 'desc')
+    //             ->skip($offset)
+    //             ->take($limit)
+    //             ->get();
+
+    //         $users = $followers->map(function ($follow) use ($get_follower_user_id) {
+    //             $follower = $follow->follower;
+
+    //             // Check if I already follow this user back
+    //             $relation = Follow::where('follower_id', $get_follower_user_id)
+    //                             ->where('following_id', $follower->id)
+    //                             ->first();
+
+    //             if (!$relation) {
+    //                 $action = "Follow Back"; // not following yet
+    //             } elseif ($relation->status === 'approved') {
+    //                 $action = "Following";   // already following
+    //             } elseif ($relation->status === 'pending') {
+    //                 $action = "Requested";   // request sent (private account)
+    //             } else {
+    //                 $action = "Follow Back"; // fallback
+    //             }
+    //             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+                
+    //             return [
+    //                 'follow_id'     => $follow->id,
+    //                 'user_id'       => $follower->id,
+    //                 'first_name'    => $follower->first_name,
+    //                 'last_name'     => $follower->last_name,
+    //                 'email'         => $follower->email,
+    //                 'username'      => $follower->username,
+    //                 'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
+    //                 'action_button' => $action
+    //             ];
+    //         });
+
+    //         $data = [
+    //             'user_id'     => (int)$get_follower_user_id,
+    //             'count'       => $totalUsers,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => ceil($totalUsers / $limit),
+    //             'users'       => $users
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'Followers fetched successfully',
+    //             'status'  => "success",
+    //             'data'    => $data
+    //         ]);
+
+    //     } catch (\Exception $e) {
+           
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! " . $e->getMessage(),
+    //             'status' => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
+    // public function following(Request $request)
+    // {
+    //     try {
+    //         $limit = (int) $request->get('limit', 30);
+    //         $page = (int) $request->get('page', 1);
+    //         $offset = ($page - 1) * $limit;
+    //         $authUser = Auth::user();
+    //         $search = $request->get('search'); 
+    //         $user_id = $request->get('user_id');
+    //         if(!empty($user_id))
+    //         {
+    //             $checkUser = User::find($user_id);
+    //             if (!$checkUser) {
+    //                 return response()->json([
+    //                     'message' => 'User not found',
+    //                     'status'  => 'failed'
+    //                 ], 404);
+    //             }
+    //             $get_follower_user_id = $user_id;
+    //         }else{
+    //             $authUser = Auth::user();
+    //             $get_follower_user_id = $authUser->id;
+    //         }
+
+    //         $query = Follow::where('follower_id', $get_follower_user_id)
+    //             ->where('status', 'approved')
+    //             ->with('following:id,first_name,last_name,email,username,image');
+
+    //         // Apply search on "following" user details
+    //         if (!empty($search)) {
+    //             $query->whereHas('following', function ($q) use ($search) {
+    //                 $q->where('first_name', 'like', "%{$search}%")
+    //                 ->orWhere('last_name', 'like', "%{$search}%")
+    //                 ->orWhere('username', 'like', "%{$search}%")
+    //                 ->orWhere('email', 'like', "%{$search}%");
+    //             });
+    //         }
+
+    //         $totalUsers = $query->count();
+
+    //         $following = $query->orderBy('id', 'desc')
+    //             ->skip($offset)
+    //             ->take($limit)
+    //             ->get();
+
+    //         $users = $following->map(function ($follow) {
+    //             $user = $follow->following;
+    //             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //             return [
+    //                 'follow_id'   => $follow->id,   // unique row id from follows table
+    //                 'user_id'     => $user->id,
+    //                 'first_name'  => $user->first_name,
+    //                 'last_name'   => $user->last_name,
+    //                 'email'       => $user->email,
+    //                 'username'    => $user->username,
+    //                 'image'       => $user->image ? $s3BaseUrl . $user->image : null,
+    //             ];
+    //         });
+
+    //         $data = [
+    //             'user_id'     => (int)$get_follower_user_id,
+    //             'count'       => $totalUsers,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => ceil($totalUsers / $limit),
+    //             'users'       => $users
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'Following fetched successfully',
+    //             'status'  => "success",
+    //             'data'    => $data
+    //         ]);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! " . $e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function followers(Request $request)
     {
         try {
             $limit = (int) $request->get('limit', 30);
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
-            $search = $request->get('search'); // optional search param
-            $user_id = $request->get('user_id'); // optional search param
+            $search = $request->get('search');
+            $user_id = $request->get('user_id');
 
-            if(!empty($user_id))
-            {
+            $authId = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            if (!empty($user_id)) {
                 $checkUser = User::find($user_id);
                 if (!$checkUser) {
                     return response()->json([
@@ -116,22 +301,21 @@ class FollowController extends Controller
                     ], 404);
                 }
                 $get_follower_user_id = $user_id;
-            }else{
-                $authUser = Auth::user();
-                $get_follower_user_id = $authUser->id;
+            } else {
+                $get_follower_user_id = $authId;
             }
 
             $query = Follow::where('following_id', $get_follower_user_id)
-                            ->where('status', 'approved')
-                            ->with('follower:id,first_name,last_name,email,username,image');
+                ->where('status', 'approved')
+                ->whereNotIn('follower_id', $blockedUserIds)
+                ->with('follower:id,first_name,last_name,email,username,image');
 
-            // 🔍 Apply search if present
             if (!empty($search)) {
                 $query->whereHas('follower', function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
@@ -142,25 +326,26 @@ class FollowController extends Controller
                 ->take($limit)
                 ->get();
 
-            $users = $followers->map(function ($follow) use ($get_follower_user_id) {
+            $users = $followers->map(function ($follow) use ($authId) {
                 $follower = $follow->follower;
 
-                // Check if I already follow this user back
-                $relation = Follow::where('follower_id', $get_follower_user_id)
-                                ->where('following_id', $follower->id)
-                                ->first();
+                // Check relation between logged-in user & this follower
+                $relation = Follow::where('follower_id', $authId)
+                    ->where('following_id', $follower->id)
+                    ->first();
 
                 if (!$relation) {
-                    $action = "Follow Back"; // not following yet
+                    $action = "Follow"; // not following yet
                 } elseif ($relation->status === 'approved') {
-                    $action = "Following";   // already following
+                    $action = "Following";
                 } elseif ($relation->status === 'pending') {
-                    $action = "Requested";   // request sent (private account)
+                    $action = "Requested";
                 } else {
-                    $action = "Follow Back"; // fallback
+                    $action = "Follow";
                 }
+
                 $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-                
+
                 return [
                     'follow_id'     => $follow->id,
                     'user_id'       => $follower->id,
@@ -174,7 +359,7 @@ class FollowController extends Controller
             });
 
             $data = [
-                'user_id'     => (int)$get_follower_user_id,
+                'user_id'     => (int) $get_follower_user_id,
                 'count'       => $totalUsers,
                 'page'        => $page,
                 'limit'       => $limit,
@@ -187,9 +372,7 @@ class FollowController extends Controller
                 'status'  => "success",
                 'data'    => $data
             ]);
-
         } catch (\Exception $e) {
-           
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
                 'status' => 'failed'
@@ -200,14 +383,17 @@ class FollowController extends Controller
     public function following(Request $request)
     {
         try {
+
             $limit = (int) $request->get('limit', 30);
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
-            $authUser = Auth::user();
-            $search = $request->get('search'); 
+            $search = $request->get('search');
             $user_id = $request->get('user_id');
-            if(!empty($user_id))
-            {
+
+            $authId = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            if (!empty($user_id)) {
                 $checkUser = User::find($user_id);
                 if (!$checkUser) {
                     return response()->json([
@@ -216,22 +402,21 @@ class FollowController extends Controller
                     ], 404);
                 }
                 $get_follower_user_id = $user_id;
-            }else{
-                $authUser = Auth::user();
-                $get_follower_user_id = $authUser->id;
+            } else {
+                $get_follower_user_id = $authId;
             }
 
             $query = Follow::where('follower_id', $get_follower_user_id)
                 ->where('status', 'approved')
+                ->whereNotIn('following_id', $blockedUserIds)
                 ->with('following:id,first_name,last_name,email,username,image');
 
-            // Apply search on "following" user details
             if (!empty($search)) {
                 $query->whereHas('following', function ($q) use ($search) {
                     $q->where('first_name', 'like', "%{$search}%")
-                    ->orWhere('last_name', 'like', "%{$search}%")
-                    ->orWhere('username', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%");
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
                 });
             }
 
@@ -242,23 +427,40 @@ class FollowController extends Controller
                 ->take($limit)
                 ->get();
 
-            $users = $following->map(function ($follow) {
+            $users = $following->map(function ($follow) use ($authId) {
                 $user = $follow->following;
+
+                // Relation between logged-in user & this "following" user
+                $relation = Follow::where('follower_id', $authId)
+                    ->where('following_id', $user->id)
+                    ->first();
+
+                if (!$relation) {
+                    $action = "Follow"; // not following yet
+                } elseif ($relation->status === 'approved') {
+                    $action = "Following";
+                } elseif ($relation->status === 'pending') {
+                    $action = "Requested";
+                } else {
+                    $action = "Follow";
+                }
+
                 $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
                 return [
-                    'follow_id'   => $follow->id,   // unique row id from follows table
-                    'user_id'     => $user->id,
-                    'first_name'  => $user->first_name,
-                    'last_name'   => $user->last_name,
-                    'email'       => $user->email,
-                    'username'    => $user->username,
-                    'image'       => $user->image ? $s3BaseUrl . $user->image : null,
+                    'follow_id'     => $follow->id,
+                    'user_id'       => $user->id,
+                    'first_name'    => $user->first_name,
+                    'last_name'     => $user->last_name,
+                    'email'         => $user->email,
+                    'username'      => $user->username,
+                    'image'         => $user->image ? $s3BaseUrl . $user->image : null,
+                    'action_button' => $action
                 ];
             });
 
             $data = [
-                'user_id'     => (int)$get_follower_user_id,
+                'user_id'     => (int) $get_follower_user_id,
                 'count'       => $totalUsers,
                 'page'        => $page,
                 'limit'       => $limit,
@@ -271,7 +473,6 @@ class FollowController extends Controller
                 'status'  => "success",
                 'data'    => $data
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
@@ -279,6 +480,8 @@ class FollowController extends Controller
             ], 400);
         }
     }
+
+
 
 
 

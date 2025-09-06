@@ -50,13 +50,11 @@ Route::post('post/{post_id}/save', [PostController::class, 'savePost']);
 Route::post('follow', [FollowController::class, 'follow']);
 Route::post('unfollow', [FollowController::class, 'unfollow']);
 Route::post('follow/request-status', [FollowController::class, 'respondToRequest']);
-Route::get('followers-list', [FollowController::class, 'followers']);
-Route::get('following-list', [FollowController::class, 'following']);
 Route::get('follow/pending', [FollowController::class, 'pendingRequests']);
 Route::post('follow/requests-detail', [FollowController::class, 'getFollowRequestDetail']);
 
 
-Route::get('user-list', [UserController::class,'userList']);
+
 
 #Notification Module API
 Route::get('notification/list', [NotificationController::class,'notificationList']);
@@ -70,6 +68,14 @@ Route::post('report-user', [UserReportController::class, 'storeReport']);
 #Block User
 Route::post('user-block', [UserReportController::class, 'blockUser']);
 Route::get('block-user-list', [UserReportController::class, 'blockedUsers']);
+
+Route::middleware(['checkBlocked'])->group(function () { 
+
+  Route::get('followers-list', [FollowController::class, 'followers']);
+  Route::get('following-list', [FollowController::class, 'following']);
+  Route::get('user-list', [UserController::class,'userList']);
+
+});
 
 
 
