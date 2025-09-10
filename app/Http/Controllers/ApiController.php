@@ -216,7 +216,7 @@ class ApiController extends Controller
         });
     
         $validator = Validator::make($request->all(), [
-            'username' => 'required|unique:users,username|max:255',
+            // 'username' => 'required|unique:users,username|max:255',
             'email' => 'required|email|unique:users,email|email:rfc,dns|lowercase_email',
             'password' => 'required',
             'role_id' => 'required|in:1,2',
@@ -268,7 +268,7 @@ class ApiController extends Controller
         try {
             // Create User
             $user = User::create([
-                'username' => $request->username,
+                'username' => $request->username??null,
                 'email' => $request->email,
                 'password' => Hash::make($request->password),
                 'role_id' => $request->role_id,
