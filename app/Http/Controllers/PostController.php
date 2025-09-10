@@ -31,6 +31,7 @@ use App\Models\FamilyTagId;
 use App\Models\Comment;
 use App\Models\CommentLike;
 use App\Models\Report;
+use App\Models\Follow;
 use App\Notifications\CommentAddedNotification;
 use App\Notifications\CommentReplyNotification;
 use Illuminate\Support\Collection;
@@ -838,7 +839,8 @@ class PostController extends Controller
                 
                 $post->like_count = Like::where('post_id', $post->id)->count();
                 $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $currentUser])->exists();
-                $post->is_following = FollowerUnfollwer::where(['user_id' => $currentUser, 'following_id' => $post->user_id])->exists();
+                // $post->is_following = FollowerUnfollwer::where(['user_id' => $currentUser, 'following_id' => $post->user_id])->exists();
+                $post->is_following = Follow::where(['follower_id' => $currentUser, 'following_id' => $post->user_id,'status'=>"approved"])->exists();
                 $created_at_in_timezone = Carbon::createFromFormat('Y-m-d H:i:s', $post->scheduling_post->created_at, 'UTC')->setTimezone($post->scheduling_post->timezone);
                 $post->created_date = date('m/d/y', strtotime($created_at_in_timezone));
                 $post->posted_date = $post->scheduling_post->schedule_type == "now" ? date('m/d/y', strtotime($created_at_in_timezone)) :  Carbon::parse($post->scheduling_post->schedule_date)->format('m/d/y');
