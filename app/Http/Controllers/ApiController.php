@@ -262,6 +262,20 @@ class ApiController extends Controller
             // Modify the email in delete request account
             DeleteAccountRequest::where('user_id', $userId)->update(['email' => $modifiedEmail]);
         }
+
+        if($request->username)
+        {
+            $exists = User::withTrashed()
+                            ->where('username', $request->username)
+                            ->exists();
+
+            if ($exists) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'This username is already taken.'
+                ], 400);
+            }
+        }
         
        
     
