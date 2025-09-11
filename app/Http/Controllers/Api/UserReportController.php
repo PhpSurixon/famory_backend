@@ -117,6 +117,12 @@ class UserReportController extends Controller
                     $block->update(['block' => 1]); // Block
                     $msg = "User blocked successfully";
                     $action = "blocked";
+
+                    Follow::where(function ($q) use ($authUser, $targetId) {
+                        $q->where('follower_id', $authUser->id)->where('following_id', $targetId);
+                    })->orWhere(function ($q) use ($authUser, $targetId) {
+                        $q->where('follower_id', $targetId)->where('following_id', $authUser->id);
+                    })->delete();
                 }
             } else {
                 // First time block
