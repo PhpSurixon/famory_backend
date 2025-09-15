@@ -8,6 +8,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserReportController;
+use App\Http\Controllers\Api\PostController as NewPostController;
 
 
 
@@ -68,6 +69,9 @@ Route::post('report-user', [UserReportController::class, 'storeReport']);
 #Block User
 Route::post('user-block', [UserReportController::class, 'blockUser']);
 Route::get('block-user-list', [UserReportController::class, 'blockedUsers']);
+
+#Post New API
+Route::post('post/create',[NewPostController::class,'create']);
 
 Route::middleware(['checkBlocked'])->group(function () { 
 

@@ -461,7 +461,7 @@ class PostController extends Controller
 
 
 
-    public function editPost(Request $request, $id)
+    public function editPostOLD(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
             'title' => 'required',
@@ -619,6 +619,137 @@ class PostController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', 'error_type' => ''], 500);
         }
     }
+
+    public function editPost(Request $request, $id)
+    {
+        $validator = Validator::make($request->all(), [
+            'title' => 'required',
+            'post_type' => 'required',
+            'tag_id' => 'nullable',
+            'description' => 'required',
+            'schedule_type' => 'required',
+            'reoccurring_type' => 'required',
+            'media' => 'nullable|file',
+            'video_formats' => 'nullable|file',
+            'media_type' => 'required|in:audio,video,picture,note',
+            'album_id' => 'nullable|exists:albums,id', 
+        ]);
+    
+        if ($validator->fails()) {
+            $errors = $validator->errors();
+            foreach ($errors->all() as $key => $value) {
+                return response()->json(['message' => $value, 'status' => 'failed'], 400);
+            }
+        }
+    
+        DB::beginTransaction();
+        try {
+            $getHeaders = apache_request_headers();
+            $timezone = isset($getHeaders['time_zone']) ? $getHeaders['time_zone'] : 'UTC';
+            
+            if($request->tag_id){
+                $isValid = FamilyTagId::where(['family_tag_id'=>$request->tag_id,'user_id'=>Auth::id()])->first();
+                if(!$isValid){
+                    return $this->errorResponse("Famery Tag is not valid please check", 'id_not_valid', 400);
+                }
+            }
+            
+            if ($request->post_type == "family") {
+                $memberIds = $request->member_id;
+            }
+            
+            $post = Post::findOrFail($id);
+            $post->tag_id = $request->tag_id;
+            $post->title = $request->title;
+            $post->description = $request->description;
+            
+            if ($request->media_type === 'note') {
+            $post->file = null;
+            $post->video_formats = null; 
+            } else if ($request->hasFile('media') && $request->file('media')->isValid()) {
+                $file = $request->file('media');
+                $extension = $file->getClientOriginalExtension();
+                $folder = $this->getFolderName($extension);
+                $userId = Auth::id();
+                
+                $res = $this->UploadImage->saveMedia($file,$userId);
+                if($folder === 'videos'){
+                     $post->video_formats = $res;
+                      $post->file = null;
+                }else{
+                     $post->file = $res;
+                     $post->video_formats = null;
+                }
+                
+            }
+            $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)->setTimezone('UTC');
+            $post->media_type = $request->media_type;
+            $post->post_type = $request->post_type;
+            // $post->album_id = $request->album_id;
+            $post->album_id = $request->has('album_id') ? $request->album_id : null;
+            $post->user_id = Auth::user()->id;
+            $post->save();
+    
+            $schedule = SchedulingPost::where('post_id', $post->id)->first();
+            $schedule->timezone = $timezone;
+            $schedule->schedule_type = $request->schedule_type;
+            $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
+            $schedule->schedule_date = $scheduledDateTime->toDateString();
+            $schedule->schedule_time = $scheduledDateTime->toTimeString();
+            $schedule->reoccurring_type = $request->reoccurring_type;
+    
+            if ($request->reoccurring_type == "yes") {
+                $schedule->reoccurring_time = $request->reoccurring_time;
+            }
+    
+            $schedule->save();
+    
+            // Update post in album
+            
+            if ($request->schedule_type == "now") {
+                if ($request->album_id) {
+                    $albumPost = AlbumPost::where('post_id', $post->id)->first();
+                    if (!$albumPost) {
+                        $albumPost = new AlbumPost;
+                        $albumPost->user_id = Auth::id();
+                        $albumPost->post_id = $post->id;
+                        $albumPost->album_id = $request->album_id;
+                        $albumPost->save();
+                    } else {
+                        $albumPost->user_id = Auth::id();
+                        $albumPost->album_id = $request->album_id;
+                        $albumPost->save();
+                    }
+                }
+            }
+    
+            if ($post->post_type == "family") {
+                $memberIds = $request->member_id;
+                    PostMember::where(['post_id'=>$post->id,'post_by' => $post->user_id])->delete();
+                    foreach ($memberIds as $memberId) {
+                        $memberIds = explode(',', $memberId);
+                        foreach ($memberIds as $memberId) {
+                            $newMember = new PostMember;
+                            $newMember->post_id = $post->id;
+                            $newMember->post_by = $post->user_id;
+                            $newMember->member_id = $memberId;
+                            $newMember->save();
+                        }
+                    }
+                
+            }
+    
+            DB::commit();
+    
+            return response()->json(['message' => 'Post updated successfully', 'status' => 'success','error_type' => " ",'data' => $post], 200);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            return response()->json(['message' => 'Post not found', 'status' => 'failed', 'error_type' => " "], 404);
+        } catch (\Exception $exception) {
+            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', 'error_type' => ''], 500);
+        }
+    }
+
+
 
     public function deletePost($id)
     {

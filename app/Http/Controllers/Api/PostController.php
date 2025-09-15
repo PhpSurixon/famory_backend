@@ -111,5 +111,36 @@ class PostController extends Controller
         }
     }
 
+    public function create(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'title'         => 'required',
+                'media_type'    => 'required|in:audio,video,picture,note',
+                'schedule_type' => 'required|in:now,schedule_post,when_i_pass',
+                'post_type'     => 'required|in:public,private,add_album',
+                'tag_id'        => 'nullable',
+                'description'      => 'required',
+                'reoccurring_type' => 'required|in:no,yes',
+                'media'            => 'nullable|file',
+                'album_id'         => 'nullable|exists:albums,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            }
+
+            if ($request->media_type =="audio"|| $request->media_type =="video"|| $request->media_type =="picture") 
+            {
+                // code...
+            }
+            
+        } catch (Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
+        }
+    }
+
 
 }
