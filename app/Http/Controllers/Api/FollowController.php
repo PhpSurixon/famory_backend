@@ -60,7 +60,7 @@ class FollowController extends Controller
 
             return response()->json(['message' => $msg, 'status' => 'success'], 200);
 
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
         }
     }

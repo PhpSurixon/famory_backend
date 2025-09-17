@@ -9,6 +9,31 @@ use App\Models\DeviceDetail;
 
 trait OneSignalTrait
 {
+    public function sendNotificationNew($heading, $message, $playerIds = [],$extraData = [])
+    {
+        $data = [
+            'app_id' => env('ONESIGNAL_APP_ID'),
+            'headings' => ["en" => $heading],
+            'contents' => ["en" => $message],
+        ];
+
+        if (!empty($playerIds)) {
+            $data['include_player_ids'] = $playerIds;
+        } else {
+            $data['included_segments'] = ['All']; // send to all users
+        }
+
+        if (!empty($extraData)) {
+            $data['data'] = $extraData;
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Basic ' . env('ONESIGNAL_REST_API_KEY'),
+            'Content-Type' => 'application/json'
+        ])->post('https://onesignal.com/api/v1/notifications', $data);
+
+        return $response->json();
+    }
 
     function sendNotification($title, $message, $data, $external_id)
     {
@@ -58,8 +83,10 @@ trait OneSignalTrait
         $data = [];
 
         //get token from DB
-        $getToken = DeviceDetail::where(['user_id' => $receiverId, 'is_user_loggedin' => 1])->pluck('device_token')->toArray();
-        $token = $getToken;
+        // $getToken = DeviceDetail::where(['user_id' => $receiverId, 'is_user_loggedin' => 1])->pluck('device_token')->toArray();
+        $getToken = DeviceDetail::where(['user_id' => $receiverId, 'is_user_loggedin' => 1])->first();
+        $token = $getToken->device_token??null;
+        $device_type = $getToken->platform??null;
         $senderDetails = [
             "user_name" => ($sender->first_name ?? '') . ' ' . ($sender->last_name ?? '') ?? null,
             "user_image" => $sender->image ?? null,
@@ -198,14 +225,49 @@ trait OneSignalTrait
                     "post" => $item
                 ];
                 break;
+            case "trust_request":
+                $title = "New Trust Request";
+                $message = "$senderName has sent you a trust request.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "item" => $item,
+                ];
+                break;
+
+            case "trust_accept":
+                $title = "Trust Request Accepted";
+                $message = "$senderName has accepted your trust request.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "item" => $item,
+                ];
+                break;
+
+            case "trust_reject":
+                $title = "Trust Request Rejected";
+                $message = "$senderName has rejected your trust request.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "item" => $item,
+                ];
+                break;
 
             default:
                 return 1;
         }
 
         if (!empty($token)) {
-            $this->sendNotification($title, $message, $data, $token);
-
+            // $this->sendNotification($title, $message, $data, $token);
+            if($device_type=='ios') {
+                $sss = $this->sendNotificationNew($title, $message, [$token],$data);
+            }
+           
+            if($device_type=='android') {
+                $this->sendNotification($title, $message, $data, [$token]);
+            }
 
         }
         $this->storeNotification($senderId, $receiverId, $title, $message, $type, $item, $deceasedById);

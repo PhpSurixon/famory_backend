@@ -13,6 +13,7 @@ use DB;
 use App\Models\Notification;
 class NotificationController extends Controller
 {
+    use OneSignalTrait;
     // public function notificationList(Request $request)
     // {
     //     try {
@@ -126,6 +127,7 @@ class NotificationController extends Controller
                     case 'follow_request':
                     case 'follow_accept':
                     case 'follow_reject':
+                    case 'trust_request':
                         $redirectTo = [
                             "screen" => "UserProfile",
                             "params" => ["user_id" => $n->item_id]
@@ -331,6 +333,28 @@ class NotificationController extends Controller
         }
     }
 
+    public function sendToUser(Request $request)
+    {
+        
+        
 
+        $validator = Validator::make($request->all(), [
+            'title' => 'required|string',
+            'message' => 'required|string',
+            'player_id' => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            }
+
+        $response = $this->sendNotificationNew(
+            $request->title,
+            $request->message,
+            playerIds: [$request->player_id]
+        );
+
+        return response()->json($response);
+    }
 
 }

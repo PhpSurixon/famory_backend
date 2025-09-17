@@ -9,12 +9,15 @@ use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\UserReportController;
 use App\Http\Controllers\Api\PostController as NewPostController;
+use App\Http\Controllers\Api\FinalWordController;
+use App\Http\Controllers\Api\TrustedUserController;
 
 
 
 Route::post('/register', [ApiController::class, 'register']);
 Route::post('/verify-otp-email', [ApiController::class, 'verifyEmailOTP']);
 Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
+Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
 
 Route::middleware(['jwt.verify'])->group(function () { 
  Route::put('/update-user-profile', [ApiController::class, 'updateUserProfile']);
@@ -80,6 +83,20 @@ Route::middleware(['checkBlocked'])->group(function () {
   Route::get('user-list', [UserController::class,'userList']);
 
 });
+
+#FinalWordsAPI
+Route::get('final-words/my',[FinalWordController::class,'index']);
+Route::get('final-words/{user_id}', [FinalWordController::class, 'showByOtherUser']);
+Route::post('final-words/create', [FinalWordController::class, 'store']);
+Route::post('final-words/delete', [FinalWordController::class, 'destroy']);
+
+
+// Manage Trusted Users 
+Route::get('trust-user/list',[TrustedUserController::class,'index']);
+Route::get('trust-user/by-others',[TrustedUserController::class,'trustedByOthers']);
+Route::post('trust-user/send-request', [TrustedUserController::class, 'sendManageRequest']);
+Route::post('trust-user/request-update', [TrustedUserController::class, 'requestUpdateStatus']);
+Route::post('trust-user/delete', [TrustedUserController::class, 'destroy']);
 
 
 

@@ -1997,6 +1997,7 @@ class ApiController extends Controller
                 'is_following'   => false,
                 'is_family_member' => false,
                 'is_live'        => null,
+                'is_dead'        => $user->is_dead?true:false,
                 'passed_date'    => null,
                 'is_block'       => true
             ];
