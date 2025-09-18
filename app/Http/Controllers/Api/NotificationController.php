@@ -5,15 +5,20 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\Post;
+use App\Models\Like;
 use App\Models\Follow;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
 use DB;
 use App\Models\Notification;
+use Illuminate\Support\Carbon;
+use App\Traits\FormatResponseTrait;
 class NotificationController extends Controller
 {
     use OneSignalTrait;
+    use FormatResponseTrait;
     // public function notificationList(Request $request)
     // {
     //     try {
@@ -85,7 +90,7 @@ class NotificationController extends Controller
     //     }
     // }
 
-    public function notificationList(Request $request)
+    public function notificationListOLD(Request $request)
     {
         try {
 
@@ -150,12 +155,17 @@ class NotificationController extends Controller
                         ];
                         break;
 
-                    case 'deceased':
+                   
                     case 'self':
-                    case 'when-pass':
                         $redirectTo = [
                             "screen" => "UserProfile",
                             "params" => ["user_id" => $n->marked_user_id]
+                        ];
+                        break;
+                    case 'deceased':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $n->item_id]
                         ];
                         break;
 
@@ -205,6 +215,148 @@ class NotificationController extends Controller
             ], 400);
         }
     }
+
+    public function notificationList(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            // $user = User::find(787);
+
+            // ✅ Get timezone from headers
+            $getHeaders = apache_request_headers();
+            $timeZone = isset($getHeaders['Timezone']) ? $getHeaders['Timezone'] : 'UTC';
+
+            // ✅ Pagination setup (default 10 per page, max 100)
+            $limit = (int) $request->get('limit', 10);
+            if ($limit <= 0) $limit = 10;
+            $limit = min($limit, 100);
+
+            $notis = Notification::where('receiver_id', $user->id)
+                                    ->where('isSeen', 0)
+                                    ->orderBy('id', 'DESC')
+                                    ->with('group')
+                                    ->paginate($limit);
+
+            foreach ($notis as $noti) {
+
+                // ✅ For post/like notifications, attach post info
+                if ($noti->type == "like" || $noti->type == "post") {
+                    $getPost = Post::where('id', $noti->post_id)
+                        ->with(['scheduling_post', 'user'])
+                        ->first();
+
+                    if ($getPost) {
+                        $noti->post = $getPost;
+                        $getPost->like_count = Like::where('post_id', $noti->post_id)->count();
+                        $getPost->is_like = Like::where([
+                            'post_id' => $noti->post_id,
+                            'user_id' => $user->id
+                        ])->exists();
+                        $getPost->is_following = Follow::where([
+                            'follower_id' => $user->id,
+                            'following_id' => $getPost->user->id,
+                            'status'       =>'approved'
+                        ])->exists();
+                        $getPost->created_date = date('Y-m-d', strtotime($getPost->scheduling_post->created_at));
+                        $getPost->posted_date = $getPost->scheduling_post->schedule_type == "now"
+                            ? date('Y-m-d', strtotime($getPost->scheduling_post->created_at))
+                            : $getPost->scheduling_post->schedule_date;
+                    }
+                }
+
+                // ✅ For deceased notifications, attach deceased user & burial info
+                elseif ($noti->type == "deceased") {
+                    $markedUser = User::find($noti->marked_user_id);
+                    $burialInfo = BurialInfo::where('user_id', $noti->marked_user_id)->first();
+                    $data['user_name'] = null;
+
+                    if ($markedUser) {
+                        $first_name = isset($markedUser->first_name) ? trim($markedUser->first_name) : '';
+                        $last_name = isset($markedUser->last_name) ? trim($markedUser->last_name) : '';
+                        if (!empty($first_name) || !empty($last_name)) {
+                            $data['user_name'] = trim($first_name . ' ' . $last_name);
+                        }
+                    }
+
+                    $data['user_image'] = $markedUser->image ?? null;
+                    $data['user_id'] = $markedUser->id ?? null;
+                    $data['burialinfo'] = $burialInfo ? $burialInfo->toArray() : null;
+                    $noti->deceased_user = $data ?? null;
+                }
+
+                // ✅ Sender details
+                $getSender = User::find($noti->sender_id);
+                if ($getSender) {
+                    $noti->sender = $getSender;
+                }
+
+                // ✅ Timezone-based created_at formatting
+                $createdAt = Carbon::parse($noti->created_at)->timezone($timeZone);
+                $noti->created_at = $createdAt->format('Y-m-d H:i:s');
+
+                // ✅ Extra check for invite type
+                if ($noti->type == "invite") {
+                    $getData = ConnectionRequest::where([
+                        'user_id'   => $noti->receiver_id,
+                        'sender_id' => $noti->sender_id
+                    ])->first();
+                    $noti->is_connection_request = $getData ? true : false;
+                }
+
+                // ✅ Add redirect info (from your first function)
+                $redirectTo = null;
+                switch ($noti->type) {
+                    case 'follow':
+                    case 'follow_request':
+                    case 'follow_accept':
+                    case 'follow_reject':
+                    case 'trust_request':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $noti->item_id]
+                        ];
+                        break;
+                    case 'like':
+                    case 'post':
+                        $redirectTo = [
+                            "screen" => "PostDetail",
+                            "params" => ["post_id" => $noti->item_id]
+                        ];
+                        break;
+                    case 'invite':
+                    case 'invite_user':
+                        $redirectTo = [
+                            "screen" => "GroupDetail",
+                            "params" => ["group_id" => $noti->group_id]
+                        ];
+                        break;
+                    case 'self':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $noti->marked_user_id]
+                        ];
+                        break;
+                    case 'deceased':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $noti->item_id]
+                        ];
+                        break;
+                }
+                $noti->redirect_to = $redirectTo;
+            }
+
+            return $this->successResponse(
+                "Notifications fetched successfully.",
+                200,
+                $notis->items(),
+                $notis
+            );
+        } catch (\Exception $e) {
+            return $this->errorResponse($e->getMessage(), 'internal_server_error', 500);
+        }
+    }
+
 
 
     public function markAllSeen()
