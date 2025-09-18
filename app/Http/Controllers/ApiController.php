@@ -2185,7 +2185,7 @@ class ApiController extends Controller
     public function getNotificationListOLD() {
         try {
             $user = Auth::user();
-            //$user = User::find(787);
+            
             
             
             $getHeaders = apache_request_headers();
@@ -2268,7 +2268,7 @@ class ApiController extends Controller
     {
         try {
             $user = Auth::user();
-            // $user = User::find(787);
+            
 
             // ✅ Timezone from headers
             $getHeaders = apache_request_headers();
