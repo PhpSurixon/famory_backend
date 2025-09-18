@@ -711,163 +711,7 @@ class ApiController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', 'error_type' => $exception->getMessage(), "data" => []], 401);
         }
     }
-
-    // public function getProfile(Request $request)
-    // {
-    //     try {
-    //         $current_user = Auth::id();
-    //         $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
-    //         $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-
-    //         // Fetch user with relations
-    //         $user = User::where('id', $current_user)
-    //             ->with([
-    //                 'group',
-    //                 'group.group_name',
-    //                 'burialinfo',
-    //                 'last_will_url',
-    //                 'post',
-    //                 'album' => function ($query) {
-    //                     $query->orderBy('created_at', 'desc')
-    //                         ->take(5)
-    //                         ->withCount('posts');
-    //                 },
-    //                 'album.posts',
-    //             ])
-    //             ->first();
-
-    //         if (!$user) {
-    //             return response()->json([
-    //                 "message" => "Oops!, profile not found",
-    //                 "status"  => "failed",
-    //                 "data"    => []
-    //             ], 404);
-    //         }
-
-    //         // Convert Eloquent object to array (so we can transform images easily)
-    //         $data = $user->toArray();
-
-    //         // ✅ Fix main user image
-    //         $data['image'] = !empty($data['image']) ? $s3BaseUrl . $data['image'] : null;
-
-    //         // Default values
-    //         $data['saved_post_count'] = 0;
-    //         $data['saved_album_count'] = 0;
-
-    //         // Last will handling
-    //         $data['last_will'] = $user->last_will_url->video ?? "";
-    //         $data['last_will_updated_at'] = $user->last_will_url->updated_at ?? null;
-    //         unset($data['last_will_url']);
-
-    //         // Family Members
-    //         $familyMembers = FamilyMember::where('user_id', $current_user)
-    //             ->orWhere('member_id', $current_user)
-    //             ->orderBy('id', 'desc')
-    //             ->limit(20)
-    //             ->get();
-
-    //         $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
-    //             if ($familyMember->member_id == Auth::id()) {
-    //                 if (empty($familyMember->member)) return null;
-
-    //                 $user = $familyMember->member;
-    //                 $userId = $familyMember->member_id;
-    //                 $memberId = $familyMember->user_id;
-    //             } else {
-    //                 if (empty($familyMember->user)) return null;
-
-    //                 $user = $familyMember->user;
-    //                 $userId = $familyMember->user_id;
-    //                 $memberId = $familyMember->member_id;
-    //             }
-
-    //             return [
-    //                 'id'        => $familyMember->id,
-    //                 'user_id'   => $userId,
-    //                 'member_id' => $memberId,
-    //                 'user'      => [
-    //                     'id'         => $user->id,
-    //                     'first_name' => $user->first_name,
-    //                     'last_name'  => $user->last_name,
-    //                     'image'      => $user->image ? $s3BaseUrl . $user->image : null,
-    //                 ],
-    //             ];
-    //         })
-    //         ->whereNotIn('user.id', $blockedUserIds)
-    //         ->filter()
-    //         ->values();
-
-    //         $data['family'] = $simplifiedData;
-
-    //         // ✅ Fix group images
-    //         if (!empty($data['group'])) {
-    //             foreach ($data['group'] as &$group) {
-    //                 if (!empty($group['group_name']['image'])) {
-    //                     $group['group_name']['image'] = $s3BaseUrl . $group['group_name']['image'];
-    //                 }
-    //             }
-    //         }
-
-    //         // ✅ Fix album cover & posts images
-    //         if (!empty($data['album'])) {
-    //             foreach ($data['album'] as &$album) {
-    //                 if (!empty($album['album_cover'])) {
-    //                     $album['album_cover'] = $s3BaseUrl . $album['album_cover'];
-    //                 }
-
-    //                 if (!empty($album['posts'])) {
-    //                     foreach ($album['posts'] as &$post) {
-    //                         if (!empty($post['image'])) {
-    //                             $post['image'] = $s3BaseUrl . $post['image'];
-    //                         }
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         // Subscription
-    //         $subscribed_user = Subscription::where('user_id', $current_user)->first();
-    //         $subscriptionCheck = $this->subscribe_validation()->original['data'] ?? "";
-
-    //         if ($subscribed_user) {
-    //             if ($subscribed_user->subscription == 'free') {
-    //                 $data['is_subscription'] = "true";
-    //             } else {
-    //                 $data['is_subscription'] = $subscriptionCheck == "" ? "false" : "true";
-    //             }
-    //         } else {
-    //             $data['is_subscription'] = $subscriptionCheck == "" ? "false" : "true";
-    //         }
-
-    //         $data['subscribed'] = $subscriptionCheck == "" ? null : $subscriptionCheck;
-
-    //         // Live Status
-    //         $isExist = UserLiveStatus::where('user_id', $current_user)->latest()->first();
-    //         $data['is_live'] = $isExist ? $isExist->is_alive == 1 : true;
-
-    //         $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
-    //         $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
-    //         $postCount      = Post::where('user_id', $current_user)->count();
-    //         $data['follower_count'] = $followerCount;
-    //         $data['following_count'] = $followingCount;
-    //         $data['post_count'] = $postCount;
-
-    //         return response()->json([
-    //             "message" => "Profile retrieved successfully",
-    //             "status"  => "success",
-    //             "data"    => $data
-    //         ], 200);
-
-    //     } catch (\Exception $exception) {
-    //         return response()->json([
-    //             'message'    => $exception->getMessage(),
-    //             'status'     => 'failed',
-    //             'error_type' => $exception->getMessage(),
-    //             "data"       => []
-    //         ], 500);
-    //     }
-    // }
-
+    
     public function getProfile(Request $request)
     {
         try {
@@ -1001,8 +845,12 @@ class ApiController extends Controller
             $data['subscribed'] = $subscriptionCheck == "" ? null : $subscriptionCheck;
 
             // Live Status
-            $isExist = UserLiveStatus::where('user_id', $current_user)->latest()->first();
-            $data['is_live'] = $isExist ? $isExist->is_alive == 1 : true;
+            // $isExist = UserLiveStatus::where('user_id', $current_user)->latest()->first();
+            // $data['is_live'] = $isExist ? $isExist->is_alive == 1 : true;
+            
+            #New Logic
+            $data['is_live'] = $user->is_dead ? false : true;
+            unset($data['is_dead']);
 
             $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
             $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
@@ -1563,113 +1411,113 @@ class ApiController extends Controller
        
     }
 
-    public function blockedUser(Request $request) {
-        try {
-            $validatedData = $request->validate([
-                'marked_user_id' => 'required|integer',
-                'is_live' => 'boolean',
-                'block' => 'required|boolean',
-            ]);
+    // public function blockedUser(Request $request) {
+    //     try {
+    //         $validatedData = $request->validate([
+    //             'marked_user_id' => 'required|integer',
+    //             'is_live' => 'boolean',
+    //             'block' => 'required|boolean',
+    //         ]);
     
-            $user_id = Auth::id();
-            $marked_user_id = $request->marked_user_id;
+    //         $user_id = Auth::id();
+    //         $marked_user_id = $request->marked_user_id;
             
             
             
             
-            if($request->is_live == "1"){
-                $liveStatus = new UserLiveStatus();
-                $liveStatus->user_id = $user_id;
-                $liveStatus->is_alive = 1;
-                $liveStatus->alive_by = $user_id;
-                $liveStatus->save();
-                $updateResult = UserLiveStatus::where(['user_id' => $user_id, 'is_alive' => 0])->update(['notify' => 1]);
-            }
+    //         if($request->is_live == "1"){
+    //             $liveStatus = new UserLiveStatus();
+    //             $liveStatus->user_id = $user_id;
+    //             $liveStatus->is_alive = 1;
+    //             $liveStatus->alive_by = $user_id;
+    //             $liveStatus->save();
+    //             $updateResult = UserLiveStatus::where(['user_id' => $user_id, 'is_alive' => 0])->update(['notify' => 1]);
+    //         }
             
-            $lastNotification = Notification::where('receiver_id', $user_id)
-                ->orderBy('created_at', 'desc')
-                ->first();
+    //         $lastNotification = Notification::where('receiver_id', $user_id)
+    //             ->orderBy('created_at', 'desc')
+    //             ->first();
             
-            if ($lastNotification && ($lastNotification->type == "self" || $lastNotification->type == "deceased")) {
-                $lastNotification->has_actioned = 1;
-                $lastNotification->save();
-            }
+    //         if ($lastNotification && ($lastNotification->type == "self" || $lastNotification->type == "deceased")) {
+    //             $lastNotification->has_actioned = 1;
+    //             $lastNotification->save();
+    //         }
             
-            $blockUser = BlockUser::where('user_id', $user_id)->where('marked_user_id', $marked_user_id)->first();
+    //         $blockUser = BlockUser::where('user_id', $user_id)->where('marked_user_id', $marked_user_id)->first();
     
-            if ($blockUser) {
+    //         if ($blockUser) {
                 
-                if ($blockUser->block == $request->block) {
-                    return response()->json(["message" => "User is already " . ($request->block ? "blocked" : "unblocked"), "status" => "success", "data" => $blockUser], 200);
-                }
+    //             if ($blockUser->block == $request->block) {
+    //                 return response()->json(["message" => "User is already " . ($request->block ? "blocked" : "unblocked"), "status" => "success", "data" => $blockUser], 200);
+    //             }
                 
-                $blockUser->block = $request->block;
+    //             $blockUser->block = $request->block;
                 
-                if ($request->has('is_live')) {
-                    $blockUser->is_live = $request->is_live;
-                }
+    //             if ($request->has('is_live')) {
+    //                 $blockUser->is_live = $request->is_live;
+    //             }
                 
-                $blockUser->save();
-                $message = "User block status updated successfully";
-            } else {
-                
-                
-                // If the record does not exist, create a new one
-                $blockUser = new BlockUser;
-                $blockUser->user_id = $user_id;
-                $blockUser->marked_user_id = $marked_user_id;
-                $blockUser->is_live = $request->is_live ?? false; // Default to false if is_live is not provided
-                $blockUser->block = $request->block;
-                $blockUser->save();
-                
-                // Also create the reverse block record
-                $reverseBlockUser = new BlockUser;
-                $reverseBlockUser->user_id = $marked_user_id;
-                $reverseBlockUser->marked_user_id = $user_id;
-                $reverseBlockUser->is_live = $request->is_live ?? false; // Default to false if is_live is not provided
-                $reverseBlockUser->block = $request->block;
-                $reverseBlockUser->save();
+    //             $blockUser->save();
+    //             $message = "User block status updated successfully";
+    //         } else {
                 
                 
+    //             // If the record does not exist, create a new one
+    //             $blockUser = new BlockUser;
+    //             $blockUser->user_id = $user_id;
+    //             $blockUser->marked_user_id = $marked_user_id;
+    //             $blockUser->is_live = $request->is_live ?? false; // Default to false if is_live is not provided
+    //             $blockUser->block = $request->block;
+    //             $blockUser->save();
                 
-                $message = "Thank you for confirming that you are alive. we will update your status shortly.";
-                $blockUser = BlockUser::where('id', $blockUser->id)->first();
+    //             // Also create the reverse block record
+    //             $reverseBlockUser = new BlockUser;
+    //             $reverseBlockUser->user_id = $marked_user_id;
+    //             $reverseBlockUser->marked_user_id = $user_id;
+    //             $reverseBlockUser->is_live = $request->is_live ?? false; // Default to false if is_live is not provided
+    //             $reverseBlockUser->block = $request->block;
+    //             $reverseBlockUser->save();
                 
-            }
+                
+                
+    //             $message = "Thank you for confirming that you are alive. we will update your status shortly.";
+    //             $blockUser = BlockUser::where('id', $blockUser->id)->first();
+                
+    //         }
 
             
-            return response()->json(["message" => $message, "status" => "success", "data" => $blockUser], 200);
-        } catch (\Exception $exception) {
-            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', "data" => []], 500);
-        }
-    }
+    //         return response()->json(["message" => $message, "status" => "success", "data" => $blockUser], 200);
+    //     } catch (\Exception $exception) {
+    //         return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', "data" => []], 500);
+    //     }
+    // }
 
 
 
 
-    public function getBlockedUsers(Request $request)
-    {
-        try {
-             $user_id = Auth::id();
-            // $blockedUsers = BlockUser::with('blockedUser')->where('user_id', $user_id)->get();
-             $blockedUsers = BlockUser::with('blockedUser')
-                    ->when($request->search, function ($query) use ($request) {
-                        $searchTerm = '%' . $request->search . '%';
-                        $query->whereHas('blockedUser', function ($query) use ($searchTerm) {
-                            $query->where('first_name', 'like', $searchTerm)
-                                ->orWhere('last_name', 'like', $searchTerm);
-                        });
-                    })
-                ->where('user_id', $user_id)
-                ->where('block', 1)
-                ->paginate(10);
+    // public function getBlockedUsers(Request $request)
+    // {
+    //     try {
+    //          $user_id = Auth::id();
+    //         // $blockedUsers = BlockUser::with('blockedUser')->where('user_id', $user_id)->get();
+    //          $blockedUsers = BlockUser::with('blockedUser')
+    //                 ->when($request->search, function ($query) use ($request) {
+    //                     $searchTerm = '%' . $request->search . '%';
+    //                     $query->whereHas('blockedUser', function ($query) use ($searchTerm) {
+    //                         $query->where('first_name', 'like', $searchTerm)
+    //                             ->orWhere('last_name', 'like', $searchTerm);
+    //                     });
+    //                 })
+    //             ->where('user_id', $user_id)
+    //             ->where('block', 1)
+    //             ->paginate(10);
             
-            return $this->successResponse(" Blocked users retrieved successfully", 200,$blockedUsers->items(), $blockedUsers);
-            // return response()->json(["message" => "Blocked users retrieved successfully", "status" => "success", "data" => $blockedUsers], 200);
-        } catch (\Exception $exception) {
-            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', "data" => []], 500);
-        }
-    }
+    //         return $this->successResponse(" Blocked users retrieved successfully", 200,$blockedUsers->items(), $blockedUsers);
+    //         // return response()->json(["message" => "Blocked users retrieved successfully", "status" => "success", "data" => $blockedUsers], 200);
+    //     } catch (\Exception $exception) {
+    //         return response()->json(['message' => $exception->getMessage(), 'status' => 'failed', "data" => []], 500);
+    //     }
+    // }
     
     public function getUserByIdOLD(Request $request, $user_id)
     {
@@ -1890,127 +1738,121 @@ class ApiController extends Controller
 
     public function getUserById(Request $request, $user_id)
     {
-        $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-        $authUser  = Auth::user();
+        try {
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+            $authUser  = Auth::user();
 
-        $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
-                    ->find($user_id);
+            $user = User::with(['burialinfo', 'last_will_url'])
+                        ->find($user_id);
 
-        if (! $user) {
-            return response()->json([
-                'message' => 'User not found',
-                'status'  => 'error',
-                'data'    => null
-            ], 404);
-        }
-
-        
-        $iBlockedOther = BlockUser::where('user_id', $authUser->id)
-                                  ->where('marked_user_id', $user_id)
-                                  ->where('block', 1)
-                                  ->exists();
-
-        $otherBlockedMe = BlockUser::where('user_id', $user_id)
-                                   ->where('marked_user_id', $authUser->id)
-                                   ->where('block', 1)
-                                   ->exists();
-
-        if ($otherBlockedMe) {
-            return response()->json([
-                'message' => 'User not found',
-                'status'  => 'error',
-                'data'    => null
-            ], 404);
-        }
-
-        
-        $isExist = UserLiveStatus::where('user_id', $user_id)->orderBy('id', 'DESC')->first();
-        $is_live = null;
-        $passed_date = null;
-
-        if ($isExist) {
-            if ($isExist->is_alive == 0) {
-                $update_time  = $isExist->created_at->addHours(72)->toDateTimeString();
-                $current_time = \Carbon\Carbon::now()->toDateTimeString();
-                if ($current_time >= $update_time) {
-                    $is_live = false;
-                    $passed_date = $isExist->created_at->format('m/d/y');
-                } else {
-                    $is_live = true;
-                }
-            } else {
-                $is_live = true;
+            if (!$user) {
+                return response()->json([
+                    'message' => 'User not found',
+                    'status'  => 'error',
+                    'data'    => null
+                ], 404);
             }
+
+            // ✅ Block checks
+            $iBlockedOther = BlockUser::where('user_id', $authUser->id)
+                                    ->where('marked_user_id', $user_id)
+                                    ->where('block', 1)
+                                    ->exists();
+
+            $otherBlockedMe = BlockUser::where('user_id', $user_id)
+                                    ->where('marked_user_id', $authUser->id)
+                                    ->where('block', 1)
+                                    ->exists();
+
+            if ($otherBlockedMe) {
+                return response()->json([
+                    'message' => 'User not found',
+                    'status'  => 'error',
+                    'data'    => null
+                ], 404);
+            }
+
+            // ✅ Follow / Family checks
+            $isFollowing = Follow::where('follower_id', $authUser->id)
+                                ->where('following_id', $user_id)
+                                ->where('status', 'approved')
+                                ->exists();
+
+            $member = FamilyMember::where(function ($query) use ($user_id, $authUser) {
+                            $query->where(['user_id' => $authUser->id, 'member_id' => $user_id])
+                                ->orWhere(function ($q) use ($user_id, $authUser) {
+                                    $q->where(['user_id' => $user_id, 'member_id' => $authUser->id]);
+                                });
+                    })->first();
+
+            // ✅ Counts
+            $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
+            $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
+            $postCount      = Post::where('user_id', $user_id)->count();
+
+            // ✅ Convert user to array
+            $userArray = $user->toArray();
+
+            // helper for image prefix
+            $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+                if (empty($path)) return null;
+                if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
+                return $s3BaseUrl . $path;
+            };
+
+            $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
+
+            // ✅ Live/Dead logic from DB column
+            $userArray['is_live']  = $user->is_dead ? false : true;
+            $userArray['is_dead']  = $user->is_dead ? true  : false;
+            $userArray['passed_date'] = $user->is_dead ? optional($user->updated_at)->format('d-m-Y') : null;
+
+            // ✅ Extra info
+            $userArray['is_following']    = (bool) $isFollowing;
+            $userArray['is_family_member']= !empty($member);
+            $userArray['follower_count']  = (int) $followerCount;
+            $userArray['following_count'] = (int) $followingCount;
+            $userArray['post_count']      = (int) $postCount;
+
+            // remove relation keys if exist
+            unset($userArray['userLiveStatus'], $userArray['user_live_status']);
+
+            // ✅ If I blocked this user → return limited info
+            if ($iBlockedOther) {
+                $userArray = [
+                    'id'             => $user->id,
+                    'first_name'     => $user->first_name,
+                    'last_name'      => $user->last_name,
+                    'username'       => $user->username,
+                    'image'          => $prefixIfNeeded($user->image),
+                    'post_count'     => $postCount,
+                    'follower_count' => 0,
+                    'following_count'=> 0,
+                    'is_following'   => false,
+                    'is_family_member'=> false,
+                    'is_live'        => $user->is_dead ? false : true,
+                    'is_dead'        => $user->is_dead ? true  : false,
+                    'passed_date'    => null,
+                    'is_block'       => true,
+                ];
+            } else {
+                $userArray['is_block'] = false;
+            }
+
+            return response()->json([
+                'message' => 'Successfully retrieved user data',
+                'status'  => 'success',
+                'data'    => $userArray
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
         }
-
-        
-        $isFollowing = Follow::where('follower_id', $authUser->id)
-                            ->where('following_id', $user_id)
-                            ->where('status', 'approved')
-                            ->exists();
-
-        $member = FamilyMember::where(function ($query) use ($user_id, $authUser) {
-                    $query->where(['user_id' => $authUser->id, 'member_id' => $user_id])
-                        ->orWhere(function ($q) use ($user_id, $authUser) {
-                            $q->where(['user_id' => $user_id, 'member_id' => $authUser->id]);
-                        });
-                })->first();
-
-        $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
-        $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
-        $postCount      = Post::where('user_id', $user_id)->count();
-
-        // --- Convert to array ---
-        $userArray = $user->toArray();
-
-        // helper to prefix only when needed
-        $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
-            if (empty($path)) return null;
-            if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
-            return $s3BaseUrl . $path;
-        };
-        
-
-        $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
-        $userArray['is_live'] = $is_live;
-        $userArray['passed_date'] = $passed_date;
-        $userArray['is_following'] = (bool) $isFollowing;
-        $userArray['is_family_member'] = !empty($member);
-        $userArray['follower_count'] = (int) $followerCount;
-        $userArray['following_count'] = (int) $followingCount;
-        $userArray['post_count'] = (int) $postCount;
-
-        // Clean unwanted
-        unset($userArray['userLiveStatus'], $userArray['user_live_status']);
-
-
-        if ($iBlockedOther) {
-            $userArray = [
-                'id'             => $user->id,
-                'first_name'     => $user->first_name,
-                'last_name'      => $user->last_name,
-                'username'       => $user->username,
-                'image'          => $prefixIfNeeded($user->image),
-                'post_count'     => $postCount, // ✅ only post count visible
-                'follower_count' => 0,
-                'following_count'=> 0,
-                'is_following'   => false,
-                'is_family_member' => false,
-                'is_live'        => null,
-                'is_dead'        => $user->is_dead?true:false,
-                'passed_date'    => null,
-                'is_block'       => true
-            ];
-        } else {
-            $userArray['is_block'] = false;
-        }
-
-        return response()->json([
-            'message' => 'Successfully retrieved user data',
-            'status'  => 'success',
-            'data'    => $userArray
-        ], 200);
     }
+
 
     
     public function createAlbum(Request $request)
@@ -2340,7 +2182,7 @@ class ApiController extends Controller
     }
     
     
-    public function getNotificationList() {
+    public function getNotificationListOLD() {
         try {
             $user = Auth::user();
             //$user = User::find(787);
@@ -2421,6 +2263,159 @@ class ApiController extends Controller
             return $this->errorResponse($exception->getMessage(), 'internal_server_error', 500);
         }
     }
+
+    public function getNotificationList(Request $request)
+    {
+        try {
+            $user = Auth::user();
+            // $user = User::find(787);
+
+            // ✅ Timezone from headers
+            $getHeaders = apache_request_headers();
+            $timeZone = isset($getHeaders['Timezone']) ? $getHeaders['Timezone'] : 'UTC';
+
+            // ✅ Pagination setup
+            $limit = (int) $request->get('limit', 10);
+            if ($limit <= 0) $limit = 10;
+            $limit = min($limit, 100);
+
+            $query = Notification::where('receiver_id', $user->id)
+                ->where('has_actioned', 0)
+                ->with('group')
+                ->orderBy('id', 'DESC');
+
+            // ✅ Optional search filter
+            if ($request->filled('search')) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%$search%")
+                      ->orWhere('message', 'like', "%$search%")
+                      ->orWhere('type', 'like', "%$search%");
+                });
+            }
+
+            $notis = $query->paginate($limit);
+
+            foreach ($notis as $noti) {
+
+                // ✅ Handle post/like notifications
+                if ($noti->type == "like" || $noti->type == "post") {
+                    $getPost = Post::where('id', $noti->post_id)
+                        ->with(['scheduling_post', 'user'])
+                        ->first();
+
+                    if ($getPost) {
+                        $noti->post = $getPost;
+                        $getPost->like_count = Like::where('post_id', $noti->post_id)->count();
+                        $getPost->is_like = Like::where([
+                            'post_id' => $noti->post_id,
+                            'user_id' => $user->id
+                        ])->exists();
+                        $getPost->is_following = FollowerUnfollwer::where([
+                            'user_id' => $user->id,
+                            'following_id' => $getPost->user->id
+                        ])->exists();
+                        $getPost->created_date = date('Y-m-d', strtotime($getPost->scheduling_post->created_at));
+                        $getPost->posted_date = $getPost->scheduling_post->schedule_type == "now"
+                            ? date('Y-m-d', strtotime($getPost->scheduling_post->created_at))
+                            : $getPost->scheduling_post->schedule_date;
+                    }
+                }
+
+                // ✅ Handle deceased notifications
+                elseif ($noti->type == "deceased") {
+                    $markedUser = User::find($noti->marked_user_id);
+                    $burialInfo = BurialInfo::where('user_id', $noti->marked_user_id)->first();
+                    $data['user_name'] = null;
+
+                    if ($markedUser) {
+                        $first_name = isset($markedUser->first_name) ? trim($markedUser->first_name) : '';
+                        $last_name = isset($markedUser->last_name) ? trim($markedUser->last_name) : '';
+                        if (!empty($first_name) || !empty($last_name)) {
+                            $data['user_name'] = trim($first_name . ' ' . $last_name);
+                        }
+                    }
+
+                    $data['user_image'] = $markedUser->image ?? null;
+                    $data['user_id'] = $markedUser->id ?? null;
+                    $data['burialinfo'] = $burialInfo ? $burialInfo->toArray() : null;
+                    $noti->deceased_user = $data ?? null;
+                }
+
+                // ✅ Sender info
+                $getSender = User::find($noti->sender_id);
+                if ($getSender) {
+                    $noti->sender = $getSender;
+                }
+
+                // ✅ Timezone conversion
+                $createdAt = Carbon::parse($noti->created_at)->timezone($timeZone);
+                $noti->created_at = $createdAt->format('Y-m-d H:i:s');
+                $noti->time_ago = $createdAt->diffForHumans();
+
+                // ✅ Invite connection check
+                if ($noti->type == "invite") {
+                    $getData = ConnectionRequest::where([
+                        'user_id'   => $noti->receiver_id,
+                        'sender_id' => $noti->sender_id
+                    ])->first();
+                    $noti->is_connection_request = $getData ? true : false;
+                }
+
+                // ✅ Structured redirect
+                $redirectTo = null;
+                switch ($noti->type) {
+                    case 'follow':
+                    case 'follow_request':
+                    case 'follow_accept':
+                    case 'follow_reject':
+                    case 'trust_request':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $noti->item_id]
+                        ];
+                        break;
+                    case 'like':
+                    case 'post':
+                        $redirectTo = [
+                            "screen" => "PostDetail",
+                            "params" => ["post_id" => $noti->item_id]
+                        ];
+                        break;
+                    case 'invite':
+                    case 'invite_user':
+                        $redirectTo = [
+                            "screen" => "GroupDetail",
+                            "params" => ["group_id" => $noti->group_id]
+                        ];
+                        break;
+                    case 'self':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $noti->marked_user_id]
+                        ];
+                        break;
+                    case 'deceased':
+                        $redirectTo = [
+                            "screen" => "UserProfile",
+                            "params" => ["user_id" => $noti->item_id]
+                        ];
+                        break;
+                }
+                $noti->redirect_to = $redirectTo;
+            }
+
+            return $this->successResponse(
+                "Notifications fetched successfully.",
+                200,
+                $notis->items(),
+                $notis
+            );
+        } catch (\Exception $exception) {
+            return $this->errorResponse($exception->getMessage(), 'internal_server_error', 500);
+        }
+    }
+
     
     
     public function countNotification(Request $request){

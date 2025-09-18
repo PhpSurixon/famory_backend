@@ -51,8 +51,8 @@ use App\Http\Controllers\StripeSubscriptionController;
         Route::post('/contact-us',[ApiController::class, 'contactUs']);
         Route::post('/verify-password',[ApiController::class, 'verifyPassword']);
         Route::post('/add-about-us',[ApiController::class, 'addAboutUs']);
-        Route::post('/live-user-status',[ApiController::class, 'blockedUser']);
-        Route::get('/get-blocked-user',[ApiController::class, 'getBlockedUsers']);
+        // Route::post('/live-user-status',[ApiController::class, 'blockedUser']);
+        // Route::get('/get-blocked-user',[ApiController::class, 'getBlockedUsers']);
         //Group
         Route::post('/invite-guest-user',[UserController::class, 'inviteGuestUser']);
         Route::post('/add-group',[UserController::class, 'addGroup']);

@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\UserReportController;
 use App\Http\Controllers\Api\PostController as NewPostController;
 use App\Http\Controllers\Api\FinalWordController;
 use App\Http\Controllers\Api\TrustedUserController;
+use App\Http\Controllers\Api\DeathConfirmationController;
 
 
 
@@ -97,6 +98,9 @@ Route::get('trust-user/by-others',[TrustedUserController::class,'trustedByOthers
 Route::post('trust-user/send-request', [TrustedUserController::class, 'sendManageRequest']);
 Route::post('trust-user/request-update', [TrustedUserController::class, 'requestUpdateStatus']);
 Route::post('trust-user/delete', [TrustedUserController::class, 'destroy']);
+
+#Death Confirmation
+Route::post('user/deceased-confirm', [DeathConfirmationController::class, 'confirmDeceased']);
 
 
 

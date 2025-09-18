@@ -144,7 +144,7 @@ trait OneSignalTrait
                 break;
             case "deceased":
                 $title = "$deceasedName deceased";
-                $message = "$senderName has marked $deceasedName as deceased.";
+                $message = "$senderName has marked $deceasedName as deceased.Please confirm if this is true or false.";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
