@@ -232,7 +232,7 @@ class NotificationController extends Controller
             $limit = min($limit, 100);
 
             $notis = Notification::where('receiver_id', $user->id)
-                                    ->where('isSeen', 0)
+                                    // ->where('isSeen', 0)
                                     ->orderBy('id', 'DESC')
                                     ->with('group')
                                     ->paginate($limit);
