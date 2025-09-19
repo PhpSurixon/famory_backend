@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Follow;
+use App\Models\BlockUser;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -280,6 +281,111 @@ class FollowController extends Controller
     //     }
     // }
 
+    // public function followers(Request $request)
+    // {
+    //     try {
+    //         $limit = (int) $request->get('limit', 30);
+    //         $page = (int) $request->get('page', 1);
+    //         $offset = ($page - 1) * $limit;
+    //         $search = $request->get('search');
+    //         $user_id = $request->get('user_id');
+
+    //         $authId = Auth::id();
+    //         $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+    //         if (!empty($user_id)) {
+    //             $checkUser = User::find($user_id);
+    //             if (!$checkUser) {
+    //                 return response()->json([
+    //                     'message' => 'User not found',
+    //                     'status'  => 'failed'
+    //                 ], 404);
+    //             }
+    //             $get_follower_user_id = $user_id;
+    //         } else {
+    //             $get_follower_user_id = $authId;
+    //         }
+
+    //         $query = Follow::where('following_id', $get_follower_user_id)
+    //             ->where('status', 'approved')
+    //             ->whereNotIn('follower_id', $blockedUserIds)
+    //             ->with('follower:id,first_name,last_name,email,username,image');
+
+    //         if (!empty($search)) {
+    //             $query->whereHas('follower', function ($q) use ($search) {
+    //                 $q->where('first_name', 'like', "%{$search}%")
+    //                     ->orWhere('last_name', 'like', "%{$search}%")
+    //                     ->orWhere('username', 'like', "%{$search}%")
+    //                     ->orWhere('email', 'like', "%{$search}%");
+    //             });
+    //         }
+
+    //         $totalUsers = $query->count();
+
+    //         $followers = $query->orderBy('id', 'desc')
+    //             ->skip($offset)
+    //             ->take($limit)
+    //             ->get();
+
+    //         $users = $followers->map(function ($follow) use ($authId) {
+    //             $follower = $follow->follower;
+
+    //             // Check relation between logged-in user & this follower
+    //             $relation = Follow::where('follower_id', $authId)
+    //                 ->where('following_id', $follower->id)
+    //                 ->first();
+
+    //             if (!$relation) {
+    //                 $action = "Follow"; // not following yet
+    //                 $isFollowing = false;
+    //             } elseif ($relation->status === 'approved') {
+    //                 $action = "Following";
+    //                 $isFollowing = true;
+    //             } elseif ($relation->status === 'pending') {
+    //                 $action = "Requested";
+    //                 $isFollowing = false;
+    //             } else {
+    //                 $action = "Follow";
+    //                 $isFollowing = false;
+    //             }
+
+    //             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //             return [
+    //                 'follow_id'     => $follow->id,
+    //                 'user_id'       => $follower->id,
+    //                 'first_name'    => $follower->first_name,
+    //                 'last_name'     => $follower->last_name,
+    //                 'email'         => $follower->email,
+    //                 'username'      => $follower->username,
+    //                 'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
+    //                 'action_button' => $action,
+    //                 'is_following'  => $isFollowing
+    //             ];
+    //         });
+
+    //         $data = [
+    //             'user_id'     => (int) $get_follower_user_id,
+    //             'count'       => $totalUsers,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => ceil($totalUsers / $limit),
+    //             'users'       => $users
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'Followers fetched successfully',
+    //             'status'  => "success",
+    //             'data'    => $data
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! " . $e->getMessage(),
+    //             'status' => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function followers(Request $request)
     {
         try {
@@ -326,22 +432,34 @@ class FollowController extends Controller
                 ->take($limit)
                 ->get();
 
-            $users = $followers->map(function ($follow) use ($authId) {
+            // Collect all follower user IDs
+            $followerIds = $followers->pluck('follower.id')->filter()->all();
+
+            // Fetch relations in one query
+            $relations = Follow::where('follower_id', $authId)
+                ->whereIn('following_id', $followerIds)
+                ->pluck('status', 'following_id'); // key = following_id, value = status
+
+            // Fetch blocked users in one query
+            $blocked = BlockUser::where('user_id', $authId)
+                                ->whereIn('marked_user_id', $followerIds)
+                                ->where('block',1)
+                                ->pluck('marked_user_id')
+                                ->toArray();
+
+            $users = $followers->map(function ($follow) use ($relations,$blocked) {
                 $follower = $follow->follower;
+                $status = $relations[$follower->id] ?? null;
 
-                // Check relation between logged-in user & this follower
-                $relation = Follow::where('follower_id', $authId)
-                    ->where('following_id', $follower->id)
-                    ->first();
-
-                if (!$relation) {
-                    $action = "Follow"; // not following yet
-                } elseif ($relation->status === 'approved') {
+                if ($status === 'approved') {
                     $action = "Following";
-                } elseif ($relation->status === 'pending') {
+                    $isFollowing = true;
+                } elseif ($status === 'pending') {
                     $action = "Requested";
+                    $isFollowing = false;
                 } else {
                     $action = "Follow";
+                    $isFollowing = false;
                 }
 
                 $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
@@ -354,7 +472,9 @@ class FollowController extends Controller
                     'email'         => $follower->email,
                     'username'      => $follower->username,
                     'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
-                    'action_button' => $action
+                    'action_button' => $action,
+                    'is_following'  => $isFollowing,
+                    'is_block'      => in_array($follower->id, $blocked)
                 ];
             });
 
@@ -380,10 +500,116 @@ class FollowController extends Controller
         }
     }
 
+
+    // public function following(Request $request)
+    // {
+    //     try {
+
+    //         $limit = (int) $request->get('limit', 30);
+    //         $page = (int) $request->get('page', 1);
+    //         $offset = ($page - 1) * $limit;
+    //         $search = $request->get('search');
+    //         $user_id = $request->get('user_id');
+
+    //         $authId = Auth::id();
+    //         $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+    //         if (!empty($user_id)) {
+    //             $checkUser = User::find($user_id);
+    //             if (!$checkUser) {
+    //                 return response()->json([
+    //                     'message' => 'User not found',
+    //                     'status'  => 'failed'
+    //                 ], 404);
+    //             }
+    //             $get_follower_user_id = $user_id;
+    //         } else {
+    //             $get_follower_user_id = $authId;
+    //         }
+
+    //         $query = Follow::where('follower_id', $get_follower_user_id)
+    //             ->where('status', 'approved')
+    //             ->whereNotIn('following_id', $blockedUserIds)
+    //             ->with('following:id,first_name,last_name,email,username,image');
+
+    //         if (!empty($search)) {
+    //             $query->whereHas('following', function ($q) use ($search) {
+    //                 $q->where('first_name', 'like', "%{$search}%")
+    //                     ->orWhere('last_name', 'like', "%{$search}%")
+    //                     ->orWhere('username', 'like', "%{$search}%")
+    //                     ->orWhere('email', 'like', "%{$search}%");
+    //             });
+    //         }
+
+    //         $totalUsers = $query->count();
+
+    //         $following = $query->orderBy('id', 'desc')
+    //             ->skip($offset)
+    //             ->take($limit)
+    //             ->get();
+
+    //         $users = $following->map(function ($follow) use ($authId) {
+    //             $user = $follow->following;
+
+    //             // Relation between logged-in user & this "following" user
+    //             $relation = Follow::where('follower_id', $authId)
+    //                 ->where('following_id', $user->id)
+    //                 ->first();
+
+    //             if (!$relation) {
+    //                 $action = "Follow"; // not following yet
+    //                 $isFollowing = false;
+    //             } elseif ($relation->status === 'approved') {
+    //                 $action = "Following";
+    //                 $isFollowing = true;
+    //             } elseif ($relation->status === 'pending') {
+    //                 $action = "Requested";
+    //                 $isFollowing = false;
+    //             } else {
+    //                 $action = "Follow";
+    //                 $isFollowing = false;
+    //             }
+
+    //             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //             return [
+    //                 'follow_id'     => $follow->id,
+    //                 'user_id'       => $user->id,
+    //                 'first_name'    => $user->first_name,
+    //                 'last_name'     => $user->last_name,
+    //                 'email'         => $user->email,
+    //                 'username'      => $user->username,
+    //                 'image'         => $user->image ? $s3BaseUrl . $user->image : null,
+    //                 'action_button' => $action,
+    //                 'is_following'  => $isFollowing
+    //             ];
+    //         });
+
+    //         $data = [
+    //             'user_id'     => (int) $get_follower_user_id,
+    //             'count'       => $totalUsers,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => ceil($totalUsers / $limit),
+    //             'users'       => $users
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'Following fetched successfully',
+    //             'status'  => "success",
+    //             'data'    => $data
+    //         ]);
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! " . $e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function following(Request $request)
     {
         try {
-
             $limit = (int) $request->get('limit', 30);
             $page = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
@@ -427,22 +653,34 @@ class FollowController extends Controller
                 ->take($limit)
                 ->get();
 
-            $users = $following->map(function ($follow) use ($authId) {
+            // Collect all following user IDs
+            $followingIds = $following->pluck('following.id')->filter()->all();
+
+            // Fetch relations in one query
+            $relations = Follow::where('follower_id', $authId)
+                ->whereIn('following_id', $followingIds)
+                ->pluck('status', 'following_id');
+
+            // Fetch blocked users in one query
+            $blocked = BlockUser::where('user_id', $authId)
+                                ->whereIn('marked_user_id', $followingIds)
+                                ->where('block',1)
+                                ->pluck('marked_user_id')
+                                ->toArray();
+
+            $users = $following->map(function ($follow) use ($relations,$blocked) {
                 $user = $follow->following;
+                $status = $relations[$user->id] ?? null;
 
-                // Relation between logged-in user & this "following" user
-                $relation = Follow::where('follower_id', $authId)
-                    ->where('following_id', $user->id)
-                    ->first();
-
-                if (!$relation) {
-                    $action = "Follow"; // not following yet
-                } elseif ($relation->status === 'approved') {
+                if ($status === 'approved') {
                     $action = "Following";
-                } elseif ($relation->status === 'pending') {
+                    $isFollowing = true;
+                } elseif ($status === 'pending') {
                     $action = "Requested";
+                    $isFollowing = false;
                 } else {
                     $action = "Follow";
+                    $isFollowing = false;
                 }
 
                 $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
@@ -455,7 +693,9 @@ class FollowController extends Controller
                     'email'         => $user->email,
                     'username'      => $user->username,
                     'image'         => $user->image ? $s3BaseUrl . $user->image : null,
-                    'action_button' => $action
+                    'action_button' => $action,
+                    'is_following'  => $isFollowing,
+                    'is_block'      => in_array($user->id, $blocked)
                 ];
             });
 
@@ -476,10 +716,11 @@ class FollowController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
-                'status'  => 'failed'
+                'status' => 'failed'
             ], 400);
         }
     }
+
 
 
 
