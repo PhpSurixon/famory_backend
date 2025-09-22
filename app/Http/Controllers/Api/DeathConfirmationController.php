@@ -148,6 +148,15 @@ class DeathConfirmationController extends Controller
                             deceasedById: $authUser->id
                         );
                     }
+
+                    $this->notifyMessage(
+                        $authUser,
+                        $owner->id,
+                        $owner,
+                        "deceased_marked",
+                        deceasedUser: $owner,
+                        deceasedById: $authUser->id
+                    );
                 }
             }
 
@@ -182,6 +191,42 @@ class DeathConfirmationController extends Controller
             return response()->json(['message' => "Something Went Wrong! " . $e->getMessage(), 'status' => 'failed'], 400);
         }
     }
+
+    public function selfRevokeDeath(Request $request)
+    {
+        try {
+            $authUser = Auth::user();
+
+            // Step 1: Check if user is marked dead
+            if ($authUser->is_dead == 0) {
+                return response()->json([
+                    'message' => 'You are already marked as alive.',
+                    'status'  => 'success'
+                ], 200);
+            }
+
+            // Step 2: Update user as alive
+            $authUser->update([
+                'is_dead' => 0,
+                'passed_date' => null
+            ]);
+
+            // Step 3: Delete all confirmations related to this user
+            DeathConfirmation::where('user_id', $authUser->id)->delete();
+
+            return response()->json([
+                'message' => 'Your death status has been revoked. You are now marked alive.',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! ' . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
 
 
 }
