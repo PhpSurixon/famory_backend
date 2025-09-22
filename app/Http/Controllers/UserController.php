@@ -2234,6 +2234,9 @@ class UserController extends Controller
             //  Format users + image URL
             $users = $users->map(function ($user) use ($s3BaseUrl) {
                 $userArray = $user->toArray();
+
+                $userArray['user_id'] = $userArray['id'];
+                // unset($userArray['id']);
                 if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
                     $userArray['image'] = rtrim($s3BaseUrl, '/') . '/' . ltrim($userArray['image'], '/');
                 } else {
