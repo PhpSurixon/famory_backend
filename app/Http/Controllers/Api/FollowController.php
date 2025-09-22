@@ -96,6 +96,37 @@ class FollowController extends Controller
             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
         }
     }
+    
+    public function followerRemove(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'follower_user_id' => 'required|integer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            }
+
+            $userId   = $request->follower_user_id;
+            $authUser = Auth::id();
+
+            $follow = Follow::where('follower_id', $userId)
+                ->where('following_id', $authUser)
+                ->where('status', 'approved')
+                ->first();
+
+            if (!$follow) {
+                return response()->json(['message' => 'This user is not your follower', 'status' => 'failed'], 404);
+            }
+
+            $follow->delete();
+            return response()->json(['message' => "You removed this user from your followers", 'status' => 'success'], 200);
+
+        } catch (Exception $e) {
+            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        }
+    }
 
 
     // public function followers(Request $request)

@@ -54,6 +54,7 @@ Route::post('post/{post_id}/save', [PostController::class, 'savePost']);
 // Follow,unfollow 
 Route::post('follow', [FollowController::class, 'follow']);
 Route::post('unfollow', [FollowController::class, 'unfollow']);
+Route::post('follower/remove', [FollowController::class, 'followerRemove']);
 Route::post('follow/request-status', [FollowController::class, 'respondToRequest']);
 Route::get('follow/pending', [FollowController::class, 'pendingRequests']);
 Route::post('follow/requests-detail', [FollowController::class, 'getFollowRequestDetail']);
