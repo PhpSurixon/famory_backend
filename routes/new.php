@@ -102,6 +102,7 @@ Route::post('trust-user/delete', [TrustedUserController::class, 'destroy']);
 
 #Death Confirmation
 Route::post('user/deceased-confirm', [DeathConfirmationController::class, 'confirmDeceased']);
+Route::post('user/death/self-revoke', [DeathConfirmationController::class, 'selfRevokeDeath']);
 
 
 
