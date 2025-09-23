@@ -205,7 +205,7 @@ class TrustedUserController extends Controller
 
 
 
-    public function sendManageRequest(Request $request)
+    public function sendManageRequestOLD(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -251,6 +251,110 @@ class TrustedUserController extends Controller
             return response()->json(['message' => "Something Went Wrong! " . $e->getMessage(), 'status' => 'failed'], 400);
         }
     }
+
+    public function sendManageRequest(Request $request)
+    {
+        try {
+            $ids = $request->input('trusted_user_id');
+
+            // Normalize input into array
+            if (is_string($ids)) {
+                // Case 1: Comma-separated string "1,2,3"
+                if (str_contains($ids, ',')) {
+                    $ids = array_map('intval', explode(',', $ids));
+                }
+                // Case 2: Stringified JSON array "[1,2,3]"
+                elseif (str_starts_with($ids, '[') && str_ends_with($ids, ']')) {
+                    $decoded = json_decode($ids, true);
+                    $ids = is_array($decoded) ? $decoded : [$ids];
+                }
+                // Case 3: Single number string "5"
+                elseif (is_numeric($ids)) {
+                    $ids = [(int) $ids];
+                }
+            }
+
+            // Always array
+            $ids = (array) $ids;
+            $request->merge(['trusted_user_id' => $ids]);
+
+            // Validate
+            $validator = Validator::make($request->all(), [
+                'trusted_user_id'   => 'required|array|min:1',
+                'trusted_user_id.*' => 'integer|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+            $created = [];
+
+            foreach ($ids as $id) {
+                if ($id === $authUser->id) {
+                    continue; // skip self
+                }
+
+                $targetUser = User::find($id);
+                if (!$targetUser) {
+                    continue; // skip invalid ids
+                }
+
+                // Check if already requested or approved
+                $existing = TrustedUser::where('user_id', $authUser->id)
+                    ->where('trusted_user_id', $targetUser->id)
+                    ->whereIn('status', ['pending', 'approved'])
+                    ->first();
+
+                if ($existing) {
+                    continue; // skip already requested
+                }
+
+                // Create new trusted user request
+                $createFollow = TrustedUser::create([
+                    'user_id'        => $authUser->id,
+                    'trusted_user_id'=> $targetUser->id,
+                    'status'         => 'pending',
+                ]);
+
+                $created[] = $createFollow;
+
+                // Send notification
+                $this->notifyMessage(
+                    $authUser,
+                    $targetUser->id,
+                    $authUser->id,
+                    "trust_request"
+                );
+            }
+
+            if (empty($created)) {
+                return response()->json([
+                    'message' => 'No new trusted requests were created (maybe duplicates/self).',
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            return response()->json([
+                'message' => count($created) > 1
+                    ? 'Trusted users added successfully (pending acceptance)'
+                    : 'Trusted user added successfully (pending acceptance)',
+                'status' => 'success',
+                'data'   => $created
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
 
     public function requestUpdateStatus(Request $request)
     {
