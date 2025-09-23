@@ -300,7 +300,7 @@ class TrustedUserController extends Controller
         }
     }
 
-    public function destroy(Request $request)
+    public function destroyOLD(Request $request)
     {
         try {
 
@@ -339,4 +339,80 @@ class TrustedUserController extends Controller
             ], 400);
         }
     }
+
+    public function destroy(Request $request)
+    {
+        try {
+            $ids = $request->input('id');
+
+            // Normalize "id" input into array
+            if (is_string($ids)) {
+                // Case 1: Comma-separated string "1,2,3"
+                if (str_contains($ids, ',')) {
+                    $ids = array_map('intval', explode(',', $ids));
+                }
+                // Case 2: Stringified JSON array "[1,2,3]"
+                elseif (str_starts_with($ids, '[') && str_ends_with($ids, ']')) {
+                    $decoded = json_decode($ids, true);
+                    $ids = is_array($decoded) ? $decoded : [$ids];
+                }
+                // Case 3: Single number string "5"
+                elseif (is_numeric($ids)) {
+                    $ids = [(int) $ids];
+                }
+            }
+
+            // Always cast to array
+            $ids = (array) $ids;
+
+            // Merge normalized ids back to request
+            $request->merge(['id' => $ids]);
+
+            // Validate
+            $validator = Validator::make($request->all(), [
+                'id'   => 'required|array|min:1',
+                // 'id.*' => 'integer|exists:trusted_users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authId = Auth::id();
+
+            // Get records that belong to the logged-in user
+            $trustedData = TrustedUser::whereIn('id', $ids)
+                                      ->where('user_id', $authId)
+                                      ->get();
+
+            if ($trustedData->isEmpty()) {
+                return response()->json([
+                    'message' => 'Trusted User(s) not found or unauthorized',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // Delete all
+            TrustedUser::whereIn('id', $ids)
+                       ->where('user_id', $authId)
+                       ->delete();
+
+            return response()->json([
+                'message' => count($ids) > 1
+                    ? 'Trusted Users deleted successfully'
+                    : 'Trusted User deleted successfully',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something went wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
 }
