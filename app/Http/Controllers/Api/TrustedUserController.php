@@ -52,6 +52,7 @@ class TrustedUserController extends Controller
 
             $query = TrustedUser::where('user_id', $get_follower_user_id)
                 ->whereNotIn('trusted_user_id', $blockedUserIds) // ✅ fix: filter trusted_user_id, not owner id
+                ->where('status','!=','rejected')
                 ->with('trustedUser:id,first_name,last_name,email,username,image');
 
             if (!empty($search)) {
@@ -138,6 +139,7 @@ class TrustedUserController extends Controller
             // 🔹 Query: who added me as trusted_user_id
             $query = TrustedUser::where('trusted_user_id', $authId)
                 ->whereNotIn('user_id', $blockedUserIds)
+                ->where('status','!=','rejected')
                 ->with('owner:id,first_name,last_name,email,username,image');
 
             if (!empty($search)) {
