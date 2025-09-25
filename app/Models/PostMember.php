@@ -33,4 +33,8 @@ class PostMember extends Model
     public function scheduling_post() {
         return $this->hasOne(SchedulingPost::class,'post_id','id');
     }
+
+    public function user_new() {
+        return $this->belongsTo(User::class,'member_id','id')->select('id','first_name','last_name','image');
+    }
 }

@@ -77,12 +77,15 @@ Route::get('block-user-list', [UserReportController::class, 'blockedUsers']);
 
 #Post New API
 Route::post('post/create',[NewPostController::class,'create']);
+Route::post('post/edit/{id}',[NewPostController::class,'edit']);
+Route::get('post/view/{id?}',[NewPostController::class,'view']);
 
 Route::middleware(['checkBlocked'])->group(function () { 
 
   Route::get('followers-list', [FollowController::class, 'followers']);
   Route::get('following-list', [FollowController::class, 'following']);
   Route::get('user-list', [UserController::class,'userList']);
+  Route::get('get-all-user', [UserController::class,'getuserList']);
 
 });
 
