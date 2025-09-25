@@ -90,13 +90,13 @@ class FinalWordController extends Controller
             $user = User::findOrFail($user_id);
 
             // If user is alive → hide videos
-            if (!$user->is_dead) {
-                return response()->json([
-                    'message' => 'Final Words are private until the user is marked as deceased',
-                    'status'  => 'failed',
-                    'data'    => [],
-                ], 400);
-            }
+            // if (!$user->is_dead) {
+            //     return response()->json([
+            //         'message' => 'Final Words are private until the user is marked as deceased',
+            //         'status'  => 'failed',
+            //         'data'    => [],
+            //     ], 400);
+            // }
 
             // 🔹 Custom pagination params
             $limit  = (int) $request->get('limit', 10); // default 10
@@ -125,14 +125,39 @@ class FinalWordController extends Controller
                                                 : null,
                                 ];
                             });
-
+           $userdata = [
+        "id" => $user->id,
+        "first_name" => $user->first_name,
+        "last_name" => $user->last_name,
+        "email" => $user->email,
+        "role_id" => $user->role_id,
+        "phone" => $user->phone,
+        "image" => $user->image,
+        "company_name" => $user->company_name,
+        "company_address" => $user->company_address,
+        "company_logo" => $user->company_logo,
+        "is_approved" => $user->is_approved,
+        "stripe_customer_id" => $user->stripe_customer_id,
+        "agreed_terms" => $user->agreed_terms,
+        "ban_user" => $user->ban_user,
+        "deleted_at" => $user->deleted_at,
+        "username" => $user->username,
+        "gender" => $user->gender,
+        "dob" => $user->dob,
+        "agree_on_receiving" => $user->agree_on_receiving,
+        "country_code" => $user->country_code,
+        "is_private" => $user->is_private,
+        "is_dead" => $user->is_dead ? true : false,   // ✅ always boolean
+        "description" => $user->description,
+    ];
            
             $data = [
+                'user'        => $userdata,
+                'videos'      => $videos,
                 'count'       => $total,
                 'page'        => $page,
                 'limit'       => $limit,
                 'total_pages' => ceil($total / $limit),
-                'videos'      => $videos,
             ];
 
             return response()->json([
