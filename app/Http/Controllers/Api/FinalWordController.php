@@ -125,31 +125,39 @@ class FinalWordController extends Controller
                                                 : null,
                                 ];
                             });
-           $userdata = [
-        "id" => $user->id,
-        "first_name" => $user->first_name,
-        "last_name" => $user->last_name,
-        "email" => $user->email,
-        "role_id" => $user->role_id,
-        "phone" => $user->phone,
-        "image" => $user->image,
-        "company_name" => $user->company_name,
-        "company_address" => $user->company_address,
-        "company_logo" => $user->company_logo,
-        "is_approved" => $user->is_approved,
-        "stripe_customer_id" => $user->stripe_customer_id,
-        "agreed_terms" => $user->agreed_terms,
-        "ban_user" => $user->ban_user,
-        "deleted_at" => $user->deleted_at,
-        "username" => $user->username,
-        "gender" => $user->gender,
-        "dob" => $user->dob,
-        "agree_on_receiving" => $user->agree_on_receiving,
-        "country_code" => $user->country_code,
-        "is_private" => $user->is_private,
-        "is_dead" => $user->is_dead ? true : false,   // ✅ always boolean
-        "description" => $user->description,
-    ];
+                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+                    // helper for image prefix
+                $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+                    if (empty($path)) return null;
+                    if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
+                    return $s3BaseUrl . $path;
+                };
+
+                $userdata = [
+                    "id" => $user->id,
+                    "first_name" => $user->first_name,
+                    "last_name" => $user->last_name,
+                    "email" => $user->email,
+                    "role_id" => $user->role_id,
+                    "phone" => $user->phone,
+                    "image" => $prefixIfNeeded($user->image),
+                    "company_name" => $user->company_name,
+                    "company_address" => $user->company_address,
+                    "company_logo" => $user->company_logo,
+                    "is_approved" => $user->is_approved,
+                    "stripe_customer_id" => $user->stripe_customer_id,
+                    "agreed_terms" => $user->agreed_terms,
+                    "ban_user" => $user->ban_user,
+                    "deleted_at" => $user->deleted_at,
+                    "username" => $user->username,
+                    "gender" => $user->gender,
+                    "dob" => $user->dob,
+                    "agree_on_receiving" => $user->agree_on_receiving,
+                    "country_code" => $user->country_code,
+                    "is_private" => $user->is_private,
+                "is_dead" => $user->is_dead ? true : false,   // ✅ always boolean
+                "description" => $user->description,
+            ];
            
             $data = [
                 'user'        => $userdata,
