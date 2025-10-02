@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\FinalWord;
+use App\Models\TrustedUser;
+use App\Models\DeathConfirmation;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -87,91 +89,103 @@ class FinalWordController extends Controller
     public function showByOtherUser(Request $request, $user_id)
     {
         try {
-            $user = User::findOrFail($user_id);
-
-            // If user is alive → hide videos
-            // if (!$user->is_dead) {
-            //     return response()->json([
-            //         'message' => 'Final Words are private until the user is marked as deceased',
-            //         'status'  => 'failed',
-            //         'data'    => [],
-            //     ], 400);
-            // }
-
-            // 🔹 Custom pagination params
-            $limit  = (int) $request->get('limit', 10); // default 10
-            $page   = (int) $request->get('page', 1);   // default 1
-            $offset = ($page - 1) * $limit;
-
             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
-            
-            $query = FinalWord::where('user_id', $user_id);
+            // 🔹 Helper for image prefix
+            $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+                if (empty($path)) return null;
+                if (preg_match('/^https?:\/\//', $path)) return $path;
+                return rtrim($s3BaseUrl, '/') . '/' . ltrim($path, '/');
+            };
 
-           
+            // 🔹 Fetch user
+            $user = User::findOrFail($user_id);
+
+            // 🔹 Pagination params
+            $limit  = max((int) $request->get('limit', 10), 1);
+            $page   = max((int) $request->get('page', 1), 1);
+            $offset = ($page - 1) * $limit;
+
+            // 🔹 Get FinalWords
+            $query = FinalWord::where('user_id', $user_id);
             $total = $query->count();
 
-            
-            $videos = $query->orderBy('id', 'desc')
+            $videos = $query->orderByDesc('id')
                             ->skip($offset)
                             ->take($limit)
                             ->get()
-                            ->map(function ($fw) use ($s3BaseUrl) {
-                                return [
-                                    'id'    => $fw->id,
-                                    // 'title' => $fw->title ?? null,
-                                    'video' => $fw->video_path 
-                                                ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') 
-                                                : null,
-                                ];
-                            });
-                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-                    // helper for image prefix
-                $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
-                    if (empty($path)) return null;
-                    if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
-                    return $s3BaseUrl . $path;
-                };
+                            ->map(fn($fw) => [
+                                'id'    => $fw->id,
+                                'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
+                            ]);
 
-                $userdata = [
-                    "id" => $user->id,
-                    "first_name" => $user->first_name,
-                    "last_name" => $user->last_name,
-                    "email" => $user->email,
-                    "role_id" => $user->role_id,
-                    "phone" => $user->phone,
-                    "image" => $prefixIfNeeded($user->image),
-                    "company_name" => $user->company_name,
-                    "company_address" => $user->company_address,
-                    "company_logo" => $user->company_logo,
-                    "is_approved" => $user->is_approved,
-                    "stripe_customer_id" => $user->stripe_customer_id,
-                    "agreed_terms" => $user->agreed_terms,
-                    "ban_user" => $user->ban_user,
-                    "deleted_at" => $user->deleted_at,
-                    "username" => $user->username,
-                    "gender" => $user->gender,
-                    "dob" => $user->dob,
-                    "agree_on_receiving" => $user->agree_on_receiving,
-                    "country_code" => $user->country_code,
-                    "is_private" => $user->is_private,
-                "is_dead" => $user->is_dead ? true : false,   // ✅ always boolean
-                "description" => $user->description,
-            ];
-           
-            $data = [
-                'user'        => $userdata,
-                'videos'      => $videos,
-                'count'       => $total,
-                'page'        => $page,
-                'limit'       => $limit,
-                'total_pages' => ceil($total / $limit),
+            // 🔹 Format user data
+            $userdata = [
+                "id"                 => $user->id,
+                "first_name"         => $user->first_name,
+                "last_name"          => $user->last_name,
+                "email"              => $user->email,
+                "role_id"            => $user->role_id,
+                "phone"              => $user->phone,
+                "image"              => $prefixIfNeeded($user->image),
+                "company_name"       => $user->company_name,
+                "company_address"    => $user->company_address,
+                "company_logo"       => $prefixIfNeeded($user->company_logo),
+                "is_approved"        => $user->is_approved,
+                "stripe_customer_id" => $user->stripe_customer_id,
+                "agreed_terms"       => $user->agreed_terms,
+                "ban_user"           => $user->ban_user,
+                "deleted_at"         => $user->deleted_at,
+                "username"           => $user->username,
+                "gender"             => $user->gender,
+                "dob"                => $user->dob,
+                "agree_on_receiving" => $user->agree_on_receiving,
+                "country_code"       => $user->country_code,
+                "is_private"         => $user->is_private,
+                "is_dead"            => (bool) $user->is_dead,
+                "description"        => $user->description,
             ];
 
+            // 🔹 Get trusted users
+            $getTrustUserID = TrustedUser::where('user_id', $user->id)
+                                        ->where('status', 'accepted')
+                                        ->pluck('trusted_user_id');
+
+            $manage_user = User::select('id','first_name','last_name','email','image')
+                                ->whereNull('deleted_at')
+                                ->where('role_id', 2)
+                                ->whereIn('id', $getTrustUserID)
+                                ->get();
+
+            $manage_user_list = $manage_user->map(function ($trust_user) use ($s3BaseUrl, $user, $prefixIfNeeded) {
+                $checkMarkdeath = DeathConfirmation::where('user_id', $user->id)
+                                                ->where('trusted_user_id', $trust_user->id)
+                                                ->first();
+
+                return [
+                    'user_id'                  => $trust_user->id,
+                    'first_name'               => $trust_user->first_name,
+                    'last_name'                => $trust_user->last_name,
+                    'email'                    => $trust_user->email,
+                    'image'                    => $prefixIfNeeded($trust_user->image),
+                    'is_mark_death_or_not'     => $checkMarkdeath ? 1 : 0,
+                    'death_confirmation_data'  => $checkMarkdeath->status ?? null,
+                ];
+            });
+
+            // 🔹 Final response
             return response()->json([
                 'message' => 'Final Words retrieved successfully',
                 'status'  => 'success',
-                'data'    => $data,
+                'data'    => [
+                    'user'             => $userdata,
+                    'manage_user_list' => $manage_user_list,
+                    'videos'           => $videos,
+                    'count'            => $total,
+                    'page'             => $page,
+                    'limit'            => $limit,
+                    'total_pages'      => ceil($total / $limit),
+                ],
             ], 200);
 
         } catch (\Exception $e) {
@@ -181,6 +195,7 @@ class FinalWordController extends Controller
             ], 400);
         }
     }
+
 
 
     public function store(Request $request)

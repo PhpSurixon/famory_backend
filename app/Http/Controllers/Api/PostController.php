@@ -8,6 +8,8 @@ use App\Models\Post;
 use App\Models\SchedulingPost;
 use App\Models\AlbumPost;
 use App\Models\PostMember;
+use App\Models\FamilyMember;
+use App\Models\MemberGroup;
 use App\Models\Follow;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -22,6 +24,8 @@ class PostController extends Controller
 {
     use OneSignalTrait;
     use FormatResponseTrait;
+
+    protected $UploadImage;
 
     public function __construct(UploadImage $UploadImage)
     {
@@ -614,13 +618,26 @@ class PostController extends Controller
                 ], 400);
             }
             
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
-                'message' => $exception->getMessage(),
+                'message' => $e->getMessage(),
                 'status'  => 'failed'
             ], 400);
         }
     }
+
+    public function list(Request $request)
+    {
+        try 
+        {
+            $currentUser = Auth::id();
+            
+
+        } catch (\Exception $exception) {
+            return response()->json(['message'=>$exception->getMessage(),'status'=>'failed'],500);
+        }
+    }
+
 
 
 

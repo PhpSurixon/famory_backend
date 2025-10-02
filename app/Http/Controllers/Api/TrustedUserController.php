@@ -521,4 +521,91 @@ class TrustedUserController extends Controller
         }
     }
 
+    public function getManageUserList(Request $request)
+    {
+        try {
+            // 🔹 Validate request
+            $validator = Validator::make($request->all(), [
+                'marked_by_user_id' => 'required|exists:users,id',
+                'marked_to_user_id' => 'required|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            // 🔹 Helper for image prefix
+            $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+                if (empty($path)) return null;
+                if (preg_match('/^https?:\/\//', $path)) return $path;
+                return rtrim($s3BaseUrl, '/') . '/' . ltrim($path, '/');
+            };
+
+            // 🔹 Common function to format user
+            $formatUser = function ($user) use ($prefixIfNeeded) {
+                if (!$user) return null;
+                return [
+                    'user_id'    => $user->id,
+                    'first_name' => $user->first_name,
+                    'last_name'  => $user->last_name ?? null,
+                    'email'      => $user->email ?? null,
+                    'image'      => $prefixIfNeeded($user->image),
+                ];
+            };
+
+            // 🔹 Marked by user
+            $marked_by_user = User::select('id','first_name','last_name','email','image')
+                                ->where('id', $request->marked_by_user_id)
+                                ->whereNull('deleted_at')
+                                ->where('role_id', 2)
+                                ->first();
+
+            $marked_by_user_formatted = $formatUser($marked_by_user);
+
+            // 🔹 Marked to user
+            $marked_to_user = User::select('id','first_name','last_name','email','image')
+                                ->where('id', $request->marked_to_user_id)
+                                ->whereNull('deleted_at')
+                                ->where('role_id', 2)
+                                ->first();
+
+            $marked_to_user_formatted = $formatUser($marked_to_user);
+
+            // 🔹 Manage user list (trusted users of marked_to_user)
+            $mark_to_manage_user_list = TrustedUser::where('user_id', $request->marked_to_user_id)
+                                                    ->where('status', 'accepted')
+                                                    ->with('trustedUser:id,first_name,last_name,email,image')
+                                                    ->get();
+
+            $manage_users = $mark_to_manage_user_list->map(function ($tu) use ($formatUser) {
+                return $formatUser($tu->trustedUser);
+            })->filter()->values();
+
+            // 🔹 Final response data
+            $data = [
+                'marked_by_user'       => $marked_by_user_formatted,
+                'marked_to_user'       => $marked_to_user_formatted,
+                'mark_to_manage_user_list' => $manage_users,
+            ];
+
+            return response()->json([
+                'message' => 'Marked Deceased Manage User List retrieved successfully',
+                'status'  => 'success',
+                'data'    => $data,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something went wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+
 }

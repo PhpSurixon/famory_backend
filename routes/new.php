@@ -79,6 +79,7 @@ Route::get('block-user-list', [UserReportController::class, 'blockedUsers']);
 Route::post('post/create',[NewPostController::class,'create']);
 Route::post('post/edit/{id}',[NewPostController::class,'edit']);
 Route::get('post/view/{id?}',[NewPostController::class,'view']);
+Route::get('post/list',[NewPostController::class,'list']);
 
 Route::middleware(['checkBlocked'])->group(function () { 
 
@@ -102,6 +103,7 @@ Route::get('trust-user/by-others',[TrustedUserController::class,'trustedByOthers
 Route::post('trust-user/send-request', [TrustedUserController::class, 'sendManageRequest']);
 Route::post('trust-user/request-update', [TrustedUserController::class, 'requestUpdateStatus']);
 Route::post('trust-user/delete', [TrustedUserController::class, 'destroy']);
+Route::post('get-manage-user-list', [TrustedUserController::class, 'getManageUserList']);
 
 #Death Confirmation
 Route::post('user/deceased-confirm', [DeathConfirmationController::class, 'confirmDeceased']);
