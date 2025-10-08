@@ -42,4 +42,10 @@ class Comment extends Model
      {
          return $this->belongsToMany(User::class, 'commentlikes');
      }
+
+    public function comment_replies()
+    {
+        return $this->hasMany(Comment::class, 'parent_id')
+            ->with('user:id,first_name,last_name,image'); // optional eager load for nested
+    }
 }

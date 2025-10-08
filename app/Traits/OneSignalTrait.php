@@ -254,6 +254,15 @@ trait OneSignalTrait
                     "item" => $item,
                 ];
                 break;
+            case "comment":
+                $title = "New Comment On Your Post";
+                $message = "A new comment has been added to your post by $senderName";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "post" => $item
+                ];
+                break;
 
             default:
                 return 1;

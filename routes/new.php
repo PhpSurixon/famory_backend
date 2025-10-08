@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\PostController as NewPostController;
 use App\Http\Controllers\Api\FinalWordController;
 use App\Http\Controllers\Api\TrustedUserController;
 use App\Http\Controllers\Api\DeathConfirmationController;
+use App\Http\Controllers\Api\PostCommentController;
 
 
 
@@ -80,6 +81,12 @@ Route::post('post/create',[NewPostController::class,'create']);
 Route::post('post/edit/{id}',[NewPostController::class,'edit']);
 Route::get('post/view/{id?}',[NewPostController::class,'view']);
 Route::get('post/list',[NewPostController::class,'list']);
+
+#Post Comment New API
+Route::post('get-post-with-comment',[PostCommentController::class,'index']);
+Route::post('comment/create',[PostCommentController::class,'store']);
+Route::post('comment/update',[PostCommentController::class,'update']);
+Route::post('comment/delete',[PostCommentController::class,'destroy']);
 
 Route::middleware(['checkBlocked'])->group(function () { 
 

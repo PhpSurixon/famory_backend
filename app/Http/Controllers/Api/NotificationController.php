@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Post;
 use App\Models\Like;
 use App\Models\Follow;
+use App\Models\BurialInfo;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
@@ -318,6 +319,7 @@ class NotificationController extends Controller
                         break;
                     case 'like':
                     case 'post':
+                    case 'comment':
                         $redirectTo = [
                             "screen" => "PostDetail",
                             "params" => ["post_id" => $noti->item_id]

@@ -554,12 +554,13 @@ class TrustedUserController extends Controller
                     'first_name' => $user->first_name,
                     'last_name'  => $user->last_name ?? null,
                     'email'      => $user->email ?? null,
+                    'phone'      => $user->phone ?? null,
                     'image'      => $prefixIfNeeded($user->image),
                 ];
             };
 
             // 🔹 Marked by user
-            $marked_by_user = User::select('id','first_name','last_name','email','image')
+            $marked_by_user = User::select('id','first_name','last_name','email','phone','image')
                                 ->where('id', $request->marked_by_user_id)
                                 ->whereNull('deleted_at')
                                 ->where('role_id', 2)
@@ -568,7 +569,7 @@ class TrustedUserController extends Controller
             $marked_by_user_formatted = $formatUser($marked_by_user);
 
             // 🔹 Marked to user
-            $marked_to_user = User::select('id','first_name','last_name','email','image')
+            $marked_to_user = User::select('id','first_name','last_name','email','phone','image')
                                 ->where('id', $request->marked_to_user_id)
                                 ->whereNull('deleted_at')
                                 ->where('role_id', 2)
@@ -579,7 +580,7 @@ class TrustedUserController extends Controller
             // 🔹 Manage user list (trusted users of marked_to_user)
             $mark_to_manage_user_list = TrustedUser::where('user_id', $request->marked_to_user_id)
                                                     ->where('status', 'accepted')
-                                                    ->with('trustedUser:id,first_name,last_name,email,image')
+                                                    ->with('trustedUser:id,first_name,last_name,email,phone,image')
                                                     ->get();
 
             $manage_users = $mark_to_manage_user_list->map(function ($tu) use ($formatUser) {
