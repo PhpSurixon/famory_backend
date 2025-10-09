@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\FinalWordController;
 use App\Http\Controllers\Api\TrustedUserController;
 use App\Http\Controllers\Api\DeathConfirmationController;
 use App\Http\Controllers\Api\PostCommentController;
+use App\Http\Controllers\Api\PostLikeController;
 
 
 
@@ -87,6 +88,11 @@ Route::post('get-post-with-comment',[PostCommentController::class,'index']);
 Route::post('comment/create',[PostCommentController::class,'store']);
 Route::post('comment/update',[PostCommentController::class,'update']);
 Route::post('comment/delete',[PostCommentController::class,'destroy']);
+
+#Post Like New API
+Route::post('post/like-unlike',[PostLikeController::class,'toggle']);
+Route::post('comment/like-unlike',[PostLikeController::class,'commentLikeUnlike']);
+
 
 Route::middleware(['checkBlocked'])->group(function () { 
 

@@ -48,4 +48,9 @@ class Comment extends Model
         return $this->hasMany(Comment::class, 'parent_id')
             ->with('user:id,first_name,last_name,image'); // optional eager load for nested
     }
+
+    public function likeComment()
+    {
+        return $this->hasMany(CommentLike::class, 'comment_id');
+    }
 }

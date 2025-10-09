@@ -55,12 +55,16 @@ class PostCommentController extends Controller
                             'user:id,first_name,last_name,image', // comment user info
                             'comment_replies' => function ($subQuery) {
                                 $subQuery->select('id', 'post_id', 'user_id', 'parent_id', 'comment') // reply fields
-                                        ->with('user:id,first_name,last_name,image'); // reply user info
+                                        ->with('user:id,first_name,last_name,image')
+                                        ->withCount('likeComment'); // reply user info
                             }
                         ])
+                        ->withCount('likeComment')
                         ->orderBy('created_at', 'desc');
                 }
             ])
+            ->withCount('likes')
+            ->withCount('comments')
             ->where('id', $request->post_id)
             ->first();
 
@@ -117,7 +121,8 @@ class PostCommentController extends Controller
             }
 
             if ($request->parent_id) {
-                $parent = $this->postComment::where('id',$request->parent_id);
+                $parent = $this->postComment::where('id',$request->parent_id)->first();
+                // dd($parent,$request->all());
                 if (!$parent || $parent->post_id != $request->post_id) {
                     return response()->json([
                         'status' => 'failed',
@@ -146,6 +151,7 @@ class PostCommentController extends Controller
         ], 201);
             
         } catch (\Exception $exception) {
+            // dd($exception);
             DB::rollBack();
             return response()->json([
                 'message' => $exception->getMessage(),

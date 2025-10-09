@@ -596,10 +596,30 @@ class PostController extends Controller
             }
             $currentUser = Auth::user();
 
-            $getPost = Post::with('scheduling_post','post_member.user_new')
-                           ->where('user_id', $currentUser->id)
-                           ->where('id',$postId)
-                           ->first();
+            $getPost = Post::with([
+                'scheduling_post',
+                    'post_member.user_new:id,first_name,last_name,image', // post members with user info
+                    'comments' => function ($query) {
+                    $query->whereNull('parent_id') // only top-level comments
+                    ->select('id', 'post_id', 'user_id', 'comment', 'parent_id') // select required fields
+                    ->with([
+                    'user:id,first_name,last_name,image', // comment user info
+                    'comment_replies' => function ($subQuery) {
+                    $subQuery->select('id', 'post_id', 'user_id', 'parent_id', 'comment') // reply fields
+                    ->with('user:id,first_name,last_name,image')
+                    ->withCount('likeComment'); // reply user info
+                }
+            ])
+                    ->withCount('likeComment')
+                    ->orderBy('created_at', 'desc');
+                }
+            ])
+                    // ->with('scheduling_post','post_member.user_new')
+            ->withCount('likes')
+            ->withCount('comments')
+            ->where('user_id', $currentUser->id)
+            ->where('id',$postId)
+            ->first();
 
             if($getPost)
             {

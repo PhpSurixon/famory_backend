@@ -110,6 +110,16 @@ trait OneSignalTrait
                 ];
 
                 break;
+            case "comment_like":
+                $title = "New Like";
+                $message = "$senderName liked your Comment";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "post" => $item
+                ];
+
+                break;
 
             case "follow":
                 $title = "New Follow";

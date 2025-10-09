@@ -320,6 +320,7 @@ class NotificationController extends Controller
                     case 'like':
                     case 'post':
                     case 'comment':
+                    case 'comment_like':
                         $redirectTo = [
                             "screen" => "PostDetail",
                             "params" => ["post_id" => $noti->item_id]
