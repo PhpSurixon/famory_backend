@@ -335,10 +335,10 @@ class PostController extends Controller
     public function createPost(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'title' => 'required',
+            // 'title' => 'required',
             'post_type' => 'required',
             'tag_id' => 'nullable',
-            'description' => 'required',
+            // 'description' => 'required',
             'schedule_type' => 'required',
             'reoccurring_type' => 'required',
             'media' => 'nullable|file',
@@ -394,8 +394,8 @@ class PostController extends Controller
             if ($fileUploadSuccess) {
                 $post = new Post();
                 $post->tag_id = $request->tag_id;
-                $post->title = $request->title;
-                $post->description = $request->description;
+                $post->title = $request->title??null;
+                $post->description = $request->description??null;
                 $post->media_type = $request->media_type;
                 $post->file = $filePath;
                 $post->video_formats = $videoPath;
