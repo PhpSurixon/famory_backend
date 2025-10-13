@@ -623,10 +623,10 @@ class PostController extends Controller
     public function editPostOLD2(Request $request, $id)
     {
         $validator = Validator::make($request->all(), [
-            'title' => 'required',
+            // 'title' => 'required',
             'post_type' => 'required',
             'tag_id' => 'nullable',
-            'description' => 'required',
+            // 'description' => 'required',
             'schedule_type' => 'required',
             'reoccurring_type' => 'required',
             'media' => 'nullable|file',
@@ -660,8 +660,8 @@ class PostController extends Controller
             
             $post = Post::findOrFail($id);
             $post->tag_id = $request->tag_id;
-            $post->title = $request->title;
-            $post->description = $request->description;
+            $post->title = $request->title??null;
+            $post->description = $request->description??null;
             
             if ($request->media_type === 'note') {
             $post->file = null;
