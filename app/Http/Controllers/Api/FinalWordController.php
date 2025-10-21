@@ -86,7 +86,7 @@ class FinalWordController extends Controller
 
 
     // View user’s Final Words
-    public function showByOtherUser(Request $request, $user_id)
+    public function showByOtherUserOLD(Request $request, $user_id)
     {
         try {
             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
@@ -195,6 +195,151 @@ class FinalWordController extends Controller
             ], 400);
         }
     }
+
+    public function showByOtherUser(Request $request, $user_id)
+    {
+        try {
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+            $authUserId = Auth::id();
+
+            $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
+                if (empty($path)) return null;
+                if (preg_match('/^https?:\/\//', $path)) return $path;
+                return rtrim($s3BaseUrl, '/') . '/' . ltrim($path, '/');
+            };
+
+            // 🔹 Fetch user
+            $user = User::findOrFail($user_id);
+
+            // 🔹 Pagination
+            $limit  = max((int) $request->get('limit', 10), 1);
+            $page   = max((int) $request->get('page', 1), 1);
+            $offset = ($page - 1) * $limit;
+
+            // 🔹 Videos
+            $query = FinalWord::where('user_id', $user_id);
+            $total = $query->count();
+
+            $videos = $query->orderByDesc('id')
+                ->skip($offset)
+                ->take($limit)
+                ->get()
+                ->map(fn($fw) => [
+                    'id'    => $fw->id,
+                    'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
+                ]);
+
+            // 🔹 User info
+            $userdata = [
+                "id"                 => $user->id,
+                "first_name"         => $user->first_name,
+                "last_name"          => $user->last_name,
+                "email"              => $user->email,
+                "role_id"            => $user->role_id,
+                "phone"              => $user->phone,
+                "image"              => $prefixIfNeeded($user->image),
+                "company_name"       => $user->company_name,
+                "company_address"    => $user->company_address,
+                "company_logo"       => $prefixIfNeeded($user->company_logo),
+                "is_approved"        => $user->is_approved,
+                "stripe_customer_id" => $user->stripe_customer_id,
+                "agreed_terms"       => $user->agreed_terms,
+                "ban_user"           => $user->ban_user,
+                "deleted_at"         => $user->deleted_at,
+                "username"           => $user->username,
+                "gender"             => $user->gender,
+                "dob"                => $user->dob,
+                "agree_on_receiving" => $user->agree_on_receiving,
+                "country_code"       => $user->country_code,
+                "is_private"         => $user->is_private,
+                "is_dead"            => (bool) $user->is_dead,
+                "description"        => $user->description,
+            ];
+
+            // 🔹 Check if logged-in user has access (is a trusted user)
+            $isTrustedUser = TrustedUser::where('user_id', $user->id)
+                ->where('trusted_user_id', $authUserId)
+                ->where('status', 'accepted')
+                ->exists();
+
+            // 🔹 Check if current user marked the deceased
+            $isMarkedByAuth = DeathConfirmation::where('user_id', $user->id)
+                ->where('trusted_user_id', $authUserId)
+                ->exists();
+
+            // 🔹 Get trusted user IDs
+            $trustedUserIDs = TrustedUser::where('user_id', $user->id)
+                ->where('status', 'accepted')
+                ->pluck('trusted_user_id');
+
+            if ($isMarkedByAuth) {
+                // ✅ Scenario 1: Auth user marked deceased → show all admins
+                $manage_user = User::whereNull('deleted_at')
+                    ->where('role_id', 2)
+                    ->whereIn('id', $trustedUserIDs)
+                    ->get();
+            } else {
+                // ✅ Scenario 2: Someone else marked deceased → show only those who marked
+                $markedUsers = DeathConfirmation::where('user_id', $user->id)
+                    ->pluck('trusted_user_id');
+
+                $manage_user = User::whereNull('deleted_at')
+                    ->where('role_id', 2)
+                    ->whereIn('id', $markedUsers)
+                    ->get();
+            }
+
+            // 🔹 Prepare manage_user_list
+            $manage_user_list = $manage_user->map(function ($trust_user) use ($s3BaseUrl, $user, $prefixIfNeeded) {
+                $checkMarkdeath = DeathConfirmation::where('user_id', $user->id)
+                    ->where('trusted_user_id', $trust_user->id)
+                    ->first();
+
+                if ($checkMarkdeath && $checkMarkdeath->status == 'confirmed') {
+                    $mark_death_yes_not = 1;
+                } elseif ($checkMarkdeath && $checkMarkdeath->status == 'not_confirmed') {
+                    $mark_death_yes_not = 2;
+                } else {
+                    $mark_death_yes_not = 0;
+                }
+
+                return [
+                    'user_id'                 => $trust_user->id,
+                    'first_name'              => $trust_user->first_name,
+                    'last_name'               => $trust_user->last_name,
+                    'email'                   => $trust_user->email,
+                    'image'                   => $prefixIfNeeded($trust_user->image),
+                    'is_mark_death_or_not'    => $checkMarkdeath ? 1 : 0,
+                    'death_confirmation_data' => $checkMarkdeath->status ?? null,
+                    'mark_death_yes_not'      => $mark_death_yes_not,
+                ];
+            });
+
+            // ✅ Final response
+            return response()->json([
+                'message' => 'Final Words retrieved successfully',
+                'status'  => 'success',
+                'data'    => [
+                    'user'             => $userdata,
+                    'is_trusted_user'  => $isTrustedUser ? 1 : 0,
+                    'manage_user_list' => $manage_user_list,
+                    'videos'           => $videos,
+                    'count'            => $total,
+                    'page'             => $page,
+                    'limit'            => $limit,
+                    'total_pages'      => ceil($total / $limit),
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed',
+            ], 400);
+        }
+    }
+
+
 
 
 
