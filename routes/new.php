@@ -14,6 +14,7 @@ use App\Http\Controllers\Api\TrustedUserController;
 use App\Http\Controllers\Api\DeathConfirmationController;
 use App\Http\Controllers\Api\PostCommentController;
 use App\Http\Controllers\Api\PostLikeController;
+use App\Http\Controllers\Api\AlbumMemberController;
 
 
 
@@ -122,6 +123,9 @@ Route::post('get-manage-user-list', [TrustedUserController::class, 'getManageUse
 Route::post('user/deceased-confirm', [DeathConfirmationController::class, 'confirmDeceased']);
 Route::post('user/death/self-revoke', [DeathConfirmationController::class, 'selfRevokeDeath']);
 
-
+Route::post('album/members/add-update', [AlbumMemberController::class, 'addOrUpdateMember']);
+Route::post('album/member/remove', [AlbumMemberController::class, 'removeMember']);
+Route::get('album/list', [AlbumMemberController::class, 'getAlbumlist']);
+Route::post('album/member/list', [AlbumMemberController::class, 'listMembers']);
 
 });

@@ -59,6 +59,7 @@ class FinalWordController extends Controller
                                 return [
                                     'id'    => $fw->id,
                                     'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
+                                    'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
                                 ];
                             });
                             
@@ -117,6 +118,7 @@ class FinalWordController extends Controller
                             ->map(fn($fw) => [
                                 'id'    => $fw->id,
                                 'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
+                                'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
                             ]);
 
             // 🔹 Format user data
@@ -227,6 +229,7 @@ class FinalWordController extends Controller
                 ->map(fn($fw) => [
                     'id'    => $fw->id,
                     'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
+                    'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
                 ]);
 
             // 🔹 User info
@@ -385,6 +388,7 @@ class FinalWordController extends Controller
                 DB::beginTransaction();
                 $insertData = [
                     'video_path' => $videoPath['compressed'],
+                    'video_formats' => json_encode($videoPath),
                     'user_id'    => $userId
                 ];
 
