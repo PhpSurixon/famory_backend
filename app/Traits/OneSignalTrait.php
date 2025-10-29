@@ -27,6 +27,8 @@ trait OneSignalTrait
             $data['data'] = $extraData;
         }
 
+        dd($data);
+
         $response = Http::withHeaders([
             'Authorization' => 'Basic ' . env('ONESIGNAL_REST_API_KEY'),
             'Content-Type' => 'application/json'
