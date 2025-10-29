@@ -102,6 +102,8 @@ Route::middleware(['checkBlocked'])->group(function () {
   Route::get('user-list', [UserController::class,'userList']);
   Route::get('get-all-user', [UserController::class,'getuserList']);
 
+  Route::post('albums/not/members', [AlbumMemberController::class, 'followersUserList']);
+
 });
 
 #FinalWordsAPI
@@ -127,5 +129,6 @@ Route::post('album/members/add-update', [AlbumMemberController::class, 'addOrUpd
 Route::post('album/member/remove', [AlbumMemberController::class, 'removeMember']);
 Route::get('album/list', [AlbumMemberController::class, 'getAlbumlist']);
 Route::post('album/member/list', [AlbumMemberController::class, 'listMembers']);
+
 
 });
