@@ -27,8 +27,6 @@ trait OneSignalTrait
             $data['data'] = $extraData;
         }
 
-        dd($data);
-
         $response = Http::withHeaders([
             'Authorization' => 'Basic ' . env('ONESIGNAL_REST_API_KEY'),
             'Content-Type' => 'application/json'
@@ -284,7 +282,6 @@ trait OneSignalTrait
             // $this->sendNotification($title, $message, $data, $token);
             if($device_type=='ios') {
                 $sss = $this->sendNotificationNew($title, $message, [$token],$data);
-                dd($sss);
             }
            
             if($device_type=='android') {
