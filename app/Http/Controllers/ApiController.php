@@ -217,7 +217,14 @@ class ApiController extends Controller
     
         $validator = Validator::make($request->all(), [
             // 'username' => 'required|unique:users,username|max:255',
-            'email' => 'required|email|unique:users,email|email:rfc,dns|lowercase_email',
+            // 'email' => 'required|email|unique:users,email|email:rfc,dns|lowercase_email',
+            'email' => [
+                'required',
+                'email',
+                'email:rfc,dns',
+                'lowercase_email',
+                Rule::unique('users', 'email')->whereNull('deleted_at'),
+            ],
             'password' => 'required',
             'role_id' => 'required|in:1,2',
         ], [
@@ -6652,12 +6659,21 @@ public function getSavedTagsWithSearch(Request $request)
             return response()->json(['message' => $e->getMessage(), 'status' => 'failed', "data" => null], 500);
         }
     }
-    public function updateUserPhoneNumber(Request $request){
+    
+    public function updateUserPhoneNumber(Request $request)
+    {
         try{
             $current_user = Auth::user()->id;
             $validator = Validator::make($request->all(), [
                 'country_code' => 'required',
-                'phone' => 'required|unique:users,phone',
+                // 'phone' => 'required|unique:users,phone',
+                'phone' => [
+                    'required',
+                    // allow updating your own number and ignore soft-deleted users
+                    Rule::unique('users', 'phone')
+                         ->ignore($current_user)
+                         ->whereNull('deleted_at'),
+                ],
                 'agree_on_receiving' => 'required|in:0,1',
 
             ]);
@@ -6676,18 +6692,9 @@ public function getSavedTagsWithSearch(Request $request)
             $getUser->country_code = $request->country_code;
             $getUser->save();
 
-
-//             $token = JWTAuth::fromUser($getUser);
-//             if($token){
-//                 $getUser->token = $token;
-//             }
-             $is_exist = DeviceDetail::where('user_id',$getUser->id)->first();
-             $getUser['is_first_login'] = ($is_exist) ? false : true ;
-            
-//            if(!$getUser->wasChanged()){
-//                return response()->json(["message" => "Phone Number not update successfully", "status" => "failed", "data" => null], 400);
-//            }
-            
+            $is_exist = DeviceDetail::where('user_id',$getUser->id)->first();
+            $getUser['is_first_login'] = ($is_exist) ? false : true ;
+                        
             return response()->json(["message" => "Phone Number update successfully", "status" => "success", "data" =>$getUser], 200);
             
         } catch (JWTException $exception) {
