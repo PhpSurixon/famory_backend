@@ -506,5 +506,36 @@ class AlbumMemberController extends Controller
         }
     }
 
+    public function leaveLeave(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'album_id' => 'required|exists:albums,id',
+            ]);
+
+            if ($validator->fails()) 
+            {
+                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            }
+            $authUser = Auth::user();
+            
+
+            $checkAlbumUser = AlbumUser::where('album_id',$request->album_id)
+                                        ->where('user_id',$authUser->id)
+                                        ->first();
+            if(empty($checkAlbumUser))
+            {
+               return response()->json(['message' => "You are not a member of this album", 'status' => 'failed'], 400);   
+            }
+            $checkAlbumUser->delete();
+            $msg = 'You have successfully left the album'; 
+            return response()->json(['message' => $msg, 'status' => 'success'], 200);
+            
+        } catch (Exception $e) {
+             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        }
+    }
+
 
 }

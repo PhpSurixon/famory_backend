@@ -26,6 +26,7 @@ use App\Models\AssignUserGroup;
 use App\Models\AboutUs;
 use App\Models\Post;
 use App\Models\Album;
+use App\Models\AlbumUser;
 use App\Models\BlockUser;
 use App\Models\AlbumPost;
 use App\Models\MemberGroup;
@@ -1911,7 +1912,7 @@ class ApiController extends Controller
         }
 
 
-    public function getAlbum($id, Request $request)
+    public function getAlbumOLD($id, Request $request)
     {
         try {
             $user = Auth::user();
@@ -1940,6 +1941,94 @@ class ApiController extends Controller
                 return $this->errorResponse("Internal Server Error",'error', 500);
         }
     }
+
+    public function getAlbum($id, Request $request)
+    {
+        try {
+            $user = Auth::user();
+
+            // ✅ Step 1: Find album
+            $album = Album::findOrFail($id);
+
+            // ✅ Step 2: Check if the user has access
+            $hasAccess = false;
+
+            // Album owner can access
+            if ($album->user_id == $user->id) {
+                $hasAccess = true;
+            } else {
+                // Collaborator or Viewer can access
+                $albumUser = AlbumUser::where('album_id', $album->id)
+                    ->where('user_id', $user->id)
+                    ->whereIn('role', ['collaborator', 'viewer'])
+                    ->first();
+
+                if ($albumUser) {
+                    $hasAccess = true;
+                }
+            }
+
+            if (!$hasAccess) {
+                return response()->json([
+                    'message' => 'You do not have access to view this album',
+                    'status'  => 'failed'
+                ], 403);
+            }
+
+            // ✅ Step 3: Fetch album posts
+            $perPage = $request->input('per_page', 10);
+
+            $albumPosts = AlbumPost::where('album_id', $album->id)
+                ->with([
+                    'post',
+                    'post.user:id,first_name,last_name',
+                    'post.scheduling_post'
+                ])
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+
+            // ✅ Step 4: Enhance each post data
+            foreach ($albumPosts as $albumPost) {
+                if ($albumPost->post) {
+                    $post = $albumPost->post;
+
+                    $post->like_count = Like::where('post_id', $post->id)->count() ?? 0;
+                    $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $user->id])->exists();
+                    $post->is_following = FollowerUnfollwer::where(['user_id' => $user->id, 'following_id' => $post->user_id])->exists();
+
+                    if ($post->scheduling_post) {
+                        $schedule = $post->scheduling_post;
+                        $post->created_date = date('m/d/y', strtotime($schedule->created_at));
+                        $post->posted_date = $schedule->schedule_type == "now"
+                            ? date('m/d/y', strtotime($schedule->created_at))
+                            : Carbon::parse($schedule->schedule_date)->format('m/d/y');
+
+                        $schedule->schedule_date = Carbon::parse($schedule->schedule_date)->format('m/d/y');
+                        $schedule->schedule_time = $schedule->schedule_type == "now"
+                            ? date('h:i A', strtotime($schedule->created_at))
+                            : date('h:i A', strtotime($schedule->schedule_time));
+
+                        $schedule->makeHidden(['id', 'post_id']);
+                    }
+                }
+            }
+
+            // ✅ Step 5: Return response
+            return $this->successResponse("Album retrieved successfully", 200, $albumPosts->items(), $albumPosts);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $exception) {
+            return response()->json([
+                "message" => "Album Not Found",
+                "status" => "failed"
+            ], 404);
+        } catch (\Exception $exception) {
+            return response()->json([
+                "message" => "Something went wrong! " . $exception->getMessage(),
+                "status" => "failed"
+            ], 500);
+        }
+    }
+
     
     
     function getFileType($extension) {
