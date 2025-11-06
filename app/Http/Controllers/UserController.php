@@ -2284,7 +2284,7 @@ class UserController extends Controller
 
             //  Get all user IDs that are already connected (follower/following)
             $relatedUserIds = TrustedUser::where('user_id',$authUser->id)
-                                    // ->where('status','!=','rejected')
+                                    ->where('status','!=','rejected')
                                     ->pluck('trusted_user_id')
                                     ->unique()
                                     ->toArray();
