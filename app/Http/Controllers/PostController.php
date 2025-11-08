@@ -1176,7 +1176,7 @@ class PostController extends Controller
         }
     }
 
-    public function getPost(Request $request)
+    public function getPost_OLD(Request $request)
     {
         try {
            
@@ -1395,6 +1395,205 @@ class PostController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
+
+    public function getPost(Request $request)
+    {
+        try {
+            $followedata = new \Illuminate\Support\Collection();
+            $topPosts = new \Illuminate\Support\Collection();
+            $viewTop = false;
+            $currentUser = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            if ($request->type == "my-post") {
+                $getPost = Post::where('user_id', $currentUser);
+            } elseif ($request->filled('user_id')) {
+                $userId = $request->user_id;
+                $getPost = Post::where('user_id', $userId);
+
+                if ($request->type == "open-world") {
+                    $getPost = $getPost->where('post_type', 'public');
+                } else {
+                    $getPost = $getPost->where('post_type', 'private');
+                    $Posts = Post::where('post_type', '=', 'family')->get();
+
+                    foreach ($Posts as $post) {
+                        $isPosted = SchedulingPost::where(['is_post' => 1, 'post_id' => $post->id])->first();
+                        if ($isPosted) {
+                            $getData = PostMember::where(['post_id' => $post->id, 'post_by' => $request->user_id])->get();
+                            if ($getData->isNotEmpty()) {
+                                $getPost->orWhere(function ($query) use ($post) {
+                                    $query->where('id', $post->id);
+                                });
+                            }
+                        }
+                    }
+                }
+            } elseif ($request->filled('group_id')) {
+                $groupId = $request->group_id;
+
+                if ($groupId == 1) {
+                    $groupMemberIds = Familymember::where(['group_id' => $groupId, 'user_id' => $currentUser])->pluck('member_id');
+                    $groupUserIds  = Familymember::where(['group_id' => $groupId, 'member_id' => $currentUser])->pluck('user_id');
+                    $allMemberIds = $groupMemberIds->merge($groupUserIds)->unique();
+                    $getPost = Post::whereIn('user_id', $allMemberIds);
+                } else {
+                    $groupMemberIds = MemberGroup::where(['group_id' => $groupId, 'user_id' => $currentUser])->pluck('member_id');
+                    $groupUserIds  = MemberGroup::where(['group_id' => $groupId, 'member_id' => $currentUser])->pluck('user_id');
+                    $allMemberIds = $groupMemberIds->merge($groupUserIds)->unique();
+                    $currentuser = ($groupId == 2) ? $allMemberIds : $allMemberIds->merge($currentUser)->unique();
+                    $getPost = Post::whereIn('user_id', $currentuser);
+                }
+            } else {
+                if ($request->type == "open-world") {
+                    $getPost = Post::where('post_type', 'public');
+                } elseif ($request->type == "scheduled") {
+                    $getPost = Post::where('user_id', $currentUser)
+                        ->whereHas('scheduling_post', function ($query) {
+                            $query->where('schedule_type', 'date-time')
+                                ->where('schedule_date', '>=', now()->format('Y-m-d'));
+                        });
+                } elseif ($request->type == "when-pass") {
+                    $getPost = Post::where('user_id', $currentUser)
+                        ->whereHas('scheduling_post', function ($query) {
+                            $query->where('schedule_type', 'when-pass');
+                        });
+                } else {
+                    $following_Ids = Follow::where(['follower_id' => $currentUser, 'status' => "approved"])
+                        ->pluck('following_id');
+
+                    $allRelatedMemberIds = $following_Ids->unique()->toArray();
+
+                    $query = Post::query();
+                    if (!empty($allRelatedMemberIds)) {
+                        $query->whereIn('user_id', $allRelatedMemberIds)
+                            ->whereIn('post_type', ['private', 'public'])
+                            ->whereHas('scheduling_post', function ($q) {
+                                $q->where('is_post', 1);
+                            });
+                    }
+
+                    $getPost = $query->orWhere(function ($query) use ($currentUser) {
+                        $query->where('user_id', $currentUser)
+                            ->whereIn('post_type', ['private'])
+                            ->whereHas('scheduling_post', function ($q) {
+                                $q->where('is_post', 1);
+                            });
+                    });
+                }
+            }
+
+            if ($request->type == "when-pass" || $request->type == "scheduled") {
+                $query = $getPost->whereHas('scheduling_post', function ($query) {
+                    $query->where('is_post', 0);
+                })
+                    ->with(['user' => function ($q) {
+                        $q->withTrashed()->select('id', 'first_name', 'last_name', 'image', 'deleted_at');
+                    }])
+                    ->with('scheduling_post')
+                    ->withCount(['likes', 'comments']) // ✅ add like_count & comment_count
+                    ->orderBy('updated_at', 'desc');
+            } elseif ($request->type == "my-post") {
+                $query = $getPost->whereHas('scheduling_post', function ($query) {
+                    $query->whereIn('is_post', ['1', '0']);
+                })
+                    ->with(['user' => function ($q) {
+                        $q->withTrashed()->select('id', 'first_name', 'last_name', 'image', 'deleted_at');
+                    }])
+                    ->with('scheduling_post')
+                    ->withCount(['likes', 'comments'])
+                    ->orderBy('updated_at', 'desc');
+            } else {
+                $query = $getPost->whereHas('scheduling_post', function ($query) {
+                    $query->where('is_post', 1);
+                })
+                    ->with(['user' => function ($q) {
+                        $q->withTrashed()->select('id', 'first_name', 'last_name', 'image', 'deleted_at');
+                    }])
+                    ->with('scheduling_post')
+                    ->withCount(['likes', 'comments'])
+                    ->orderBy('updated_at', 'desc');
+            }
+
+            if (!empty($blockedUserIds)) {
+                $query->whereNotIn('user_id', $blockedUserIds);
+            }
+
+            $getPost = $query->get();
+
+            // Remove deleted users’ posts (optional)
+            $getPost = $getPost->filter(function ($post) {
+                return $post->user && !$post->user->deleted_at;
+            });
+
+            foreach ($getPost as $post) {
+                $post->user->is_deleted = $post->user->deleted_at ? true : false;
+                unset($post->user->deleted_at);
+
+                $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $currentUser])->exists();
+                $post->is_following = Follow::where(['follower_id' => $currentUser, 'following_id' => $post->user_id, 'status' => "approved"])->exists();
+
+                $created_at_in_timezone = \Carbon\Carbon::createFromFormat('Y-m-d H:i:s', $post->scheduling_post->created_at, 'UTC')
+                    ->setTimezone($post->scheduling_post->timezone);
+
+                $post->created_date = date('m/d/y', strtotime($created_at_in_timezone));
+                $post->posted_date = $post->scheduling_post->schedule_type == "now"
+                    ? date('m/d/y', strtotime($created_at_in_timezone))
+                    : \Carbon\Carbon::parse($post->scheduling_post->schedule_date)->format('m/d/y');
+
+                $post->scheduling_post->schedule_time = $post->scheduling_post->schedule_type == "now"
+                    ? date('h:i A', strtotime($created_at_in_timezone))
+                    : date('h:i A', strtotime($post->scheduling_post->schedule_time));
+
+                $post->scheduling_post->schedule_date = \Carbon\Carbon::parse($post->scheduling_post->schedule_date)->format('m/d/y');
+
+                if ($post->post_type == "family") {
+                    $post->member_ids = PostMember::where('post_id', $post->id)->pluck('member_id')->toArray();
+                }
+
+                if ($post->scheduling_post) {
+                    $post->scheduling_post->makeHidden(['id', 'post_id']);
+                }
+            }
+
+            if ($getPost->isEmpty()) {
+                return $this->successResponse("No posts found", 200);
+            }
+
+            $filterPosts = $this->filterPost($getPost);
+
+            // Pagination
+            $perPage = $request->input('per_page', 10);
+            $currentPage = $request->input('page', 1);
+            $filterPosts = collect($filterPosts);
+            $slicedGroups = $filterPosts->slice(($currentPage - 1) * $perPage, $perPage)->values();
+
+            $paginatedGroups = new \Illuminate\Pagination\LengthAwarePaginator(
+                $slicedGroups,
+                count($filterPosts),
+                $perPage,
+                $currentPage
+            );
+
+            return response()->json([
+                "message" => 'Posts fetched successfully',
+                "status" => "success",
+                "data" => $paginatedGroups->items(),
+                'total_records' => $paginatedGroups->total(),
+                'total_pages' => $paginatedGroups->lastPage(),
+                'current_page' => $paginatedGroups->currentPage(),
+                'per_page' => $paginatedGroups->perPage(),
+            ]);
+        } catch (\Exception $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
+
+
     
     public function getFamoryTagPost(Request $request){
         try{
