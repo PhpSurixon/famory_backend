@@ -753,10 +753,10 @@ class PostController extends Controller
     {
         $validator = Validator::make($request->all(), [
             // 'post_id' => 'required|exists:posts,id',
-            'title' => 'required',
+            // 'title' => 'required',
             'post_type' => 'required',
             'tag_id' => 'nullable',
-            'description' => 'required',
+            // 'description' => 'required',
             'schedule_type' => 'required',
             'reoccurring_type' => 'required',
             'media' => 'nullable|file',
