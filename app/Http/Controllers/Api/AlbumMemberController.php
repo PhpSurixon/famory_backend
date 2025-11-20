@@ -12,6 +12,7 @@ use App\Models\Follow;
 use App\Models\User;
 use App\Models\LegacyAlbum;
 use App\Models\LegacyAlbumPost;
+use App\Models\Post;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
 use DB;
@@ -539,6 +540,50 @@ class AlbumMemberController extends Controller
         }
     }
 
+    // public function getLegacyAlbumlist(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'legacy_type' => 'required|in:shared,my',
+    //     ]);
+
+    //     if ($validator->fails()) 
+    //     {
+    //         return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+    //     }
+
+    //     try 
+    //     {
+    //         $authUser = Auth::user();
+    //         if($request->legacy_type =='shared')
+    //         {
+    //             $legacy_album = LegacyAlbum::select('id','title','conver_image')
+    //                                            ->where('shared_with_id',$authUser->id)
+    //                                            ->where('type','legacy')
+    //                                            ->withCount('posts')
+    //                                            ->get();
+    //             $msg ='Shared Legacy Album List';
+
+    //         }else{
+
+    //             $legacy_album = LegacyAlbum::select('id','title','conver_image')
+    //                                        ->where('user_id',$authUser->id)
+    //                                        ->where('type','legacy')
+    //                                        ->withCount('posts')
+    //                                        ->get();
+    //             $msg ='My Legacy Album List';
+    //         }
+
+    //         return response()->json([
+    //             "message" => $msg,
+    //             "status"  => "success",
+    //             "data"    => $legacy_album
+    //         ], 200);
+            
+    //     } catch (Exception $e) {
+    //         return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+    //     }
+    // }
+
     public function getLegacyAlbumlist(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -552,12 +597,101 @@ class AlbumMemberController extends Controller
 
         try 
         {
+            $authUser = Auth::user();
+
+            if ($request->legacy_type == 'shared') 
+            {
+                // list of albums shared WITH me
+                $legacy_album = LegacyAlbum::select('id','title','conver_image','user_id')
+                    ->where('shared_with_id', $authUser->id)
+                    ->where('type','legacy')
+                    ->withCount('posts')
+                    ->with([
+                        'owner:id,first_name,is_dead'  // album creator info
+                    ])
+                    ->get()
+                    ->map(function($album){
+                        return [
+                            'id'            => $album->id,
+                            'title'         => $album->title,
+                            'conver_image'  => $album->conver_image,
+                            'posts_count'   => $album->posts_count,
+                            'owner_name'    => $album->owner->first_name ?? '',
+                            'is_dead'       => $album->owner->is_dead ? true : false,
+                        ];
+                    });
+
+                $msg = 'Shared Legacy Album List';
+
+            } 
+            else 
+            {
+                // list of my created legacy albums
+                $legacy_album = LegacyAlbum::select('id','title','conver_image')
+                    ->where('user_id', $authUser->id)
+                    ->where('type','legacy')
+                    ->withCount('posts')
+                    ->get()
+                    ->map(function($album){
+                        return [
+                            'id'            => $album->id,
+                            'title'         => $album->title,
+                            'conver_image'  => $album->conver_image,
+                            'posts_count'   => $album->posts_count,
+                            'is_dead'       => false,   // for my album no need but return fixed
+                        ];
+                    });
+
+                $msg = 'My Legacy Album List';
+            }
+
+            return response()->json([
+                "message" => $msg,
+                "status"  => "success",
+                "data"    => $legacy_album
+            ], 200);
             
-            
-        } catch (Exception $e) {
+        } 
+        catch (Exception $e) 
+        {
             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
         }
     }
+
+    public function getLegacyAlbumPostlist(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'legacy_album_id' => 'required',
+        ]);
+
+        if ($validator->fails()) 
+        {
+            return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+        }
+
+        try 
+        {
+            $authUser = Auth::user();
+
+            $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$request->legacy_album_id)
+                                                 ->pluck('post_id')
+                                                 ->toArray();
+            $post = Post::whereIn('id',$get_legacy_postIds)->get();
+
+
+            return response()->json([
+                "message" => "Legacy Album Post List",
+                "status"  => "success",
+                "data"    => $post
+            ], 200);
+            
+        } 
+        catch (Exception $e) 
+        {
+            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        }
+    }
+
 
 
 }

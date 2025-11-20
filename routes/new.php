@@ -131,6 +131,7 @@ Route::get('album/list', [AlbumMemberController::class, 'getAlbumlist']);
 Route::post('album/member/list', [AlbumMemberController::class, 'listMembers']);
 Route::post('leave-from-album', [AlbumMemberController::class, 'leaveLeave']);
 Route::post('legacy-album-list', [AlbumMemberController::class, 'getLegacyAlbumlist']);
+Route::post('legacy-album-post-list', [AlbumMemberController::class, 'getLegacyAlbumPostlist']);
 
 
 });
