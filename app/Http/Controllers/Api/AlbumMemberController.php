@@ -10,6 +10,8 @@ use App\Models\AlbumPost;
 use App\Models\BlockUser;
 use App\Models\Follow;
 use App\Models\User;
+use App\Models\LegacyAlbum;
+use App\Models\LegacyAlbumPost;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
 use DB;
@@ -534,6 +536,26 @@ class AlbumMemberController extends Controller
             
         } catch (Exception $e) {
              return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        }
+    }
+
+    public function getLegacyAlbumlist(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'legacy_type' => 'required|in:shared,my',
+        ]);
+
+        if ($validator->fails()) 
+        {
+            return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+        }
+
+        try 
+        {
+            
+            
+        } catch (Exception $e) {
+            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
         }
     }
 

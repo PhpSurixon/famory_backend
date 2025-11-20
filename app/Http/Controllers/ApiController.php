@@ -88,6 +88,7 @@ use Google\Service\AndroidPublisher;
 use Dompdf\Options;
 use Dompdf\Dompdf;
 use App\Models\FQA;
+use App\Models\LegacyAlbum;
 
 use ReceiptValidator\GooglePlay\Validator as GooglePlayValidator;
 
@@ -915,6 +916,20 @@ class ApiController extends Controller
             }
 
             $data['post_data'] = $posts;
+            $my_legacy_album = LegacyAlbum::select('id','title','conver_image')
+                                           ->where('user_id',$current_user)
+                                           ->where('type','legacy')
+                                           ->get();
+            $shared_legacy_album = LegacyAlbum::select('id','title','conver_image')
+                                               ->where('shared_with_id',$current_user)
+                                               ->where('type','legacy')
+                                               ->get();
+            $data['legacy_data'] = [
+                                     'my_legacy_album_count' => count($my_legacy_album),
+                                     'my_legacy_album'       => $my_legacy_album,
+                                     'shared_legacy_album_count'   => count($shared_legacy_album),
+                                     'shared_legacy_album'   => $shared_legacy_album,
+                                   ];
 
             return response()->json([
                 "message" => "Profile retrieved successfully",
