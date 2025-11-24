@@ -584,79 +584,234 @@ class AlbumMemberController extends Controller
     //     }
     // }
 
+    // public function getLegacyAlbumlist(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'legacy_type' => 'required|in:shared,my',
+    //     ]);
+
+    //     if ($validator->fails()) 
+    //     {
+    //         return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+    //     }
+
+    //     try 
+    //     {
+    //         $authUser = Auth::user();
+
+    //         if ($request->legacy_type == 'shared') 
+    //         {
+    //             // list of albums shared WITH me
+    //             $legacy_album = LegacyAlbum::select('id','title','conver_image','user_id')
+    //                 ->where('shared_with_id', $authUser->id)
+    //                 ->where('type','legacy')
+    //                 ->withCount('posts')
+    //                 ->with([
+    //                     'owner:id,first_name,is_dead,image'  // album creator info
+    //                 ])
+    //                 ->get()
+    //                 ->map(function($album){
+    //                     return [
+    //                         'id'            => $album->id,
+    //                         'title'         => $album->title,
+    //                         'conver_image'  => $album->conver_image,
+    //                         'posts_count'   => $album->posts_count,
+    //                         'owner_name'    => $album->owner->first_name ?? '',
+    //                         'is_dead'       => $album->owner->is_dead ? true : false,
+    //                     ];
+    //                 });
+
+    //             $msg = 'Shared Legacy Album List';
+
+    //         } 
+    //         else 
+    //         {
+    //             // list of my created legacy albums
+    //             $legacy_album = LegacyAlbum::select('id','title','conver_image')
+    //                 ->where('user_id', $authUser->id)
+    //                 ->where('type','legacy')
+    //                 ->withCount('posts')
+    //                 ->get()
+    //                 ->map(function($album){
+    //                     return [
+    //                         'id'            => $album->id,
+    //                         'title'         => $album->title,
+    //                         'conver_image'  => $album->conver_image,
+    //                         'posts_count'   => $album->posts_count,
+    //                         'is_dead'       => false,   // for my album no need but return fixed
+    //                     ];
+    //                 });
+
+    //             $msg = 'My Legacy Album List';
+    //         }
+
+    //         return response()->json([
+    //             "message" => $msg,
+    //             "status"  => "success",
+    //             "data"    => $legacy_album
+    //         ], 200);
+            
+    //     } 
+    //     catch (Exception $e) 
+    //     {
+    //         return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+    //     }
+    // }
+
     public function getLegacyAlbumlist(Request $request)
     {
-        $validator = Validator::make($request->all(), [
-            'legacy_type' => 'required|in:shared,my',
-        ]);
-
-        if ($validator->fails()) 
-        {
-            return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
-        }
-
         try 
         {
-            $authUser = Auth::user();
+            $limit  = (int) $request->get('limit', 30);
+            $page   = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $search = $request->get('search');
+            $legacy_type = $request->get('legacy_type');
 
-            if ($request->legacy_type == 'shared') 
-            {
-                // list of albums shared WITH me
-                $legacy_album = LegacyAlbum::select('id','title','conver_image','user_id')
+            $validator = Validator::make($request->all(), [
+                'legacy_type' => 'required|in:shared,my',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            // =========================================================
+            //                     SHARED WITH ME
+            // =========================================================
+            if ($legacy_type == 'shared') {
+
+                $query = LegacyAlbum::select('id','title','conver_image','user_id')
                     ->where('shared_with_id', $authUser->id)
                     ->where('type','legacy')
                     ->withCount('posts')
                     ->with([
-                        'owner:id,first_name,is_dead'  // album creator info
-                    ])
+                        'owner:id,first_name,is_dead,image'
+                    ]);
+
+                if (!empty($search)) {
+                    $query->where('title', 'like', "%{$search}%");
+                }
+
+                $total = $query->count();
+
+                $albums = $query->orderBy('id','desc')
+                    ->skip($offset)
+                    ->take($limit)
                     ->get()
-                    ->map(function($album){
+                    ->map(function($album) use ($s3BaseUrl){
                         return [
-                            'id'            => $album->id,
+                            'album_id'      => $album->id,
                             'title'         => $album->title,
-                            'conver_image'  => $album->conver_image,
+                            'conver_image'  => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
                             'posts_count'   => $album->posts_count,
+                            'owner_id'      => $album->owner->id ?? null,
                             'owner_name'    => $album->owner->first_name ?? '',
                             'is_dead'       => $album->owner->is_dead ? true : false,
+                            'owner_image'   => isset($album->owner->image) ? $s3BaseUrl . $album->owner->image : null,
                         ];
                     });
 
-                $msg = 'Shared Legacy Album List';
-
+                $msg = "Shared Legacy Album List";
             } 
-            else 
-            {
-                // list of my created legacy albums
-                $legacy_album = LegacyAlbum::select('id','title','conver_image')
+
+            // =========================================================
+            //                      MY ALBUMS
+            // =========================================================
+            else {
+
+                $query = LegacyAlbum::select('id','title','conver_image','shared_with_id')
                     ->where('user_id', $authUser->id)
                     ->where('type','legacy')
                     ->withCount('posts')
+                    ->with([
+                        'sharedWith:id,first_name,is_dead,image'
+                    ]);
+
+                if (!empty($search)) {
+                    $query->where('title', 'like', "%{$search}%");
+                }
+
+                $total = $query->count();
+
+                $albums = $query->orderBy('id','desc')
+                    ->skip($offset)
+                    ->take($limit)
                     ->get()
-                    ->map(function($album){
+                    ->map(function($album) use ($s3BaseUrl){
+
+                        // Default values
+                        $sharedImage = null;
+                        $sharedName  = null;
+
+                        if ($album->sharedWith) {
+
+                            // If many shared users (collection)
+                            if ($album->sharedWith instanceof \Illuminate\Support\Collection) {
+                                $first = $album->sharedWith->first();
+                                if ($first) {
+                                    $sharedImage = $first->image ? $s3BaseUrl . $first->image : null;
+                                    $sharedName  = $first->first_name ?? '';
+                                }
+                            }
+                            // If only one shared user (belongsTo)
+                            else {
+                                $sharedImage = $album->sharedWith->image 
+                                    ? $s3BaseUrl . $album->sharedWith->image 
+                                    : null;
+
+                                $sharedName  = $album->sharedWith->first_name ?? '';
+                            }
+                        }
+
                         return [
-                            'id'            => $album->id,
-                            'title'         => $album->title,
-                            'conver_image'  => $album->conver_image,
-                            'posts_count'   => $album->posts_count,
-                            'is_dead'       => false,   // for my album no need but return fixed
+                            'album_id'          => $album->id,
+                            'title'             => $album->title,
+                            'conver_image'      => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
+                            'posts_count'       => $album->posts_count,
+                            'is_dead'           => false,  // creator is current user
+                            'shared_user_name'  => $sharedName,
+                            'shared_user_image' => $sharedImage,
                         ];
                     });
 
-                $msg = 'My Legacy Album List';
+                $msg = "My Legacy Album List";
             }
 
+            // =========================================================
+            //                 FINAL RESPONSE FORMAT
+            // =========================================================
+
+            $data = [
+                'count'       => $total,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($total / $limit),
+                'albums'      => $albums
+            ];
+
             return response()->json([
-                "message" => $msg,
-                "status"  => "success",
-                "data"    => $legacy_album
+                'message' => $msg,
+                'status'  => "success",
+                'data'    => $data
             ], 200);
-            
+
         } 
-        catch (Exception $e) 
-        {
-            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
         }
     }
+
+
 
     public function getLegacyAlbumPostlist(Request $request)
     {
