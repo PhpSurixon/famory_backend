@@ -51,6 +51,7 @@ use App\Models\BuyNewTag;
 use App\Models\TagCollaborator;
 use App\Models\SchedulingPost;
 use App\Models\SavedTag;
+use App\Models\PostMember;
 
 use App\Mail\AdsRenewalReminder;
 use App\Mail\RenewalAdPaymentProcess;
