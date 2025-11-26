@@ -70,6 +70,7 @@ use App\Models\FeaturedCompanyPrice;
 use App\Models\SubscriptionSetting;
 use App\Models\InviteGuestUser;
 use App\Models\Follow;
+use App\Models\FinalWord;
 
 use App\Services\StripeService;
 use App\Services\UploadImage;
@@ -931,6 +932,17 @@ class ApiController extends Controller
                                      'shared_legacy_album_count'   => count($shared_legacy_album),
                                      'shared_legacy_album'   => $shared_legacy_album,
                                    ];
+            $videos               = FinalWord::where('user_id', $current_user);
+            $my_final_word_videos = $videos->orderBy('id', 'desc')
+                                            ->get()
+                                            ->map(function ($fw) use ($s3BaseUrl) {
+                                                return [
+                                                    'id'    => $fw->id,
+                                                    'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
+                                                    'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                                                ];
+                                            });
+            $data['my_final_word_videos'] = $my_final_word_videos;
 
             return response()->json([
                 "message" => "Profile retrieved successfully",
