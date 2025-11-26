@@ -96,6 +96,7 @@ trait OneSignalTrait
 
         $senderId = isset($sender) ? $sender->id : null;
         $senderName = $sender->first_name ?? null;
+        $receiverName = $deceasedUser->first_name ?? null;
         $deceasedName = $deceasedUser ? ($deceasedUser->first_name . ' ' . $deceasedUser->last_name) : 'Deceased Member';
 
         switch ($type) {
@@ -267,6 +268,15 @@ trait OneSignalTrait
             case "comment":
                 $title = "New Comment On Your Post";
                 $message = "A new comment has been added to your post by $senderName";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "post" => $item
+                ];
+                break;
+            case "legacy_album":
+                $title = "$senderName added you to a Legacy Album";
+                $message = "$senderName created a new Legacy Album and added you to it";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,

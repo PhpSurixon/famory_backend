@@ -578,46 +578,80 @@ class PostController extends Controller
                     }
                 }
 
+                
+
                 if ($request->schedule_type == "when-pass") 
                 {
-
-                    $authUser = Auth::user();
+                    $authUser   = Auth::user();
                     $sharedUser = User::find($request->shared_user_id);
 
-                    // Check existing album
+                    // STEP 1: Check existing legacy album
                     $album = LegacyAlbum::where('user_id', $authUser->id)
-                                    ->where('shared_with_id', $sharedUser->id)
-                                    ->where('type', 'legacy')
-                                    ->first();
+                                        ->where('shared_with_id', $sharedUser->id)
+                                        ->where('type', 'legacy')
+                                        ->first();
 
-                    // Create new if not found
-                    if (!$album) {
-                        $album_name = $authUser->first_name.'-'.$sharedUser->first_name;
+                    // ==========================
+                    // FIRST TIME ALBUM CREATION
+                    // ==========================
 
-                        if ($folder === 'videos') {
-                            
-                            $filePath1 = $videoPath['thumbnails'][0];
-                        } else {
-                            $filePath1 = $filePath;
+                    if (!$album) 
+                    {
+                        // Payment required for first time legacy album
+                        $validator2 = Validator::make($request->all(), [
+                            'payment_status' => 'required|in:paid,unpaid',
+                            'payment_id'     => 'required'
+                        ]);
+
+                        if ($validator2->fails()) {
+                            return response()->json([
+                                'message' => $validator2->errors()->first(),
+                                'status'  => 'failed'
+                            ], 400);
                         }
 
+                        // Album title
+                        // $album_name = $authUser->first_name . '-' . $sharedUser->first_name;
+                        $baseName = $authUser->first_name . '-' . $sharedUser->first_name;
+                        $album_name = $baseName;
+
+                        $count = LegacyAlbum::where('user_id', $authUser->id)
+                                            ->where('shared_with_id', $sharedUser->id)
+                                            ->where('title', 'like', $baseName . '%')
+                                            ->count();
+                        if ($count > 0) {
+                            $album_name = $baseName . '-' . ($count + 1);
+                        }
+
+                        // Cover image selection
+                        if ($folder === 'videos') {
+                            $coverImage = $videoPath['thumbnails'][0] ?? null;
+                        } else {
+                            $coverImage = $filePath;
+                        }
+
+                        // CREATE NEW LEGACY ALBUM
                         $album = LegacyAlbum::create([
                             'user_id'        => $authUser->id,
                             'shared_with_id' => $sharedUser->id,
                             'title'          => $album_name,
-                            'conver_image'   => $filePath1,
+                            'conver_image'   => $coverImage,
                             'type'           => 'legacy',
+                            'approval_status'=> 'accepted',
+                            'payment_status' => $request->payment_status, // NEW
+                            'payment_id'     => $request->payment_id      // NEW
                         ]);
+                        // send notification (optional)
+                        $this->notifyMessage($authUser, $sharedUser->id, $album->id, 'legacy_album');
                     }
 
-                    // Save to album_posts
+                    // attach post to legacy album
                     LegacyAlbumPost::create([
                         'legacy_album_id' => $album->id,
-                        'post_id' => $post->id,
-                        'user_id' => Auth::id()
+                        'post_id'         => $post->id,
+                        'user_id'         => Auth::id()
                     ]);
                 }
-
                 DB::commit();
                 return response()->json(['message' => 'You have created a new post!', 'status' => 'success', 'data' => $post], 200);
             }

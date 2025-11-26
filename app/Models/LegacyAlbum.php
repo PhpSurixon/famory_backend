@@ -12,7 +12,10 @@ class LegacyAlbum extends Model
         'shared_with_id',
         'title',
         'conver_image',
-        'type'
+        'type',
+        'approval_status',
+        'payment_status',
+        'payment_id',
     ];
 
     public function owner()

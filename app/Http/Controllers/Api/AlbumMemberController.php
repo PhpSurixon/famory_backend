@@ -714,7 +714,7 @@ class AlbumMemberController extends Controller
                             'owner_id'      => $album->owner->id ?? null,
                             'owner_name'    => $album->owner->first_name ?? '',
                             'is_dead'       => $album->owner->is_dead ? true : false,
-                            'owner_image'   => isset($album->owner->image) ? $s3BaseUrl . $album->owner->image : null,
+                            'owner_image'   => !empty($album->owner->image) ? $s3BaseUrl . $album->owner->image : null,
                         ];
                     });
 

@@ -345,6 +345,12 @@ class NotificationController extends Controller
                             "params" => ["user_id" => $noti->item_id]
                         ];
                         break;
+                    case 'legacy_album':
+                        $redirectTo = [
+                            "screen" => "LegacyAlbum",
+                            "params" => ["album_id" => $noti->item_id]
+                        ];
+                        break;
                 }
                 $noti->redirect_to = $redirectTo;
             }
