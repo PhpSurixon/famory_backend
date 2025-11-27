@@ -2425,10 +2425,18 @@ class ApiController extends Controller
             foreach ($notis as $noti) {
 
                 // ✅ Handle post/like notifications
-                if ($noti->type == "like" || $noti->type == "post") {
-                    $getPost = Post::where('id', $noti->post_id)
-                        ->with(['scheduling_post', 'user'])
-                        ->first();
+                if ($noti->type == "like" || $noti->type == "post" || $noti->type == "comment" || $noti->type == "comment_like" ) 
+                {
+                    if ($noti->type == "comment" || $noti->type == "comment_like") {
+                        $getPost = Post::where('id', $noti->item_id)
+                                        ->with(['scheduling_post', 'user'])
+                                        ->first();
+                    }else{
+                         $getPost = Post::where('id', $noti->item_id)
+                                        ->with(['scheduling_post', 'user'])
+                                        ->first();
+                    }
+                    
 
                     if ($getPost) {
                         $noti->post = $getPost;
