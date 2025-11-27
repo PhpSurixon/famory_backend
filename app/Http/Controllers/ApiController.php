@@ -2432,7 +2432,7 @@ class ApiController extends Controller
                                         ->with(['scheduling_post', 'user'])
                                         ->first();
                     }else{
-                         $getPost = Post::where('id', $noti->item_id)
+                         $getPost = Post::where('id', $noti->post_id)
                                         ->with(['scheduling_post', 'user'])
                                         ->first();
                     }
