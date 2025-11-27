@@ -35,7 +35,6 @@ use App\Models\Follow;
 use App\Models\LegacyAlbum;
 use App\Models\LegacyAlbumPost;
 use App\Models\AlbumUser;
-use App\Models\Album;
 use App\Notifications\CommentAddedNotification;
 use App\Notifications\CommentReplyNotification;
 use Illuminate\Support\Collection;
