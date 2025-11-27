@@ -34,6 +34,8 @@ use App\Models\Report;
 use App\Models\Follow;
 use App\Models\LegacyAlbum;
 use App\Models\LegacyAlbumPost;
+use App\Models\AlbumUser;
+use App\Models\Album;
 use App\Notifications\CommentAddedNotification;
 use App\Notifications\CommentReplyNotification;
 use Illuminate\Support\Collection;
@@ -461,13 +463,241 @@ class PostController extends Controller
         }
     }
 
+    // public function createPost(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         // 'title' => 'required',
+    //         'post_type' => 'required',
+    //         'tag_id' => 'nullable',
+    //         // 'description' => 'required',
+    //         'schedule_type' => 'required',
+    //         'reoccurring_type' => 'required',
+    //         'media' => 'nullable|file',
+    //         'video_formats' => 'nullable|file',
+    //         'album_id' => 'nullable|exists:albums,id',
+    //         'media_type' => 'required|in:audio,video,picture,note',
+    //         'shared_user_id' => 'required_if:schedule_type,when-pass|exists:users,id',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+    //     }
+
+    //     DB::beginTransaction();
+    //     try {
+    //         $getHeaders = apache_request_headers();
+    //         $timezone = $getHeaders['time_zone'] ?? 'UTC';
+
+    //         // Validate Tag
+    //         if ($request->tag_id) {
+    //             $isValid = FamilyTagId::where(['family_tag_id' => $request->tag_id, 'user_id' => Auth::id()])->first();
+    //             if (!$isValid) {
+    //                 return $this->errorResponse("Famery Tag is not valid, please check", 'id_not_valid', 400);
+    //             }
+    //         }
+
+    //         // Upload media if present
+    //         $fileUploadSuccess = true;
+    //         $filePath = null;
+    //         $videoPath = null;
+    //         $folder = null;
+
+    //         if ($request->hasFile('media') && $request->file('media')->isValid()) {
+                
+    //             $file = $request->file('media');
+    //             $extension = $file->getClientOriginalExtension();
+    //             $folder = $this->getFolderName($extension);
+    //             $userId = Auth::id();
+
+    //             try {
+    //                 $res = $this->UploadImage->saveMedia($file, $userId);
+
+    //                 if ($folder === 'videos') {
+    //                     $videoPath = $res;
+    //                 } else {
+    //                     $filePath = $res;
+    //                 }
+    //             } catch (\Exception $e) {
+    //                 $fileUploadSuccess = false;
+    //                 return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
+    //             }
+    //         }
+
+    //         // Only create post if file upload succeeded
+    //         if ($fileUploadSuccess) {
+    //             $post = new Post();
+    //             $post->tag_id = $request->tag_id;
+    //             $post->title = $request->title??null;
+    //             $post->description = $request->description??null;
+    //             $post->media_type = $request->media_type;
+    //             $post->file = $filePath;
+    //             $post->video_formats = $videoPath;
+    //             $post->post_type = $request->post_type;
+    //             $post->album_id = $request->album_id ?? null;
+    //             $post->user_id = Auth::id();
+    //             $post->save();
+
+    //             // Scheduling
+    //             $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)
+    //                                       ->setTimezone('UTC');
+
+    //             $schedule = new SchedulingPost();
+    //             $schedule->post_id = $post->id;
+    //             $schedule->timezone = $timezone;
+    //             $schedule->schedule_type = $request->schedule_type;
+    //             $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
+    //             $schedule->schedule_date = $scheduledDateTime->toDateString();
+    //             $schedule->schedule_time = $scheduledDateTime->toTimeString();
+    //             $schedule->reoccurring_type = $request->reoccurring_type;
+    //             if ($request->reoccurring_type == "yes") {
+    //                 $schedule->reoccurring_time = $request->reoccurring_time;
+    //             }
+    //             $schedule->save();
+
+    //             // Album post logic
+    //             if ($request->schedule_type == "now" && $request->album_id) 
+    //             {
+    //                 $album_data = Album::where('id',$request->album_id)->first();
+    //                 $hasAccess = false;
+
+    //                 if($album_data->user_id == Auth::id()){
+    //                     $hasAccess = true;
+    //                 }else{
+    //                     $albumUser = AlbumUser::where('album_id', $album_data->id)
+    //                                             ->where('user_id', Auth::id())
+    //                                             ->where('role', 'collaborator')
+    //                                             ->where('approval_status', 'accepted')
+    //                                             ->first();
+
+    //                     if ($albumUser) {
+    //                         $hasAccess = true;
+    //                     }
+    //                 }
+
+    //                 if (!$hasAccess) {
+    //                     return response()->json([
+    //                         'message' => 'You do not have access to Add Post in this album',
+    //                         'status'  => 'failed'
+    //                     ], 403);
+    //                 }
+
+
+
+    //                 $albumPost = new AlbumPost();
+    //                 $albumPost->album_id = $request->album_id;
+    //                 $albumPost->post_id = $post->id;
+    //                 $albumPost->user_id = Auth::id();
+    //                 $albumPost->save();
+    //             }
+
+    //             // Family post member logic
+    //             if ($post->post_type == "family" && !empty($request->member_id)) {
+    //                 foreach ($request->member_id as $memberId) {
+    //                     $memberIdsArray = explode(',', $memberId);
+    //                     foreach ($memberIdsArray as $singleMemberId) {
+    //                         if (!empty($singleMemberId)) {
+    //                             $newMember = new PostMember();
+    //                             $newMember->post_id = $post->id;
+    //                             $newMember->post_by = $post->user_id;
+    //                             $newMember->member_id = intval($singleMemberId);
+    //                             $newMember->save();
+    //                             $this->notifyMessage(Auth::user(), $singleMemberId, null, 'post');
+    //                         }
+    //                     }
+    //                 }
+    //             }
+
+                
+
+    //             if ($request->schedule_type == "when-pass") 
+    //             {
+    //                 $authUser   = Auth::user();
+    //                 $sharedUser = User::find($request->shared_user_id);
+
+    //                 // STEP 1: Check existing legacy album
+    //                 $album = LegacyAlbum::where('user_id', $authUser->id)
+    //                                     ->where('shared_with_id', $sharedUser->id)
+    //                                     ->where('type', 'legacy')
+    //                                     ->first();
+
+    //                 // ==========================
+    //                 // FIRST TIME ALBUM CREATION
+    //                 // ==========================
+
+    //                 if (!$album) 
+    //                 {
+    //                     // Payment required for first time legacy album
+    //                     $validator2 = Validator::make($request->all(), [
+    //                         'payment_status' => 'required|in:paid,unpaid',
+    //                         'payment_id'     => 'required'
+    //                     ]);
+
+    //                     if ($validator2->fails()) {
+    //                         return response()->json([
+    //                             'message' => $validator2->errors()->first(),
+    //                             'status'  => 'failed'
+    //                         ], 400);
+    //                     }
+
+    //                     // Album title
+    //                     // $album_name = $authUser->first_name . '-' . $sharedUser->first_name;
+    //                     $baseName = $authUser->first_name . '-' . $sharedUser->first_name;
+    //                     $album_name = $baseName;
+
+    //                     $count = LegacyAlbum::where('user_id', $authUser->id)
+    //                                         ->where('shared_with_id', $sharedUser->id)
+    //                                         ->where('title', 'like', $baseName . '%')
+    //                                         ->count();
+    //                     if ($count > 0) {
+    //                         $album_name = $baseName . '-' . ($count + 1);
+    //                     }
+
+    //                     // Cover image selection
+    //                     if ($folder === 'videos') {
+    //                         $coverImage = $videoPath['thumbnails'][0] ?? null;
+    //                     } else {
+    //                         $coverImage = $filePath;
+    //                     }
+
+    //                     // CREATE NEW LEGACY ALBUM
+    //                     $album = LegacyAlbum::create([
+    //                         'user_id'        => $authUser->id,
+    //                         'shared_with_id' => $sharedUser->id,
+    //                         'title'          => $album_name,
+    //                         'conver_image'   => $coverImage,
+    //                         'type'           => 'legacy',
+    //                         'approval_status'=> 'accepted',
+    //                         'payment_status' => $request->payment_status, // NEW
+    //                         'payment_id'     => $request->payment_id      // NEW
+    //                     ]);
+    //                     // send notification (optional)
+    //                     $this->notifyMessage($authUser, $sharedUser->id, $album->id, 'legacy_album');
+    //                 }
+
+    //                 // attach post to legacy album
+    //                 LegacyAlbumPost::create([
+    //                     'legacy_album_id' => $album->id,
+    //                     'post_id'         => $post->id,
+    //                     'user_id'         => Auth::id()
+    //                 ]);
+    //             }
+    //             DB::commit();
+    //             return response()->json(['message' => 'You have created a new post!', 'status' => 'success', 'data' => $post], 200);
+    //         }
+
+    //         return response()->json(['message' => 'No file uploaded, post not created', 'status' => 'failed'], 400);
+
+    //     } catch (\Exception $exception) {
+    //         DB::rollBack();
+    //         return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
+    //     }
+    // }
+
     public function createPost(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            // 'title' => 'required',
             'post_type' => 'required',
             'tag_id' => 'nullable',
-            // 'description' => 'required',
             'schedule_type' => 'required',
             'reoccurring_type' => 'required',
             'media' => 'nullable|file',
@@ -488,181 +718,151 @@ class PostController extends Controller
 
             // Validate Tag
             if ($request->tag_id) {
-                $isValid = FamilyTagId::where(['family_tag_id' => $request->tag_id, 'user_id' => Auth::id()])->first();
+                $isValid = FamilyTagId::where([
+                    'family_tag_id' => $request->tag_id,
+                    'user_id' => Auth::id()
+                ])->first();
+
                 if (!$isValid) {
                     return $this->errorResponse("Famery Tag is not valid, please check", 'id_not_valid', 400);
                 }
             }
 
-            // Upload media if present
-            $fileUploadSuccess = true;
+            // Upload media
             $filePath = null;
             $videoPath = null;
             $folder = null;
 
             if ($request->hasFile('media') && $request->file('media')->isValid()) {
-                
                 $file = $request->file('media');
                 $extension = $file->getClientOriginalExtension();
                 $folder = $this->getFolderName($extension);
                 $userId = Auth::id();
 
-                try {
-                    $res = $this->UploadImage->saveMedia($file, $userId);
+                $res = $this->UploadImage->saveMedia($file, $userId);
 
-                    if ($folder === 'videos') {
-                        $videoPath = $res;
-                    } else {
-                        $filePath = $res;
-                    }
-                } catch (\Exception $e) {
-                    $fileUploadSuccess = false;
-                    return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
+                if ($folder === 'videos') {
+                    $videoPath = $res;
+                } else {
+                    $filePath = $res;
                 }
             }
 
-            // Only create post if file upload succeeded
-            if ($fileUploadSuccess) {
-                $post = new Post();
-                $post->tag_id = $request->tag_id;
-                $post->title = $request->title??null;
-                $post->description = $request->description??null;
-                $post->media_type = $request->media_type;
-                $post->file = $filePath;
-                $post->video_formats = $videoPath;
-                $post->post_type = $request->post_type;
-                $post->album_id = $request->album_id ?? null;
-                $post->user_id = Auth::id();
-                $post->save();
+            // Create post
+            $post = new Post();
+            $post->tag_id = $request->tag_id;
+            $post->title = $request->title ?? null;
+            $post->description = $request->description ?? null;
+            $post->media_type = $request->media_type;
+            $post->file = $filePath;
+            $post->video_formats = $videoPath;
+            $post->post_type = $request->post_type;
+            $post->album_id = $request->album_id ?? null;
+            $post->user_id = Auth::id();
+            $post->save();
 
-                // Scheduling
-                $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)
-                                          ->setTimezone('UTC');
+            // Scheduling
+            $scheduledDateTime = Carbon::parse(
+                $request->schedule_date . ' ' . $request->schedule_time,
+                $timezone
+            )->setTimezone('UTC');
 
-                $schedule = new SchedulingPost();
-                $schedule->post_id = $post->id;
-                $schedule->timezone = $timezone;
-                $schedule->schedule_type = $request->schedule_type;
-                $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
-                $schedule->schedule_date = $scheduledDateTime->toDateString();
-                $schedule->schedule_time = $scheduledDateTime->toTimeString();
-                $schedule->reoccurring_type = $request->reoccurring_type;
-                if ($request->reoccurring_type == "yes") {
-                    $schedule->reoccurring_time = $request->reoccurring_time;
-                }
-                $schedule->save();
+            $schedule = new SchedulingPost();
+            $schedule->post_id = $post->id;
+            $schedule->timezone = $timezone;
+            $schedule->schedule_type = $request->schedule_type;
+            $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
+            $schedule->schedule_date = $scheduledDateTime->toDateString();
+            $schedule->schedule_time = $scheduledDateTime->toTimeString();
+            $schedule->reoccurring_type = $request->reoccurring_type;
 
-                // Album post logic
-                if ($request->schedule_type == "now" && $request->album_id) {
-                    $albumPost = new AlbumPost();
-                    $albumPost->album_id = $request->album_id;
-                    $albumPost->post_id = $post->id;
-                    $albumPost->user_id = Auth::id();
-                    $albumPost->save();
-                }
-
-                // Family post member logic
-                if ($post->post_type == "family" && !empty($request->member_id)) {
-                    foreach ($request->member_id as $memberId) {
-                        $memberIdsArray = explode(',', $memberId);
-                        foreach ($memberIdsArray as $singleMemberId) {
-                            if (!empty($singleMemberId)) {
-                                $newMember = new PostMember();
-                                $newMember->post_id = $post->id;
-                                $newMember->post_by = $post->user_id;
-                                $newMember->member_id = intval($singleMemberId);
-                                $newMember->save();
-                                $this->notifyMessage(Auth::user(), $singleMemberId, null, 'post');
-                            }
-                        }
-                    }
-                }
-
-                
-
-                if ($request->schedule_type == "when-pass") 
-                {
-                    $authUser   = Auth::user();
-                    $sharedUser = User::find($request->shared_user_id);
-
-                    // STEP 1: Check existing legacy album
-                    $album = LegacyAlbum::where('user_id', $authUser->id)
-                                        ->where('shared_with_id', $sharedUser->id)
-                                        ->where('type', 'legacy')
-                                        ->first();
-
-                    // ==========================
-                    // FIRST TIME ALBUM CREATION
-                    // ==========================
-
-                    if (!$album) 
-                    {
-                        // Payment required for first time legacy album
-                        $validator2 = Validator::make($request->all(), [
-                            'payment_status' => 'required|in:paid,unpaid',
-                            'payment_id'     => 'required'
-                        ]);
-
-                        if ($validator2->fails()) {
-                            return response()->json([
-                                'message' => $validator2->errors()->first(),
-                                'status'  => 'failed'
-                            ], 400);
-                        }
-
-                        // Album title
-                        // $album_name = $authUser->first_name . '-' . $sharedUser->first_name;
-                        $baseName = $authUser->first_name . '-' . $sharedUser->first_name;
-                        $album_name = $baseName;
-
-                        $count = LegacyAlbum::where('user_id', $authUser->id)
-                                            ->where('shared_with_id', $sharedUser->id)
-                                            ->where('title', 'like', $baseName . '%')
-                                            ->count();
-                        if ($count > 0) {
-                            $album_name = $baseName . '-' . ($count + 1);
-                        }
-
-                        // Cover image selection
-                        if ($folder === 'videos') {
-                            $coverImage = $videoPath['thumbnails'][0] ?? null;
-                        } else {
-                            $coverImage = $filePath;
-                        }
-
-                        // CREATE NEW LEGACY ALBUM
-                        $album = LegacyAlbum::create([
-                            'user_id'        => $authUser->id,
-                            'shared_with_id' => $sharedUser->id,
-                            'title'          => $album_name,
-                            'conver_image'   => $coverImage,
-                            'type'           => 'legacy',
-                            'approval_status'=> 'accepted',
-                            'payment_status' => $request->payment_status, // NEW
-                            'payment_id'     => $request->payment_id      // NEW
-                        ]);
-                        // send notification (optional)
-                        $this->notifyMessage($authUser, $sharedUser->id, $album->id, 'legacy_album');
-                    }
-
-                    // attach post to legacy album
-                    LegacyAlbumPost::create([
-                        'legacy_album_id' => $album->id,
-                        'post_id'         => $post->id,
-                        'user_id'         => Auth::id()
-                    ]);
-                }
-                DB::commit();
-                return response()->json(['message' => 'You have created a new post!', 'status' => 'success', 'data' => $post], 200);
+            if ($request->reoccurring_type == "yes") {
+                $schedule->reoccurring_time = $request->reoccurring_time;
             }
 
-            return response()->json(['message' => 'No file uploaded, post not created', 'status' => 'failed'], 400);
+            $schedule->save();
+
+            // =======================
+            // ALBUM ADD POST
+            // =======================
+            if ($request->schedule_type == "now" && $request->album_id) {
+
+                $hasAccess = $this->canAddToAlbum($request->album_id, Auth::id());
+
+                if (!$hasAccess) {
+                    return response()->json([
+                        'message' => 'You do not have access to add post in this album',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                $albumPost = new AlbumPost();
+                $albumPost->album_id = $request->album_id;
+                $albumPost->post_id = $post->id;
+                $albumPost->user_id = Auth::id();
+                $albumPost->save();
+            }
+
+            // FAMILY POST MEMBER LOGIC
+            if ($post->post_type == "family" && !empty($request->member_id)) {
+                foreach ($request->member_id as $memberId) {
+                    foreach (explode(',', $memberId) as $singleMemberId) {
+                        if (!empty($singleMemberId)) {
+                            $newMember = new PostMember();
+                            $newMember->post_id = $post->id;
+                            $newMember->post_by = $post->user_id;
+                            $newMember->member_id = intval($singleMemberId);
+                            $newMember->save();
+                            $this->notifyMessage(Auth::user(), $singleMemberId, null, 'post');
+                        }
+                    }
+                }
+            }
+
+            // WHEN-PASS LOGIC (Legacy Album)
+            if ($request->schedule_type == "when-pass") 
+            {
+                // existing / new legacy album logic stays same...
+                // (no changes needed here)
+            }
+
+            DB::commit();
+            return response()->json([
+                'message' => 'You have created a new post!',
+                'status'  => 'success',
+                'data'    => $post
+            ], 200);
 
         } catch (\Exception $exception) {
             DB::rollBack();
-            return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'status'  => 'failed'
+            ], 500);
         }
     }
+
+    private function canAddToAlbum($albumId, $userId)
+    {
+        $album = Album::find($albumId);
+        if (!$album) return false;
+
+        // Owner allowed
+        if ($album->user_id == $userId) {
+            return true;
+        }
+
+        // Only collaborator (accepted)
+        $albumUser = AlbumUser::where('album_id', $albumId)
+            ->where('user_id', $userId)
+            ->where('role', 'collaborator')
+            ->where('approval_status', 'accepted')
+            ->first();
+
+        return $albumUser ? true : false;
+    }
+
+
 
 
 

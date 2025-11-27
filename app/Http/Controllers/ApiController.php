@@ -2102,7 +2102,7 @@ class ApiController extends Controller
     public function addAlbumPost(Request $request)
     {
         try {
-            // Validate the incoming request data
+            // Validate input
             $validator = Validator::make($request->all(), [
                 'album_id' => 'required|exists:albums,id',
                 'post_id' => 'required|exists:posts,id',
@@ -2112,72 +2112,93 @@ class ApiController extends Controller
                 return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
             }
 
-            // Get the authenticated user's ID
             $user_id = Auth::id();
-            // Check if the combination of album_id, post_id, and user_id already exists
-             
+
+            // Fetch album
+            $album = Album::find($request->album_id);
+            $hasAccess = false;
+
+            // OWNER ALWAYS HAS ACCESS
+            if ($album->user_id == $user_id) {
+                $hasAccess = true;
+
+            } else {
+                // ONLY collaborator can add post (viewer not allowed)
+                $albumUser = AlbumUser::where('album_id', $album->id)
+                    ->where('user_id', $user_id)
+                    ->where('role', 'collaborator')        // only collaborator
+                    ->where('approval_status', 'accepted') // must be accepted
+                    ->first();
+
+                if ($albumUser) {
+                    $hasAccess = true;
+                }
+            }
+
+            // ❌ If no access, reject
+            if (!$hasAccess) {
+                return response()->json([
+                    'message' => 'You do not have permission to add a post to this album.',
+                    'status'  => 'failed'
+                ], 403);
+            }
+
+            // Check existing record
             $existingAlbumPost = AlbumPost::where('album_id', $request->album_id)
                 ->where('post_id', $request->post_id)
                 ->where('user_id', $user_id)
                 ->first();
-    
+
             if ($existingAlbumPost) {
-                return response()->json(['message' => 'The post has already been added to an album by this user', 'status' => 'failed'], 400);
+                return response()->json([
+                    'message' => 'This post is already added to this album by you.',
+                    'status'  => 'failed'
+                ], 400);
             }
-            
-            // Create a new AlbumPost instance
+
+            // Add post to album
             $albumPost = new AlbumPost();
             $albumPost->album_id = $request->album_id;
             $albumPost->post_id = $request->post_id;
             $albumPost->user_id = $user_id;
             $albumPost->save();
- 
+
+            // Update album cover
             $post = Post::find($request->post_id);
             $thumbnailPath = null;
+
             $fileExtension = strtolower(pathinfo(
-                $post->video_formats['original'] ?? $post->file, PATHINFO_EXTENSION
+                $post->video_formats['original'] ?? $post->file,
+                PATHINFO_EXTENSION
             ));
+
             $fileType = $this->getFileType($fileExtension);
-            
-            
-            
 
             if ($fileType === 'videos') {
-
                 $videoFilename = $post->video_formats['thumbnails']['medium'];
-                $urlComponents = parse_url($videoFilename);
-                $pathOnly = $urlComponents['path'];
-                $thumbnailPath = $pathOnly;
-                
-            } elseif ($fileType === 'images'){
-                
-                // $thumbnailPath = $post->file;
-                $urlComponents = parse_url($post->file);
-                $pathOnly = $urlComponents['path'];
-                
-                $thumbnailPath = $pathOnly;
-                
-            } elseif ($fileType === 'audio'){
-                 $thumbnailPath = config('app.url') . '/assets/img/audio_bg.webp';
-                 
-            }
-            
-            if(!empty($thumbnailPath)){
-                $album = Album::find($request->album_id);
-                $album->album_cover = $thumbnailPath;
-                $album->save();
-            }else{
-                $album = Album::find($request->album_id);
-                $album->album_cover = null;
-                $album->save();
+                $thumbnailPath = parse_url($videoFilename, PHP_URL_PATH);
+
+            } elseif ($fileType === 'images') {
+                $thumbnailPath = parse_url($post->file, PHP_URL_PATH);
+
+            } elseif ($fileType === 'audio') {
+                $thumbnailPath = config('app.url') . '/assets/img/audio_bg.webp';
             }
 
-            return response()->json(['message' => 'Post added to album successfully', 'status' => 'success', 'data' => $albumPost], 200);
+            $album->album_cover = $thumbnailPath;
+            $album->save();
+
+            return response()->json([
+                'message' => 'Post added to album successfully',
+                'status'  => 'success',
+                'data'    => $albumPost
+            ], 200);
 
         } catch (\Exception $exception) {
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
+
     
     
     public function userInformationForDeleteAC(Request $request){
