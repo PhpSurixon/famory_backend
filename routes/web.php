@@ -9,7 +9,10 @@ use App\Http\Controllers\PageInfoController;
 use App\Http\Controllers\AdvertiserController;
 use Illuminate\Http\Request;
 
-
+Route::get('/test-ffmpeg', function () {
+    exec("C:\\FFmpeg\\bin\\ffmpeg.exe -version", $o, $s);
+    return ['output' => $o, 'status' => $s];
+});
 Route::get('chek',function(){
      phpinfo();
 });

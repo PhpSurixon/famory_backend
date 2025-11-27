@@ -475,6 +475,7 @@ class ApiController extends Controller
         $album = new Album();
         $album->album_name = "Saved Posts";
         $album->user_id = $userId;
+        $album->approval_status = "accepted";
         $album->save();
     }
 
@@ -1989,6 +1990,7 @@ class ApiController extends Controller
                 $albumUser = AlbumUser::where('album_id', $album->id)
                     ->where('user_id', $user->id)
                     ->whereIn('role', ['collaborator', 'viewer'])
+                    ->where('approval_status', 'accepted')
                     ->first();
 
                 if ($albumUser) {
@@ -2489,45 +2491,81 @@ class ApiController extends Controller
                 // ✅ Structured redirect
                 $redirectTo = null;
                 switch ($noti->type) {
-                    case 'follow':
-                    case 'follow_request':
-                    case 'follow_accept':
-                    case 'follow_reject':
-                    case 'trust_request':
-                        $redirectTo = [
-                            "screen" => "UserProfile",
-                            "params" => ["user_id" => $noti->item_id]
-                        ];
-                        break;
-                    case 'like':
-                    case 'post':
-                    case 'comment':
-                    case 'comment_like':
-                        $redirectTo = [
-                            "screen" => "PostDetail",
-                            "params" => ["post_id" => $noti->item_id]
-                        ];
-                        break;
-                    case 'invite':
-                    case 'invite_user':
-                        $redirectTo = [
-                            "screen" => "GroupDetail",
-                            "params" => ["group_id" => $noti->group_id]
-                        ];
-                        break;
-                    case 'self':
-                        $redirectTo = [
-                            "screen" => "UserProfile",
-                            "params" => ["user_id" => $noti->marked_user_id]
-                        ];
-                        break;
-                    case 'deceased':
-                        $redirectTo = [
-                            "screen" => "UserProfile",
-                            "params" => ["user_id" => $noti->item_id]
-                        ];
-                        break;
+
+                /* -------- USER PROFILE BASED REDIRECTS -------- */
+                case 'follow':
+                case 'follow_request':
+                case 'follow_accept':
+                case 'follow_reject':
+                case 'trust_request':
+                case 'trust_accept':
+                case 'trust_reject':
+                $redirectTo = [
+                "screen" => "UserProfile",
+                "params" => ["user_id" => $noti->item_id ?? $noti->sender_id]
+                ];
+                break;
+
+
+                /* -------- POST RELATED -------- */
+                case 'like':
+                case 'post':
+                case 'comment':
+                case 'comment_like':
+                $redirectTo = [
+                "screen" => "PostDetail",
+                "params" => ["post_id" => $noti->item_id]
+                ];
+                break;
+
+
+                /* -------- GROUP RELATED -------- */
+                case 'invite':
+                case 'invite_user':
+                $redirectTo = [
+                "screen" => "GroupDetail",
+                "params" => ["group_id" => $noti->group_id]
+                ];
+                break;
+
+
+                /* -------- DECEASED -------- */
+                case 'self':
+                case 'deceased':
+                case 'when-pass':
+                $redirectTo = [
+                "screen" => "UserProfile",
+                "params" => ["user_id" => $noti->marked_user_id ?? $noti->item_id]
+                ];
+                break;
+
+
+                /* -------- ALBUM RELATED -------- */
+                
+                case 'album_collaborator_request':
+                case 'album_viewer_request':
+                case 'album_member_approved':
+                case 'album_member_rejected':
+                case 'remove_album':
+                case 'leave_album':
+                $redirectTo = [
+                "screen" => "AlbumDetail",
+                "params" => ["album_id" => $noti->album_id ?? $noti->item_id]
+                ];
+                break;
+                case 'legacy_album':
+                $redirectTo = [
+                "screen" => "LegacyAlbumDetail",
+                "params" => ["album_id" => $noti->album_id ?? $noti->item_id]
+                ];
+                break;
+
+
+                /* -------- DEFAULT -------- */
+                default:
+                $redirectTo = null;
                 }
+
                 $noti->redirect_to = $redirectTo;
             }
 

@@ -126,10 +126,13 @@ Route::post('user/deceased-confirm', [DeathConfirmationController::class, 'confi
 Route::post('user/death/self-revoke', [DeathConfirmationController::class, 'selfRevokeDeath']);
 
 Route::post('album/members/add-update', [AlbumMemberController::class, 'addOrUpdateMember']);
+Route::post('album/member/approval-status', [AlbumMemberController::class, 'approveOrRejectMember']);
 Route::post('album/member/remove', [AlbumMemberController::class, 'removeMember']);
 Route::get('album/list', [AlbumMemberController::class, 'getAlbumlist']);
 Route::post('album/member/list', [AlbumMemberController::class, 'listMembers']);
 Route::post('leave-from-album', [AlbumMemberController::class, 'leaveLeave']);
+
+
 Route::post('legacy-album-list', [AlbumMemberController::class, 'getLegacyAlbumlist']);
 Route::post('legacy-album-post-list', [AlbumMemberController::class, 'getLegacyAlbumPostlist']);
 

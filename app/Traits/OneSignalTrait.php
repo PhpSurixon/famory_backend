@@ -283,6 +283,61 @@ trait OneSignalTrait
                     "post" => $item
                 ];
                 break;
+            case "album_collaborator_request":
+                $title = "Album Access Requested as a Collaborator";
+                $message = "$senderName has requested to add you as a collaborator to an album.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+
+            case "album_viewer_request":
+                $title = "Album Access Requested as a Viewer";
+                $message = "$senderName has requested to add you as a viewer to an album.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "album_member_approved":
+                $title = "Album Access Requested Approved";
+                $message = "$senderName accepted your album invitation.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "album_member_rejected":
+                $title = "Album Access Requested Rejected";
+                $message = "$senderName rejected your album invitation.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "remove_album":
+                $title = "Removed from Album";
+                $message = "You have been removed from the album by $senderName";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "leave_album":
+                $title = "Member Left Album";
+                $message = "$senderName has left your album.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
 
             default:
                 return 1;

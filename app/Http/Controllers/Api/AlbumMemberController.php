@@ -23,49 +23,41 @@ use Illuminate\Support\Facades\Schema;
 class AlbumMemberController extends Controller
 {
     use FormatResponseTrait;
+    use OneSignalTrait;
+
     public function getAlbumlist(Request $request)
     {
-        try 
-        {
+        try {
             $user       = Auth::user();
             $perPage    = (int) $request->input('per_page', 10);
             $album_type = $request->get('album_type'); // my, collaborator, viewer
 
             $query = Album::query();
 
-            if ($album_type === 'collaborator') 
+            if ($album_type === 'collaborator' || $album_type === 'viewer') 
             {
-                // Albums where user is a collaborator
-                $albumIds = AlbumUser::where('user_id', $user->id)
-                                     ->where('role', 'collaborator')
-                                     ->pluck('album_id')
-                                     ->toArray();
-
-                $query->whereIn('id', $albumIds);
-
-            } elseif ($album_type === 'viewer') {
-                // Albums where user is a viewer
-                $albumIds = AlbumUser::where('user_id', $user->id)
-                                     ->where('role', 'viewer')
-                                     ->pluck('album_id')
-                                     ->toArray();
-                $query->whereIn('id', $albumIds);
-
-            } else {
-                // Default: user's own albums
-                $query->where('user_id', $user->id);
+                $query->select('albums.*')
+                    ->join('album_users', 'album_users.album_id', '=', 'albums.id')
+                    ->where('album_users.user_id', $user->id)
+                    ->where('album_users.role', $album_type)
+                    ->addSelect('album_users.approval_status'); // Add approval status
+            } 
+            else 
+            {
+                // My albums
+                $query->where('albums.user_id', $user->id);
             }
 
-            // Order and paginate
-            $albums = $query->withCount('posts')->orderBy('created_at', 'asc')->paginate($perPage);
+            $albums = $query->withCount('posts')
+                            ->orderBy('albums.created_at', 'asc')
+                            ->paginate($perPage);
 
-            // If no albums found
-            if ($albums->isEmpty()) {
-                return $this->successResponse("No albums found", 200, $albums->items(), $albums);
-            }
-
-            // Success response
-            return $this->successResponse("Albums retrieved successfully", 200, $albums->items(), $albums);
+            return $this->successResponse(
+                "Albums retrieved successfully",
+                200,
+                $albums->items(),
+                $albums
+            );
 
         } catch (\Exception $exception) {
             return response()->json([
@@ -75,54 +67,7 @@ class AlbumMemberController extends Controller
         }
     }
 
-    // public function addOrUpdateMember(Request $request)
-    // {
-    //     try 
-    //     {
-
-    //         $validator = Validator::make($request->all(), [
-    //             'album_id' => 'required|exists:albums,id',
-    //             'user_id'  => 'required|exists:users,id',
-    //             'role'     => 'required|in:collaborator,viewer',
-    //         ]);
-
-    //         if ($validator->fails()) 
-    //         {
-    //             return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
-    //         }
-    //         $authUser = Auth::user();
-    //         $getAlbum = Album::where('id',$request->album_id)->first();
-    //         if($getAlbum->user_id != $authUser->id )
-    //         {
-    //             return response()->json(['message' => 'You are not Album Owner So you Can not Add and Update User', 'status' => 'failed'], 400);
-    //         }
-
-    //         $checkAlbumUser = AlbumUser::where('album_id',$request->album_id)
-    //                                     ->where('user_id',$request->user_id)
-    //                                     ->first();
-    //         if($checkAlbumUser)
-    //         {
-    //             $checkAlbumUser->role = $request->role;
-    //             $checkAlbumUser->save();
-
-    //             $msg = 'Album User Roles Updated Successfully!'; 
-
-    //         }else
-    //         {
-    //              $insertData = [
-    //                              'album_id'=>$request->album_id,
-    //                              'user_id'=>$request->user_id,
-    //                              'role'=>$request->role,
-    //                            ];
-    //             $createData = AlbumUser::create($insertData);
-    //             $msg = 'Album User Added Successfully!'; 
-    //         }
-    //         return response()->json(['message' => $msg, 'status' => 'success'], 200);
-            
-    //     } catch (Exception $e) {
-    //          return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
-    //     }
-    // }
+    
 
     public function addOrUpdateMember(Request $request)
     {
@@ -234,8 +179,12 @@ class AlbumMemberController extends Controller
                         'album_id' => $album->id,
                         'user_id'  => $memberUserId,
                         'role'     => $role,
+                        'approval_status'     => 'pending',
                     ]);
                     $added[] = $memberUserId;
+
+                    $notifType = $role === 'collaborator'? 'album_collaborator_request': 'album_viewer_request';
+                    $this->notifyMessage($authUser,$memberUserId,$album->id,$notifType);
                 }
             }
 
@@ -257,6 +206,72 @@ class AlbumMemberController extends Controller
         }
     }
 
+    public function approveOrRejectMember(Request $request)
+    {
+        try 
+        {
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'album_id' => 'required|exists:albums,id',
+                'status'   => 'required|in:accepted,rejected',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // Fetch AlbumUser record
+            $record = AlbumUser::where('album_id', $request->album_id)
+                ->where('user_id', $authUser->id)
+                ->first();
+
+            if (!$record) {
+                return response()->json([
+                    'message' => 'You are not added to this album.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            if ($record->approval_status !== 'pending') {
+                return response()->json([
+                    'message' => 'Request already resolved.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Update approval status
+            $record->approval_status = $request->status;
+            $record->save();
+
+            // Notify the owner
+            $album = Album::find($request->album_id);
+            $ownerId = $album->user_id;
+
+            $notifType = $request->status === 'accepted'? 'album_member_approved':'album_member_rejected';
+
+            $this->notifyMessage($authUser, $ownerId, $album->id, $notifType);
+            DB::commit();
+         
+
+            return response()->json([
+                'message' => "Request {$request->status} successfully.",
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
 
     public function removeMember(Request $request)
     {
@@ -267,29 +282,57 @@ class AlbumMemberController extends Controller
                 'user_id'  => 'required|exists:users,id',
             ]);
 
-            if ($validator->fails()) 
-            {
-                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
-            }
-            $authUser = Auth::user();
-            $getAlbum = Album::where('id',$request->album_id)->first();
-            if($getAlbum->user_id != $authUser->id )
-            {
-                return response()->json(['message' => 'You are not Album Owner So you Can not Add and Update User', 'status' => 'failed'], 400);
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
             }
 
-            $checkAlbumUser = AlbumUser::where('album_id',$request->album_id)
-                                        ->where('user_id',$request->user_id)
-                                        ->first();
-            if($checkAlbumUser)
-            {
-                $checkAlbumUser->delete();
-                $msg = 'Album User Deleted Successfully!'; 
+            $authUser = Auth::user();
+
+            $album = Album::find($request->album_id);
+
+            // Owner check
+            if ($album->user_id !== $authUser->id) {
+                return response()->json([
+                    'message' => 'Only the album owner can remove members.',
+                    'status' => 'failed'
+                ], 403);
             }
-            return response()->json(['message' => $msg, 'status' => 'success'], 200);
-            
-        } catch (Exception $e) {
-             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+
+            $albumUser = AlbumUser::where('album_id', $request->album_id)
+                                ->where('user_id', $request->user_id)
+                                ->first();
+
+            if (!$albumUser) {
+                return response()->json([
+                    'message' => 'User is not a member of this album.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // Delete the member
+            $albumUser->delete();
+
+            // Notify removed user
+            $this->notifyMessage(
+                $authUser,                 // sender (album owner)
+                $request->user_id,         // receiver (removed user)
+                $album->id,                // album_id
+                'remove_album'             // notification type
+            );
+
+            return response()->json([
+                'message' => 'Album member removed successfully!',
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
         }
     }
 
@@ -361,6 +404,7 @@ class AlbumMemberController extends Controller
                     'username'      => $user->username,
                     'image'         => $user->image ? $s3BaseUrl . $user->image : null,
                     'role'          => $member->role, // collaborator/viewer
+                    'approval_status'=> $member->approval_status,
                 ];
             });
 
@@ -511,153 +555,59 @@ class AlbumMemberController extends Controller
 
     public function leaveLeave(Request $request)
     {
-        try 
-        {
+        try {
             $validator = Validator::make($request->all(), [
                 'album_id' => 'required|exists:albums,id',
             ]);
 
-            if ($validator->fails()) 
-            {
-                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
             }
-            $authUser = Auth::user();
-            
 
-            $checkAlbumUser = AlbumUser::where('album_id',$request->album_id)
-                                        ->where('user_id',$authUser->id)
-                                        ->first();
-            if(empty($checkAlbumUser))
-            {
-               return response()->json(['message' => "You are not a member of this album", 'status' => 'failed'], 400);   
+            $authUser = Auth::user();
+
+            // Check membership
+            $albumUser = AlbumUser::where('album_id', $request->album_id)
+                                ->where('user_id', $authUser->id)
+                                ->first();
+
+            if (!$albumUser) {
+                return response()->json([
+                    'message' => "You are not a member of this album",
+                    'status'  => 'failed'
+                ], 400);
             }
-            $checkAlbumUser->delete();
-            $msg = 'You have successfully left the album'; 
-            return response()->json(['message' => $msg, 'status' => 'success'], 200);
-            
-        } catch (Exception $e) {
-             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+
+            // Get album
+            $album = Album::find($request->album_id);
+
+            // Delete user membership
+            $albumUser->delete();
+
+            // Send notification to album owner
+            $this->notifyMessage(
+                $authUser,           // sender (user leaving)
+                $album->user_id,     // receiver (album owner)
+                $album->id,          // album id
+                'leave_album'        // notification type
+            );
+
+            return response()->json([
+                'message' => "You have successfully left the album",
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
         }
     }
-
-    // public function getLegacyAlbumlist(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'legacy_type' => 'required|in:shared,my',
-    //     ]);
-
-    //     if ($validator->fails()) 
-    //     {
-    //         return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
-    //     }
-
-    //     try 
-    //     {
-    //         $authUser = Auth::user();
-    //         if($request->legacy_type =='shared')
-    //         {
-    //             $legacy_album = LegacyAlbum::select('id','title','conver_image')
-    //                                            ->where('shared_with_id',$authUser->id)
-    //                                            ->where('type','legacy')
-    //                                            ->withCount('posts')
-    //                                            ->get();
-    //             $msg ='Shared Legacy Album List';
-
-    //         }else{
-
-    //             $legacy_album = LegacyAlbum::select('id','title','conver_image')
-    //                                        ->where('user_id',$authUser->id)
-    //                                        ->where('type','legacy')
-    //                                        ->withCount('posts')
-    //                                        ->get();
-    //             $msg ='My Legacy Album List';
-    //         }
-
-    //         return response()->json([
-    //             "message" => $msg,
-    //             "status"  => "success",
-    //             "data"    => $legacy_album
-    //         ], 200);
-            
-    //     } catch (Exception $e) {
-    //         return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
-    //     }
-    // }
-
-    // public function getLegacyAlbumlist(Request $request)
-    // {
-    //     $validator = Validator::make($request->all(), [
-    //         'legacy_type' => 'required|in:shared,my',
-    //     ]);
-
-    //     if ($validator->fails()) 
-    //     {
-    //         return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
-    //     }
-
-    //     try 
-    //     {
-    //         $authUser = Auth::user();
-
-    //         if ($request->legacy_type == 'shared') 
-    //         {
-    //             // list of albums shared WITH me
-    //             $legacy_album = LegacyAlbum::select('id','title','conver_image','user_id')
-    //                 ->where('shared_with_id', $authUser->id)
-    //                 ->where('type','legacy')
-    //                 ->withCount('posts')
-    //                 ->with([
-    //                     'owner:id,first_name,is_dead,image'  // album creator info
-    //                 ])
-    //                 ->get()
-    //                 ->map(function($album){
-    //                     return [
-    //                         'id'            => $album->id,
-    //                         'title'         => $album->title,
-    //                         'conver_image'  => $album->conver_image,
-    //                         'posts_count'   => $album->posts_count,
-    //                         'owner_name'    => $album->owner->first_name ?? '',
-    //                         'is_dead'       => $album->owner->is_dead ? true : false,
-    //                     ];
-    //                 });
-
-    //             $msg = 'Shared Legacy Album List';
-
-    //         } 
-    //         else 
-    //         {
-    //             // list of my created legacy albums
-    //             $legacy_album = LegacyAlbum::select('id','title','conver_image')
-    //                 ->where('user_id', $authUser->id)
-    //                 ->where('type','legacy')
-    //                 ->withCount('posts')
-    //                 ->get()
-    //                 ->map(function($album){
-    //                     return [
-    //                         'id'            => $album->id,
-    //                         'title'         => $album->title,
-    //                         'conver_image'  => $album->conver_image,
-    //                         'posts_count'   => $album->posts_count,
-    //                         'is_dead'       => false,   // for my album no need but return fixed
-    //                     ];
-    //                 });
-
-    //             $msg = 'My Legacy Album List';
-    //         }
-
-    //         return response()->json([
-    //             "message" => $msg,
-    //             "status"  => "success",
-    //             "data"    => $legacy_album
-    //         ], 200);
-            
-    //     } 
-    //     catch (Exception $e) 
-    //     {
-    //         return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
-    //     }
-    // }
-
+    
     public function getLegacyAlbumlist(Request $request)
     {
         try 

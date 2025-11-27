@@ -1696,7 +1696,7 @@ class PostController extends Controller
                         $q->withTrashed()->select('id', 'first_name', 'last_name', 'image', 'deleted_at');
                     }])
                     ->with('scheduling_post')
-                    ->withCount(['likes', 'comments']) // ✅ add like_count & comment_count
+                    ->withCount(['like', 'comments']) // ✅ add like_count & comment_count
                     ->orderBy('updated_at', 'desc');
             } elseif ($request->type == "my-post") {
                 $query = $getPost->whereHas('scheduling_post', function ($query) {
@@ -1706,7 +1706,7 @@ class PostController extends Controller
                         $q->withTrashed()->select('id', 'first_name', 'last_name', 'image', 'deleted_at');
                     }])
                     ->with('scheduling_post')
-                    ->withCount(['likes', 'comments'])
+                    ->withCount(['like', 'comments'])
                     ->orderBy('updated_at', 'desc');
             } else {
                 $query = $getPost->whereHas('scheduling_post', function ($query) {
@@ -1716,7 +1716,7 @@ class PostController extends Controller
                         $q->withTrashed()->select('id', 'first_name', 'last_name', 'image', 'deleted_at');
                     }])
                     ->with('scheduling_post')
-                    ->withCount(['likes', 'comments'])
+                    ->withCount(['like', 'comments'])
                     ->orderBy('updated_at', 'desc');
             }
 

@@ -125,6 +125,11 @@ class Post extends Model
     {
         return $this->hasMany(Like::class);
     }
+
+    public function like()
+    {
+        return $this->hasMany(Like::class);
+    }
     public function post_member()
     {
         return $this->hasMany(PostMember::class);

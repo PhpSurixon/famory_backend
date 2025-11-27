@@ -12,6 +12,7 @@ class AlbumUser extends Model
         'album_id',
         'user_id',
         'role',
+        'approval_status',
     ];
 
     // Optional: hide timestamps in responses
