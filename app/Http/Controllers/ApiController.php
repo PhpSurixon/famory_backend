@@ -2430,10 +2430,12 @@ class ApiController extends Controller
                     if ($noti->type == "comment" || $noti->type == "comment_like") {
                         $getPost = Post::where('id', $noti->item_id)
                                         ->with(['scheduling_post', 'user'])
+                                        ->withCount(['comments'])
                                         ->first();
                     }else{
                          $getPost = Post::where('id', $noti->post_id)
                                         ->with(['scheduling_post', 'user'])
+                                        ->withCount(['comments'])
                                         ->first();
                     }
                     
