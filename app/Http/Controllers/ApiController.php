@@ -475,7 +475,6 @@ class ApiController extends Controller
         $album = new Album();
         $album->album_name = "Saved Posts";
         $album->user_id = $userId;
-        $album->approval_status = "accepted";
         $album->save();
     }
 
