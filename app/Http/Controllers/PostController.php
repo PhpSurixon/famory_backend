@@ -10,9 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use App\Traits\FormatResponseTrait;
 use App\Notifications\CommentReported;
-// require '/home3/famcamb/public_html/backend/vendor/domPDF/autoload.php';
 
-// require '../vendor/domPDF/autoload.php';
 use App\Models\UserGroup;
 use App\Models\FamilyMember;
 use App\Models\MemberGroup;
@@ -40,10 +38,7 @@ use App\Notifications\CommentReplyNotification;
 use Illuminate\Support\Collection;
 
 use App\Traits\OneSignalTrait;
-// google cloud 
-// require '/home3/famcamb/public_html/backend/vendor/vendor/autoload.php';
 
-require '../vendor/autoload.php';
 use App\Services\UploadImage;
 use Symfony\Component\HttpKernel\Profiler\Profile;
 
@@ -51,6 +46,17 @@ class PostController extends Controller
 { 
     use OneSignalTrait;
     use FormatResponseTrait;
+
+    protected $storageClient;
+    protected $UploadImage;
+
+    
+    
+    public function __construct(UploadImage $UploadImage)
+    {
+        $this->UploadImage = $UploadImage;
+        
+    }
 
 
     public function addGroup(Request $request){
@@ -118,17 +124,7 @@ class PostController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
-    
 
-    protected $storageClient;
-
-    
-    
-    public function __construct(UploadImage $UploadImage)
-    {
-        $this->UploadImage = $UploadImage;
-        
-    }
  
     function getFolderName($extension)
     {
@@ -2391,7 +2387,7 @@ class PostController extends Controller
     
     
     //This function is used to send posts for scheduled time
-    public function updatePostSchedule(){
+    public function updatePostScheduleOLD(){
 
         $currentTimeUTC = Carbon::now()->format('H:i:s');
         $currentDateUTC = Carbon::now()->format('Y-m-d');
@@ -2456,11 +2452,80 @@ class PostController extends Controller
             }
         }
     }
+    public function updatePostSchedule()
+    {
+        \Log::info("run Post schedule Reoccurring");
+
+        $currentTimeUTC = Carbon::now()->format('H:i:s');
+        $currentDateUTC = Carbon::now()->format('Y-m-d');
+        
+        $getAllPost = SchedulingPost::where('schedule_type','date-time')
+                                    ->where('is_post','0')
+                                    ->where('schedule_date', $currentDateUTC)
+                                    ->where('schedule_time', '<=', $currentTimeUTC)
+                                    ->get();
+                                    
+        // \Log::info($getAllPost);
+        foreach($getAllPost as $post) {
+            // \Log::info("run cron");
+            $post->update(['is_post' => 1]);
+            $getAlbum = Post::where('id',$post->post_id)->first();
+            $type = "post"; 
+            $this->notifyMessage(null, $getAlbum->user_id, $getAlbum, $type);
+            if($getAlbum->album_id){
+                $albumPost = new AlbumPost();
+                $albumPost->album_id = $getAlbum->album_id;
+                $albumPost->post_id = $getAlbum->id;
+                $albumPost->user_id = $getAlbum->user_id;
+                $albumPost->save();
+                
+                $thumbnailPath = null;
+                $fileExtension = strtolower(pathinfo(
+                    $getAlbum->video_formats['original'] ?? $getAlbum->file, PATHINFO_EXTENSION
+                ));
+                $fileType = $this->getFileType($fileExtension);
+
+                if ($fileType === 'videos') {
+                    $videoFilename = basename($getAlbum->video_formats['original']);
+                    $thumbnailFilename = public_path('thumbnails/' . pathinfo($videoFilename, PATHINFO_FILENAME) . '.jpg');
+
+                    if (!file_exists($thumbnailFilename)) {
+                        try {
+                            $command = "ffmpeg -i " . escapeshellarg($getAlbum->video_formats['original']) . " -ss 00:00:01.000 -vframes 1 " . escapeshellarg($thumbnailFilename);
+                            shell_exec($command);
+                        } catch (\Exception $e) {
+                            return response()->json(['message' => $e->getMessage(), 'status' => 'failed'], 500);
+                        }
+                    }
+                
+                    // $thumbnailPath = "https://admin.famoryapp.com/thumbnails/" . pathinfo($videoFilename, PATHINFO_FILENAME) . '.jpg';
+                    $thumbnailPath = "https://famorys3.s3.amazonaws.com" . pathinfo($videoFilename, PATHINFO_FILENAME) . '.jpg';
+                } elseif ($fileType === 'images'){
+                    $thumbnailPath = $getAlbum->file;
+                } elseif ($fileType === 'audio'){
+                     // $thumbnailPath = "https://admin.famoryapp.com/assets/img/audio_bg.webp";
+                     $thumbnailPath = asset('assets/img/audio_bg.webp');
+                }
+                // \Log::info($thumbnailPath);
+                if(!empty($thumbnailPath)){
+                    $album = Album::find($getAlbum->album_id);
+                    $album->album_cover = $thumbnailPath;
+                    $album->save();
+                    // \Log::info($album);
+                }else{
+                    $album = Album::find($getAlbum->album_id);
+                    $album->album_cover = null;
+                    $album->save();
+                    // \Log::info($album);
+                }
+            }
+        }
+    }
     
     
     // This function is used to Reoccurring post
     public function scheduleReoccurring() {
-        // \Log::info("run schedule Reoccurring");
+        \Log::info("run schedule Reoccurring");
         $now = Carbon::now();
         $posts = SchedulingPost::where('reoccurring_type', 'yes')->get();
         foreach ($posts as $post) {
@@ -2495,7 +2560,7 @@ class PostController extends Controller
     
     // Cron job function
     public function runCronJobPost() {
-        //  \Log::info("run Cron JOB");
+         \Log::info("run Cron JOB");
         $this->updatePostSchedule();
         $this->scheduleReoccurring();
     }
