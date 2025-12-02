@@ -105,6 +105,11 @@ public function creator()
         });
     }
 
+    public function TagUserList()
+    {
+        return $this->hasMany(TagUser::class, 'tag_id');
+    }
+
 
 
 

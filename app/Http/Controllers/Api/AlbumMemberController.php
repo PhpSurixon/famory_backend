@@ -781,7 +781,7 @@ class AlbumMemberController extends Controller
             $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$request->legacy_album_id)
                                                  ->pluck('post_id')
                                                  ->toArray();
-            $post = Post::whereIn('id',$get_legacy_postIds)->get();
+            $post = Post::withCount('like','comments')->whereIn('id',$get_legacy_postIds)->get();
 
 
             return response()->json([

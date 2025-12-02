@@ -24,8 +24,6 @@ Route::post('/verify-otp-email', [ApiController::class, 'verifyEmailOTP']);
 Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
 Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
 
-Route::get('tag/view/{id}',[TagsController::class,'view'])->name('tag-view');
-
 Route::middleware(['jwt.verify'])->group(function () { 
  Route::put('/update-user-profile', [ApiController::class, 'updateUserProfile']);
  Route::put('/update-user-phonenumber', [ApiController::class, 'updateUserPhoneNumber']);
@@ -142,6 +140,7 @@ Route::post('legacy-album-post-list', [AlbumMemberController::class, 'getLegacyA
 Route::get('tag/list',[TagsController::class,'index']);
 Route::post('tag/create',[TagsController::class,'store']);
 Route::post('tag/edit',[TagsController::class,'update']);
+Route::get('tag/view/{id}',[TagsController::class,'view']);
 
 
 

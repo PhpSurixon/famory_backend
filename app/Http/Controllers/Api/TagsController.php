@@ -15,6 +15,8 @@ use App\Services\UploadImage;
 
 use App\Models\User;
 use App\Models\FamilyTagId;
+use App\Models\TagUser;
+use App\Models\Post;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -255,12 +257,72 @@ class TagsController extends Controller
         }
     }
 
-
-
-
-    public function view(Request $request ,$id)
+    public function view(Request $request, $id)
     {
-        dd($id);
+        try 
+        {
+            $userId = Auth::id();
+
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            // Fetch tag with creator
+            $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name')
+                                       ->where('id', $id)
+                                       ->first();
+
+            if (!$get_tag_data) {
+                return response()->json([
+                    'message' => 'Tags Details not found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            
+            // Apply S3 URL for tag image
+            if ($get_tag_data->image) {
+                $get_tag_data->image_url = rtrim($s3BaseUrl, '/') . '/' . ltrim($get_tag_data->image, '/');
+            }
+            $get_tag_data->makeHidden(['image','avatar']);
+
+
+            // Fetch tag users
+            $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
+                                    ->where('tag_id', $get_tag_data->id)
+                                    ->get();
+
+            // Format tag users
+            $tag_users = $tag_user_list->map(function ($member) use ($s3BaseUrl) {
+                $user = $member->user;
+
+                return [
+                    'id'             => $member->id,
+                    'user_id'        => $user->id,
+                    'first_name'     => $user->first_name,
+                    'last_name'      => $user->last_name,
+                    'email'          => $user->email,
+                    'username'       => $user->username,
+                    'image'          => $user->image ? $s3BaseUrl . $user->image : null,
+                    'role'           => $member->role,
+                    'approval_status'=> $member->approval_status,
+                ];
+            });
+
+            $get_tag_data['tag_user'] = $tag_users;
+            $posts = Post::withCount('like','comments')->where('tag_id',$get_tag_data->id)->get();
+            $get_tag_data['tag_post'] = $posts;
+
+            return response()->json([
+                'message' => 'Tags fetched successfully',
+                'status'  => 'success',
+                'data'    => $get_tag_data
+            ], 200);
+
+        } catch (\Exception $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
     }
 
 
