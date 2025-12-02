@@ -24,9 +24,9 @@ class FamilyTagId extends Model
         'title',
         'description',
         'privacy_type',
+        'created_user_id',
         'avatar',
-        'family_tag_id',
-        'created_user_id'
+        'qrimage'
     ];
     protected $hidden = [
         'created_at',

@@ -10,6 +10,7 @@
         "laravel/framework": "^11.0",
         "laravel/tinker": "^2.9",
         "league/flysystem-aws-s3-v3": "^3.29",
+        "simplesoftwareio/simple-qrcode": "^4.2",
         "stripe/stripe-php": "^16.3",
         "tymon/jwt-auth": "^2.1",
         "yoeunes/toastr": "^3.0"

@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\DeathConfirmationController;
 use App\Http\Controllers\Api\PostCommentController;
 use App\Http\Controllers\Api\PostLikeController;
 use App\Http\Controllers\Api\AlbumMemberController;
+use App\Http\Controllers\Api\TagsController;
 
 
 
@@ -22,6 +23,8 @@ Route::post('/register', [ApiController::class, 'register']);
 Route::post('/verify-otp-email', [ApiController::class, 'verifyEmailOTP']);
 Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
 Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
+
+Route::get('tag/view/{id}',[TagsController::class,'view'])->name('tag-view');
 
 Route::middleware(['jwt.verify'])->group(function () { 
  Route::put('/update-user-profile', [ApiController::class, 'updateUserProfile']);
@@ -135,6 +138,11 @@ Route::post('leave-from-album', [AlbumMemberController::class, 'leaveLeave']);
 
 Route::post('legacy-album-list', [AlbumMemberController::class, 'getLegacyAlbumlist']);
 Route::post('legacy-album-post-list', [AlbumMemberController::class, 'getLegacyAlbumPostlist']);
+
+Route::get('tag/list',[TagsController::class,'index']);
+Route::post('tag/create',[TagsController::class,'store']);
+Route::post('tag/edit',[TagsController::class,'update']);
+
 
 
 });
