@@ -17,7 +17,7 @@ class TagUser extends Model
 
     public function tags()
     {
-        return $this->belongsTo(FamilyTagId::class);
+        return $this->belongsTo(FamilyTagId::class,'tag_id');
     }
 
     /**

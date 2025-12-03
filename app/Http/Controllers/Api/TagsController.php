@@ -49,14 +49,18 @@ class TagsController extends Controller
             {
                 $query->select('family_tag_ids.*')
                     ->join('tag_users', 'tag_users.tag_id', '=', 'family_tag_ids.id')
-                    ->where('tag_users.user_id', $authUser->id)
+                    ->where('tag_users.created_user_id', $authUser->id)
                     ->where('tag_users.role', $tag_type)
                     ->addSelect('tag_users.approval_status'); // Add approval status
+
+                $get_tagIds =[];
             } 
             else 
             {
                 // My family_tag_ids
-                $query->where('family_tag_ids.user_id', $authUser->id);
+                $query->where('family_tag_ids.created_user_id', $authUser->id);
+
+                $get_tagIds = FamilyTagId::where('created_user_id',$authUser->id)->pluck('id')->toArray();
             }
 
             $total     = $query->count();
@@ -64,7 +68,11 @@ class TagsController extends Controller
                                ->skip($offset)
                                ->take($limit)
                                ->get();
-                            
+                               
+            $tag_request_user = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
+                                         ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
+                                         ->whereIn('tag_id',$get_tagIds)
+                                         ->get();                
                             
             $data = [
                 'count'       => $total,
@@ -72,6 +80,7 @@ class TagsController extends Controller
                 'limit'       => $limit,
                 'total_pages' => ceil($total / $limit),
                 'tags'        => $tags,
+                'tag_request_user'        => $tag_request_user,
             ];
 
             return response()->json([
@@ -279,10 +288,10 @@ class TagsController extends Controller
 
             
             // Apply S3 URL for tag image
-            if ($get_tag_data->image) {
-                $get_tag_data->image_url = rtrim($s3BaseUrl, '/') . '/' . ltrim($get_tag_data->image, '/');
-            }
-            $get_tag_data->makeHidden(['image','avatar']);
+            // if ($get_tag_data->image) {
+            //     $get_tag_data->image_url = rtrim($s3BaseUrl, '/') . '/' . ltrim($get_tag_data->image, '/');
+            // }
+            // $get_tag_data->makeHidden(['image','avatar']);
 
 
             // Fetch tag users

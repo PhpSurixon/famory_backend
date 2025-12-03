@@ -144,6 +144,7 @@ Route::get('tag/view/{id}',[TagsController::class,'view']);
 Route::post('tag/user/add-update', [TagsController::class, 'addOrUpdateTagMember']);
 Route::post('tag/user/approval-status', [TagsController::class, 'approveOrRejectTagMember']);
 Route::post('tag/user/remove', [TagsController::class, 'removeTagMember']);
+Route::get('tag/request-list',[TagsController::class,'tagRequestList']);
 
 
 
