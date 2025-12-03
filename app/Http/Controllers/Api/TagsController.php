@@ -68,10 +68,11 @@ class TagsController extends Controller
                                ->skip($offset)
                                ->take($limit)
                                ->get();
-                               
+
             $tag_request_user = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
                                          ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
                                          ->whereIn('tag_id',$get_tagIds)
+                                         ->where('approval_status','pending')
                                          ->get();                
                             
             $data = [
@@ -593,6 +594,31 @@ class TagsController extends Controller
                 'message' => 'Something went wrong! '.$e->getMessage(),
                 'status' => 'failed'
             ], 500);
+        }
+    }
+
+    public function tagRequestList(Request $request)
+    {
+        try 
+        {
+            $authUser   = Auth::user();
+            $get_tagIds = FamilyTagId::where('created_user_id',$authUser->id)->pluck('id')->toArray();
+            $tag_request_user = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
+                                         ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
+                                         ->whereIn('tag_id',$get_tagIds)
+                                         ->where('approval_status','pending')
+                                         ->get();                
+            return response()->json([
+                'message' => 'My Tags Request List successfully',
+                'status'  => 'success',
+                'data'    => $tag_request_user
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
         }
     }
 
