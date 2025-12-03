@@ -338,6 +338,43 @@ trait OneSignalTrait
                     "album_id" => $item
                 ];
                 break;
+            case "tag_collaborator_request":
+                $title = "Tag Access Requested as a Collaborator";
+                $message = "$senderName has requested to add you as a collaborator to an tag.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+
+            case "tag_viewer_request":
+                $title = "Tag Access Requested as a Viewer";
+                $message = "$senderName has requested to add you as a viewer to an tag.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "tag_member_approved":
+                $title = "Tag Access Requested Approved";
+                $message = "$senderName accepted your Tag invitation.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "tag_member_rejected":
+                $title = "Tag Access Requested Rejected";
+                $message = "$senderName rejected your Tag invitation.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
 
             default:
                 return 1;

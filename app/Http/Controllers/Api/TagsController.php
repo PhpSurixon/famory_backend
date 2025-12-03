@@ -45,7 +45,7 @@ class TagsController extends Controller
             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
             $query     = FamilyTagId::query();
 
-            if ($tag_type === 'collaborator') 
+            if ($tag_type === 'collaborator' || $tag_type === 'viewer') 
             {
                 $query->select('family_tag_ids.*')
                     ->join('tag_users', 'tag_users.tag_id', '=', 'family_tag_ids.id')
@@ -324,6 +324,270 @@ class TagsController extends Controller
             ], 500);
         }
     }
+
+    public function addOrUpdateTagMember(Request $request)
+    {
+        try {
+            $authUser = Auth::user();
+
+            // Auth user check
+            if (!$authUser) {
+                return response()->json([
+                    'message' => 'Unauthorized.',
+                    'status'  => 'failed'
+                ], 401);
+            }
+
+            // Decode members if sent as JSON string (form-data)
+            if ($request->has('members') && is_string($request->members)) {
+                $decodedMembers = json_decode($request->members, true);
+                $request->merge(['members' => $decodedMembers]);
+            }
+
+            // Basic validation - avoid using whereNull('deleted_at') in the rule to prevent SQL error
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required',
+                'members'  => 'required|array|min:1',
+                'members.*.user_id' => 'required|integer',
+                'members.*.role'    => 'required|in:collaborator,viewer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            
+            $tag = FamilyTagId::where('id', $request->tag_id)
+                                ->where('created_user_id',$authUser->id)
+                                ->first();
+
+            if (!$tag) {
+                return response()->json([
+                    'message' => 'Tag not found.',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // Owner check
+            if ($tag->created_user_id !== $authUser->id) {
+                return response()->json([
+                    'message' => 'You are not the tag owner. You cannot add or update members.',
+                    'status'  => 'failed'
+                ], 403);
+            }
+
+            $added = [];
+            $updated = [];
+            DB::beginTransaction();
+
+            // Validate member users existence and deleted_at (if present)
+            foreach ($request->members as $member) {
+                $memberUserId = data_get($member, 'user_id');
+
+                if ($memberUserId == $authUser->id) {
+                    return response()->json([
+                        'message' => 'You cannot add yourself as a member of your own Tag.',
+                        'status'  => 'failed'
+                    ], 400);
+                }
+
+                // check user exists
+                $userQuery = User::where('id', $memberUserId);
+
+                // if users table has deleted_at, ensure user is not soft-deleted
+                if (Schema::hasColumn('users', 'deleted_at')) {
+                    $userQuery->whereNull('deleted_at');
+                }
+
+                $memberUser = $userQuery->first();
+
+                if (!$memberUser) {
+                    return response()->json([
+                        'message' => "Member user with id {$memberUserId} not found or inactive.",
+                        'status'  => 'failed'
+                    ], 400);
+                }
+            }
+
+            // All members validated; now insert/update
+            foreach ($request->members as $member) {
+                $memberUserId = $member['user_id'];
+                $role = $member['role'];
+
+                $existing = TagUser::where('tag_id', $tag->id)
+                                    ->where('user_id', $memberUserId)
+                                    ->first();
+
+                if ($existing) {
+                    $existing->role = $role;
+                    $existing->save();
+                    $updated[] = $memberUserId;
+                } else {
+                    TagUser::create([
+                        'tag_id' => $tag->id,
+                        'user_id'  => $memberUserId,
+                        'role'     => $role,
+                        'approval_status'     => 'pending',
+                    ]);
+                    $added[] = $memberUserId;
+
+                    $notifType = $role === 'collaborator'? 'tag_collaborator_request': 'tag_viewer_request';
+                    $this->notifyMessage($authUser,$memberUserId,$tag->id,$notifType);
+                }
+            }
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Tag members added/updated successfully!',
+                'status'  => 'success',
+                'data'    => [
+                    'tag_id' => $tag->id,
+                    'added_user_ids' => $added,
+                    'updated_user_ids' => $updated,
+                ],
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! ' . $e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
+    public function approveOrRejectTagMember(Request $request)
+    {
+        try 
+        {
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|exists:family_tag_ids,id',
+                'status'   => 'required|in:accepted,rejected',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            $record = TagUser::where('tag_id', $request->tag_id)
+                                ->where('user_id', $authUser->id)
+                                ->first();
+
+            if (!$record) {
+                return response()->json([
+                    'message' => 'You are not added to this Tag.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            if ($record->approval_status !== 'pending') {
+                return response()->json([
+                    'message' => 'Request already resolved.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // Update approval status
+            $record->approval_status = $request->status;
+            $record->save();
+
+            // Notify the owner
+            $tag = FamilyTagId::find($request->tag_id);
+            $ownerId = $tag->created_user_id;
+
+            $notifType = $request->status === 'accepted'? 'tag_member_approved':'tag_member_rejected';
+
+            $this->notifyMessage($authUser, $ownerId, $tag->id, $notifType);
+            DB::commit();
+         
+
+            return response()->json([
+                'message' => "Tag Request {$request->status} successfully.",
+                'status' => 'success'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
+    public function removeTagMember(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|exists:family_tag_ids,id',
+                'user_id'  => 'required|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            $tag = FamilyTagId::find($request->tag_id);
+
+            // Owner check
+            if ($tag->created_user_id !== $authUser->id) {
+                return response()->json([
+                    'message' => 'Only the Tag owner can remove members.',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            $tagUser = TagUser::where('tag_id', $request->tag_id)
+                                ->where('user_id', $request->user_id)
+                                ->first();
+
+            if (!$tagUser) {
+                return response()->json([
+                    'message' => 'User is not a member of this album.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // Delete the member
+            $tagUser->delete();
+
+            // Notify removed user
+            $this->notifyMessage(
+                $authUser,                 // sender (album owner)
+                $request->user_id,         // receiver (removed user)
+                $tag->id,                // album_id
+                'remove_tag'             // notification type
+            );
+
+            return response()->json([
+                'message' => 'Tag member removed successfully!',
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
+
 
 
     function generateFamilyTagId()

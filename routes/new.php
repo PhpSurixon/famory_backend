@@ -141,6 +141,9 @@ Route::get('tag/list',[TagsController::class,'index']);
 Route::post('tag/create',[TagsController::class,'store']);
 Route::post('tag/edit',[TagsController::class,'update']);
 Route::get('tag/view/{id}',[TagsController::class,'view']);
+Route::post('tag/user/add-update', [TagsController::class, 'addOrUpdateTagMember']);
+Route::post('tag/user/approval-status', [TagsController::class, 'approveOrRejectTagMember']);
+Route::post('tag/user/remove', [TagsController::class, 'removeTagMember']);
 
 
 
