@@ -50,7 +50,7 @@ class TagsController extends Controller
             {
                 $query->select('family_tag_ids.*')
                     ->join('tag_users', 'tag_users.tag_id', '=', 'family_tag_ids.id')
-                    ->where('tag_users.created_user_id', $authUser->id)
+                    ->where('tag_users.user_id', $authUser->id)
                     ->where('tag_users.role', $tag_type)
                     ->addSelect('tag_users.approval_status'); // Add approval status
 
