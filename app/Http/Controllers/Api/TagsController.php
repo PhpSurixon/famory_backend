@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Models\FamilyTagId;
 use App\Models\TagUser;
 use App\Models\Post;
+use App\Models\SavedTag;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -73,7 +74,11 @@ class TagsController extends Controller
                                          ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
                                          ->whereIn('tag_id',$get_tagIds)
                                          ->where('approval_status','pending')
-                                         ->get();                
+                                         ->get(); 
+            $my_saved_tag = SavedTag::select('id','tag_id','created_at')
+                                      ->with('tagData:id,family_tag_id,title,image')
+                                      ->where('user_id',$authUser->id)
+                                      ->get();               
                             
             $data = [
                 'count'       => $total,
@@ -82,6 +87,7 @@ class TagsController extends Controller
                 'total_pages' => ceil($total / $limit),
                 'tags'        => $tags,
                 'tag_request_user'        => $tag_request_user,
+                'my_saved_tag'            => $my_saved_tag,
             ];
 
             return response()->json([
@@ -619,6 +625,152 @@ class TagsController extends Controller
                 'message' => "Something Went Wrong! " . $e->getMessage(),
                 'status'  => 'failed'
             ], 400);
+        }
+    }
+
+    public function tagSave(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|exists:family_tag_ids,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            $tag = FamilyTagId::where('id',$request->tag_id)->first();
+            if(empty($tag)){
+                return response()->json([
+                    'message' => 'Tag Details not found.',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            // Owner check
+            if ($tag->created_user_id == $authUser->id) {
+                return response()->json([
+                    'message' => 'You cannot save own Tag in Saved Tag',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            if($tag->privacy_type == 'Private')
+            {
+                return response()->json([
+                    'message' => 'This tag is Private So Please send Request for tag owner as collaborator or viewer',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            $existingTag = SavedTag::where('user_id', $authUser->id)
+                               ->where('tag_id', $tag->id)
+                               ->first();
+            if($existingTag)
+            {
+                return response()->json([
+                    'message' => 'Tag already Already saved',
+                    'status' => 'failed'
+                ], 403);
+
+            }
+
+            
+
+            $savedTag = SavedTag::create([
+                'tag_id' => $tag->id,
+                'family_tag_id' => $tag->family_tag_id,
+                'user_id' => $authUser->id,
+                'is_removed' => 0,
+            ]);
+
+            return response()->json([
+                'message' => 'Tag Saved successfully!',
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
+    public function tagSaveList(Request $request)
+    {
+        try 
+        {
+            $authUser   = Auth::user();
+            $my_saved_tag = SavedTag::select('id','tag_id','created_at')
+                                      ->with('tagData:id,family_tag_id,title,image')
+                                      ->where('user_id',$authUser->id)
+                                      ->get();                
+            return response()->json([
+                'message' => 'My Saved Tags List successfully',
+                'status'  => 'success',
+                'data'    => $my_saved_tag
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+    public function saveTagRemove(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|exists:family_tag_ids,id',
+                'save_tag_id'  => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            
+
+            $checkSavetag = SavedTag::where('tag_id', $request->tag_id)
+                                ->where('id', $request->save_tag_id)
+                                ->where('user_id', $authUser->id)
+                                ->first();
+
+            if (!$checkSavetag) {
+                return response()->json([
+                    'message' => 'Save tags data not found',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // Delete the member
+            $checkSavetag->delete();
+
+            return response()->json([
+                'message' => 'Saved Tag removed successfully!',
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
         }
     }
 

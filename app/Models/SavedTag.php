@@ -12,6 +12,7 @@ class SavedTag extends Model
     protected $table = 'saved_tags';
 
     protected $fillable = [
+        'tag_id',
         'family_tag_id',
         'user_id',
         'is_removed',
@@ -23,6 +24,10 @@ class SavedTag extends Model
     public function familyTag()
     {
         return $this->belongsTo(FamilyTagId::class, 'family_tag_id', 'family_tag_id');
+    }
+    public function tagData()
+    {
+        return $this->belongsTo(FamilyTagId::class, 'tag_id', 'id');
     }
 
     /**

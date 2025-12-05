@@ -110,6 +110,11 @@ public function creator()
         return $this->hasMany(TagUser::class, 'tag_id');
     }
 
+    public function savedTagList()
+    {
+        return $this->hasMany(SavedTag::class,'tag_id',);
+    }
+
 
 
 
