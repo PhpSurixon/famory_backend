@@ -109,8 +109,8 @@ class TagsController extends Controller
         try {
 
             $validator = Validator::make($request->all(), [
-                'title'       => 'required',
-                'description' => 'required',
+                'title'       => 'required|string|max:250',
+                'description' => 'required|string',
                 'privacy_type'=> 'required|in:Public,Private',
                 'image'       => 'required|file|mimes:jpeg,png,jpg|max:2048',
             ]);
@@ -187,8 +187,8 @@ class TagsController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'id'          => 'required',
-                'title'       => 'required',
-                'description' => 'required',
+                'title'       => 'required|string|max:250',
+                'description' => 'required|string',
                 'privacy_type'=> 'required|in:Public,Private',
                 'image'       => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
             ]);
@@ -304,6 +304,7 @@ class TagsController extends Controller
             // Fetch tag users
             $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
                                     ->where('tag_id', $get_tag_data->id)
+                                    ->orderBy('id','DESC')
                                     ->get();
 
             // Format tag users
@@ -324,7 +325,7 @@ class TagsController extends Controller
             });
 
             $get_tag_data['tag_user'] = $tag_users;
-            $posts = Post::withCount('like','comments')->where('tag_id',$get_tag_data->id)->get();
+            $posts = Post::withCount('like','comments')->where('tag_id',$get_tag_data->id)->orderBy('id','DESC')->get();
             $get_tag_data['tag_post'] = $posts;
 
             return response()->json([

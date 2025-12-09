@@ -33,6 +33,7 @@ use App\Models\Follow;
 use App\Models\LegacyAlbum;
 use App\Models\LegacyAlbumPost;
 use App\Models\AlbumUser;
+use App\Models\TagUser;
 use App\Notifications\CommentAddedNotification;
 use App\Notifications\CommentReplyNotification;
 use Illuminate\Support\Collection;
@@ -712,13 +713,25 @@ class PostController extends Controller
         try {
             $getHeaders = apache_request_headers();
             $timezone = $getHeaders['time_zone'] ?? 'UTC';
-
+            $tag_id = null;
             // Validate Tag
-            if ($request->tag_id) {
-                $isValid = FamilyTagId::where(['family_tag_id' => $request->tag_id, 'user_id' => Auth::id()])->first();
-                if (!$isValid) {
-                    return $this->errorResponse("Famery Tag is not valid, please check", 'id_not_valid', 400);
+            if (isset($request->tag_id)) 
+            {
+                if($request->post_type !='private')
+                {
+                     return response()->json(['message' => "Tag Post only Create private Mode", 'status' => 'failed'], 400);
                 }
+
+                $hasTagAccess = $this->canAddToTag($request->tag_id, Auth::id());
+
+                if (!$hasTagAccess) {
+                    return response()->json([
+                        'message' => 'You do not have access to add post in this album',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                $tag_id = $request->tag_id;
             }
 
             // Upload media if present
@@ -754,9 +767,9 @@ class PostController extends Controller
             if ($fileUploadSuccess) 
             {
                 $post = new Post();
-                $post->tag_id = $request->tag_id;
-                $post->title = $request->title??null;
-                $post->description = $request->description??null;
+                $post->tag_id = $tag_id;
+                $post->title = $request->title ?? null;
+                $post->description = $request->description ?? null;
                 $post->media_type = $request->media_type;
                 $post->file = $filePath;
                 $post->video_formats = $videoPath;
@@ -924,6 +937,31 @@ class PostController extends Controller
             ->first();
 
         return $albumUser ? true : false;
+    }
+
+    private function canAddToTag($tagId, $userId)
+    {
+        $tag = FamilyTagId::find($tagId);
+        if (!$tag) return false;
+
+        if($tag->privacy_type = 'Public')
+        {
+            return true;
+        }else{
+            // Owner allowed
+            if ($tag->created_user_id == $userId) {
+                return true;
+            }
+
+            // Only collaborator (accepted)
+            $tagUser = TagUser::where('tag_id', $tagId)
+                                ->where('user_id', $userId)
+                                ->where('role', 'collaborator')
+                                ->where('approval_status', 'accepted')
+                                ->first();
+
+            return $tagUser ? true : false;
+        }
     }
 
 
@@ -1251,19 +1289,30 @@ class PostController extends Controller
                 return response()->json(['message' => 'Post not found or unauthorized', 'status' => 'failed'], 404);
             }
 
+            $tag_id = null;
             // Validate Tag
-            if ($request->tag_id) {
-                $isValid = FamilyTagId::where([
-                    'family_tag_id' => $request->tag_id,
-                    'user_id' => Auth::id()
-                ])->first();
-                if (!$isValid) {
-                    return $this->errorResponse("Famery Tag is not valid, please check", 'id_not_valid', 400);
+            if (isset($request->tag_id)) 
+            {
+                if($request->post_type !='private')
+                {
+                     return response()->json(['message' => "Tag Post only Create private Mode", 'status' => 'failed'], 400);
                 }
+
+                $hasTagAccess = $this->canAddToTag($request->tag_id, Auth::id());
+
+                if (!$hasTagAccess) {
+                    return response()->json([
+                        'message' => 'You do not have access to add post in this album',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                $tag_id = $request->tag_id;
             }
 
             // Upload media if present
-            if ($request->hasFile('media') && $request->file('media')->isValid()) {
+            if ($request->hasFile('media') && $request->file('media')->isValid()) 
+            {
                 $file = $request->file('media');
                 $extension = $file->getClientOriginalExtension();
                 $folder = $this->getFolderName($extension);
@@ -1283,7 +1332,7 @@ class PostController extends Controller
             }
 
             // Update post
-            $post->tag_id = $request->tag_id;
+            $post->tag_id = $tag_id;
             $post->title = $request->title;
             $post->description = $request->description;
             $post->media_type = $request->media_type;
@@ -1988,7 +2037,7 @@ class PostController extends Controller
                 $query->whereNotIn('user_id', $blockedUserIds);
             }
 
-            $getPost = $query->get();
+            $getPost = $query->whereNull('tag_id')->get();
 
             // Remove deleted users’ posts (optional)
             $getPost = $getPost->filter(function ($post) {
