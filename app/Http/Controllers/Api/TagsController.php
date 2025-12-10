@@ -74,10 +74,14 @@ class TagsController extends Controller
                                          ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
                                          ->whereIn('tag_id',$get_tagIds)
                                          ->where('approval_status','pending')
+                                         ->orderBy('id','DESC')
+                                         ->take(8)
                                          ->get(); 
             $my_saved_tag = SavedTag::select('id','tag_id','created_at')
                                       ->with('tagData:id,family_tag_id,title,image')
                                       ->where('user_id',$authUser->id)
+                                      ->orderBy('id','DESC')
+                                      ->take(8)
                                       ->get();               
                             
             $data = [
@@ -325,7 +329,12 @@ class TagsController extends Controller
             });
 
             $get_tag_data['tag_user'] = $tag_users;
-            $posts = Post::withCount('like','comments')->where('tag_id',$get_tag_data->id)->orderBy('id','DESC')->get();
+            $posts = Post::with('user')
+                         ->withCount('like','comments')
+                         ->where('tag_id',$get_tag_data->id)
+                         ->orderBy('id','DESC')
+                         ->get();
+
             $get_tag_data['tag_post'] = $posts;
 
             return response()->json([
