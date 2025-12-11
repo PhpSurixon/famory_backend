@@ -1150,7 +1150,7 @@ class TagsController extends Controller
         try 
         {
             $validator = Validator::make($request->all(), [
-                'tag_id'        => 'required|exists:family_tag_ids,id',
+                'family_tag_id'  => 'required|exists:family_tag_ids,family_tag_id',
                 'access_type'   => 'required|in:collaborator,viewer',
             ]);
 
@@ -1163,7 +1163,7 @@ class TagsController extends Controller
 
             $authUser = Auth::user();
 
-            $tag = FamilyTagId::find($request->tag_id);
+            $tag = FamilyTagId::where('family_tag_id',$request->family_tag_id)->first();
 
             if (!$tag) {
                 return response()->json([
@@ -1191,9 +1191,9 @@ class TagsController extends Controller
 
             // Prevent duplicate request (pending/accepted)
             $existing = TagUser::where('tag_id', $tag->id)
-                ->where('user_id', $authUser->id)
-                ->whereIn('approval_status', ['pending', 'accepted'])
-                ->first();
+                                ->where('user_id', $authUser->id)
+                                ->whereIn('approval_status', ['pending', 'accepted'])
+                                ->first();
 
             if ($existing) {
                 return response()->json([
