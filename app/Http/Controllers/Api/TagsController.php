@@ -633,9 +633,9 @@ class TagsController extends Controller
                     // $this->notifyMessage($authUser,$memberUserId,$tag->id,$notifType);
                     if($notifType == 'tag_collaborator_request')
                     {
-                     $message = "$authUser->first_name has requested to add you as a collaborator to an tag $tag->title";
+                     $message = "$authUser->first_name has requested to add you as a collaborator to $tag->title tag";
                     }else{
-                     $message = "$authUser->first_name has requested to add you as a viewer to an tag $tag->title";
+                     $message = "$authUser->first_name has requested to add you as a viewer to $tag->title tag";
                     }
                     
                     $this->notifyMessage($authUser, $memberUserId, $tag->id, $notifType, null, null,null,$message);
@@ -1213,8 +1213,8 @@ class TagsController extends Controller
 
             // Notification message
             $type = $request->access_type === 'collaborator'
-                    ? 'tag_collaborator_request'
-                    : 'tag_viewer_request';
+                    ? 'tag_collaborator_request_scan'
+                    : 'tag_viewer_request_scan';
 
             $message = "{$authUser->first_name} has requested access as {$request->access_type} for tag {$tag->title}.";
 
@@ -1251,8 +1251,7 @@ class TagsController extends Controller
             $authUser = Auth::user();
 
             $validator = Validator::make($request->all(), [
-                'tag_id'     => 'required|exists:family_tag_ids,id',
-                'member_id'  => 'required|exists:users,id',
+                'request_id'     => 'required|exists:tag_users,id',
                 'status'     => 'required|in:accepted,rejected',
                 'role'       => 'nullable|in:viewer,collaborator'
             ]);
@@ -1263,9 +1262,19 @@ class TagsController extends Controller
                     'status' => 'failed'
                 ], 400);
             }
+            // check record
+            $record = TagUser::where('id', $request->request_id)->first();
+
+            if (!$record) 
+            {
+                return response()->json([
+                    'message' => 'No request found for this user.',
+                    'status' => 'failed'
+                ], 404);
+            }
 
             // check tag owner
-            $tag = FamilyTagId::find($request->tag_id);
+            $tag = FamilyTagId::where('id',$record->tag_id)->first();
             if ($tag->created_user_id != $authUser->id) 
             {
                 return response()->json([
@@ -1274,17 +1283,7 @@ class TagsController extends Controller
                 ], 403);
             }
 
-            // check record
-            $record = TagUser::where('tag_id', $request->tag_id)
-                            ->where('user_id', $request->member_id)
-                            ->first();
-
-            if (!$record) {
-                return response()->json([
-                    'message' => 'No request found for this user.',
-                    'status' => 'failed'
-                ], 404);
-            }
+            
 
             if ($record->approval_status !== 'pending') {
                 return response()->json([
@@ -1337,7 +1336,8 @@ class TagsController extends Controller
             if ($validator->fails()) {
                 return response()->json([
                     'message' => $validator->errors()->first(),
-                    'status' => 'failed'
+                    'status' => 'failed',
+                    'is_request_sent'=> 3
                 ], 400);
             }
 
@@ -1353,23 +1353,33 @@ class TagsController extends Controller
             if (!$get_tag_data) {
                 return response()->json([
                     'message' => 'Tags Details not found',
-                    'status'  => 'failed'
+                    'status'  => 'failed',
+                    'is_request_sent'=> 3
                 ], 404);
             }
 
             $checkTagUserAccess = TagUser::where('user_id',$authUser->id)
-                                         ->where('approval_status','accepted')
-                                         ->whereIn('role',['collaborator','viewer'])
+                                         ->where('tag_id',$get_tag_data->id)
+                                         // ->whereIn('role',['collaborator','viewer'])
                                          ->first();
+            if(empty($checkTagUserAccess))
+            {
+                 return response()->json([
+                    'message' => 'You cannot access this tag without access So Please send viewer or collaborator role request',
+                    'status'  => 'failed',
+                    'is_request_sent' => 0
+                ], 404);
+            }
 
-            
+            if($checkTagUserAccess->approval_status == 'pending')
+            {
+                return response()->json([
+                    'message' => 'Your Tag request is approval is pending When request is approved the you can access',
+                    'status'  => 'failed',
+                    'is_request_sent' => 1
+                ], 404);
 
-            
-            // Apply S3 URL for tag image
-            // if ($get_tag_data->image) {
-            //     $get_tag_data->image_url = rtrim($s3BaseUrl, '/') . '/' . ltrim($get_tag_data->image, '/');
-            // }
-            // $get_tag_data->makeHidden(['image','avatar']);
+            }
 
 
             // Fetch tag users
@@ -1408,13 +1418,15 @@ class TagsController extends Controller
             return response()->json([
                 'message' => 'Tags fetched successfully',
                 'status'  => 'success',
-                'data'    => $get_tag_data
+                'data'    => $get_tag_data,
+                'is_request_sent'=> 2
             ], 200);
 
         } catch (\Exception $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),
-                'status'  => 'failed'
+                'status'  => 'failed',
+                'is_request_sent'=> 3
             ], 500);
         }
     }

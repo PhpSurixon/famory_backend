@@ -348,8 +348,28 @@ trait OneSignalTrait
                     "album_id" => $item
                 ];
                 break;
+            case "tag_collaborator_request_scan":
+                $title = "Tag Access Requested as a Collaborator";
+                // $message = "$senderName has requested to add you as a collaborator to an tag.";
+                $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
 
             case "tag_viewer_request":
+                $title = "Tag Access Requested as a Viewer";
+                // $message = "$senderName has requested to add you as a viewer to an tag.";
+                $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "tag_viewer_request_scan":
                 $title = "Tag Access Requested as a Viewer";
                 // $message = "$senderName has requested to add you as a viewer to an tag.";
                 $message = $customMessage;

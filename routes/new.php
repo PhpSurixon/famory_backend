@@ -151,7 +151,7 @@ Route::post('tag/request/send-by-user', [TagsController::class, 'sendTagRequest'
 Route::post('tag/handle-user-request', [TagsController::class, 'handleTagUserRequest']);
 Route::get('tag/request-list',[TagsController::class,'tagRequestList']);
 Route::get('tag/invitations', [TagsController::class, 'receivedTagInvitations']);
-Route::get('tag/scan-view/{id}',[TagsController::class,'tagscanView']);
+Route::post('tag/scan-view',[TagsController::class,'tagscanView']);
 
 
 
