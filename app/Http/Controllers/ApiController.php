@@ -2589,6 +2589,19 @@ class ApiController extends Controller
                 "params" => ["album_id" => $noti->album_id ?? $noti->item_id]
                 ];
                 break;
+                case 'tag_collaborator_request':
+                case 'tag_collaborator_request_scan':
+                case 'tag_viewer_request':
+                case 'tag_viewer_request_scan':
+                case 'tag_member_approved':
+                case 'tag_access_approved':
+                case 'tag_member_rejected':
+                case 'tag_access_rejected':
+                $redirectTo = [
+                "screen" => "Tag",
+                "params" => ["tag_id" => $noti->tag_id ?? $noti->item_id]
+                ];
+                break;
 
 
                 /* -------- DEFAULT -------- */

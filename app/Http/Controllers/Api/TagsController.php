@@ -1367,7 +1367,8 @@ class TagsController extends Controller
                  return response()->json([
                     'message' => 'You cannot access this tag without access So Please send viewer or collaborator role request',
                     'status'  => 'failed',
-                    'is_request_sent' => 0
+                    'is_request_sent' => 0,
+                    'tag_data'    => $get_tag_data
                 ], 404);
             }
 
@@ -1376,7 +1377,8 @@ class TagsController extends Controller
                 return response()->json([
                     'message' => 'Your Tag request is approval is pending When request is approved the you can access',
                     'status'  => 'failed',
-                    'is_request_sent' => 1
+                    'is_request_sent' => 1,
+                    'tag_data'    => $get_tag_data
                 ], 404);
 
             }
