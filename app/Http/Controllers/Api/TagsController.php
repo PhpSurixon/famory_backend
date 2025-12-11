@@ -33,6 +33,115 @@ class TagsController extends Controller
         $this->UploadImage = $UploadImage;
     }
 
+    // public function index(Request $request)
+    // {
+    //     try 
+    //     {
+    //         $authUser = Auth::user();
+    //         $limit    = (int) $request->get('limit', 10); 
+    //         $page     = (int) $request->get('page', 1); 
+    //         $offset   = ($page - 1) * $limit;
+    //         $tag_type = $request->get('tag_type'); // my, collaborator, viewer
+
+    //         $query = FamilyTagId::query();
+
+    //         /** ----------------------------------------------------
+    //          * 1. IF FILTER = collaborator / viewer → access tags
+    //          * --------------------------------------------------- */
+    //         if ($tag_type === 'collaborator' || $tag_type === 'viewer') 
+    //         {
+    //             $query->select('family_tag_ids.*')
+    //                 ->join('tag_users', 'tag_users.tag_id', '=', 'family_tag_ids.id')
+    //                 ->where('tag_users.user_id', $authUser->id)
+    //                 ->where('tag_users.role', $tag_type)
+    //                 ->where('tag_users.approval_status', 'accepted');
+
+    //             $myOwnedTagIds = [];
+    //         } 
+    //         else 
+    //         {
+    //             /** ----------------------------------------------------
+    //              * 2. MY OWN TAGS
+    //              * --------------------------------------------------- */
+    //             $query->where('created_user_id', $authUser->id);
+
+    //             $myOwnedTagIds = FamilyTagId::where('created_user_id', $authUser->id)
+    //                 ->pluck('id')
+    //                 ->toArray();
+    //         }
+
+    //         /** ----------------------------------------------------
+    //          * PAGINATION
+    //          * --------------------------------------------------- */
+    //         $total = $query->count();
+
+    //         $tags = $query->orderBy('family_tag_ids.id', 'DESC')
+    //             ->skip($offset)
+    //             ->take($limit)
+    //             ->get();
+
+    //         /** ----------------------------------------------------
+    //          * 3. LATEST INVITES RECEIVED (This user invited)
+    //          * --------------------------------------------------- */
+    //         $latest_invitations_received = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
+    //             ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image','tagOwner')
+    //             ->where('user_id', $authUser->id)
+    //             ->where('approval_status', 'pending')
+    //             ->orderBy('id','DESC')
+    //             ->take(8)
+    //             ->get();
+
+    //         /** ----------------------------------------------------
+    //          * 4. LATEST REQUESTS SENT BY ME (My Tags - User Request List)
+    //          * --------------------------------------------------- */
+    //         $latest_requests_to_my_tags = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
+    //             ->with('tags:id,family_tag_id,title,image',
+    //                    'user:id,first_name,last_name,email,username,image')
+    //             ->whereIn('tag_id', $myOwnedTagIds)
+    //             ->where('approval_status', 'pending')
+    //             ->orderBy('id','DESC')
+    //             ->take(8)
+    //             ->get();
+
+    //         /** ----------------------------------------------------
+    //          * 5. SAVED TAGS
+    //          * --------------------------------------------------- */
+    //         $my_saved_tag = SavedTag::select('id','tag_id','created_at')
+    //             ->with('tagData:id,family_tag_id,title,image')
+    //             ->where('user_id',$authUser->id)
+    //             ->orderBy('id','DESC')
+    //             ->take(8)
+    //             ->get();
+
+    //         /** ----------------------------------------------------
+    //          * FINAL RESPONSE
+    //          * --------------------------------------------------- */
+    //         $data = [
+    //             'count'       => $total,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => ceil($total / $limit),
+
+    //             'tags'                     => $tags,
+    //             'latest_requests_to_my_tags'  => $latest_requests_to_my_tags,
+    //             'latest_invitations_received' => $latest_invitations_received,
+    //             'my_saved_tag'                => $my_saved_tag,
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'My Tags List successfully',
+    //             'status'  => 'success',
+    //             'data'    => $data
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! " . $e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function index(Request $request)
     {
         try 
@@ -41,57 +150,106 @@ class TagsController extends Controller
             $limit    = (int) $request->get('limit', 10); 
             $page     = (int) $request->get('page', 1); 
             $offset   = ($page - 1) * $limit;
-            $tag_type = $request->get('tag_type');
+            $tag_type = $request->get('tag_type'); // my, collaborator, viewer
 
-            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-            $query     = FamilyTagId::query();
+            $query = FamilyTagId::query();
 
+            /** ----------------------------------------------------
+             * 1. collaborator/viewer = show shared tags
+             * --------------------------------------------------- */
             if ($tag_type === 'collaborator' || $tag_type === 'viewer') 
             {
                 $query->select('family_tag_ids.*')
                     ->join('tag_users', 'tag_users.tag_id', '=', 'family_tag_ids.id')
                     ->where('tag_users.user_id', $authUser->id)
                     ->where('tag_users.role', $tag_type)
-                    ->addSelect('tag_users.approval_status'); // Add approval status
+                    ->where('tag_users.approval_status', 'accepted');
 
-                $get_tagIds =[];
+                $myOwnedTagIds = [];
+
+                // Since NOT owner → return empty for these two sections
+                $showMyRequests = false;
             } 
             else 
             {
-                // My family_tag_ids
-                $query->where('family_tag_ids.created_user_id', $authUser->id);
+                /** ----------------------------------------------------
+                 * 2. MY OWN TAGS
+                 * --------------------------------------------------- */
+                $query->where('created_user_id', $authUser->id);
 
-                $get_tagIds = FamilyTagId::where('created_user_id',$authUser->id)->pluck('id')->toArray();
+                $myOwnedTagIds = FamilyTagId::where('created_user_id', $authUser->id)
+                    ->pluck('id')
+                    ->toArray();
+
+                $showMyRequests = true;  // Owner → show these sections
             }
 
-            $total     = $query->count();
-            $tags      = $query->orderBy('id', 'desc')
-                               ->skip($offset)
-                               ->take($limit)
-                               ->get();
+            /** ----------------------------------------------------
+             * PAGINATION
+             * --------------------------------------------------- */
+            $total = $query->count();
 
-            $tag_request_user = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
-                                         ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
-                                         ->whereIn('tag_id',$get_tagIds)
-                                         ->where('approval_status','pending')
-                                         ->orderBy('id','DESC')
-                                         ->take(8)
-                                         ->get(); 
+            $tags = $query->orderBy('family_tag_ids.id', 'DESC')
+                ->skip($offset)
+                ->take($limit)
+                ->get();
+
+            /** ----------------------------------------------------
+             * 3. LATEST INVITATIONS RECEIVED  (only when MY TAGS)
+             * --------------------------------------------------- */
+            $latest_invitations_received = $showMyRequests
+                ? TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
+                    ->with(
+                        'tags:id,family_tag_id,title,image',
+                        'user:id,first_name,last_name,email,username,image',
+                        'tagOwner'
+                    )
+                    ->where('user_id', $authUser->id)
+                    ->where('approval_status', 'pending')
+                    ->orderBy('id','DESC')
+                    ->take(8)
+                    ->get()
+                : [];
+
+            /** ----------------------------------------------------
+             * 4. LATEST REQUESTS SENT TO MY TAGS (only when MY TAGS)
+             * --------------------------------------------------- */
+            $latest_requests_to_my_tags = $showMyRequests
+                ? TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
+                    ->with(
+                        'tags:id,family_tag_id,title,image',
+                        'user:id,first_name,last_name,email,username,image'
+                    )
+                    ->whereIn('tag_id', $myOwnedTagIds)
+                    ->where('approval_status', 'pending')
+                    ->orderBy('id','DESC')
+                    ->take(8)
+                    ->get()
+                : [];
+
+            /** ----------------------------------------------------
+             * 5. SAVED TAGS (always)
+             * --------------------------------------------------- */
             $my_saved_tag = SavedTag::select('id','tag_id','created_at')
-                                      ->with('tagData:id,family_tag_id,title,image')
-                                      ->where('user_id',$authUser->id)
-                                      ->orderBy('id','DESC')
-                                      ->take(8)
-                                      ->get();               
-                            
+                ->with('tagData:id,family_tag_id,title,image')
+                ->where('user_id',$authUser->id)
+                ->orderBy('id','DESC')
+                ->take(8)
+                ->get();
+
+            /** ----------------------------------------------------
+             * FINAL RESPONSE
+             * --------------------------------------------------- */
             $data = [
                 'count'       => $total,
                 'page'        => $page,
                 'limit'       => $limit,
                 'total_pages' => ceil($total / $limit),
-                'tags'        => $tags,
-                'tag_request_user'        => $tag_request_user,
-                'my_saved_tag'            => $my_saved_tag,
+
+                'tags'                         => $tags,
+                'latest_requests_to_my_tags'   => $latest_requests_to_my_tags,
+                'latest_invitations_received'  => $latest_invitations_received,
+                'my_saved_tag'                 => $my_saved_tag,
             ];
 
             return response()->json([
@@ -107,6 +265,8 @@ class TagsController extends Controller
             ], 400);
         }
     }
+
+
 
     public function store(Request $request)
     {
@@ -297,6 +457,13 @@ class TagsController extends Controller
                 ], 404);
             }
 
+            if ($get_tag_data->created_user_id != $userId) {
+                return response()->json([
+                    'message' => 'You cannot access tag Details',
+                    'status' => 'failed'
+                ], 403);
+            }
+
             
             // Apply S3 URL for tag image
             // if ($get_tag_data->image) {
@@ -309,6 +476,7 @@ class TagsController extends Controller
             $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
                                     ->where('tag_id', $get_tag_data->id)
                                     ->orderBy('id','DESC')
+                                    ->where('approval_status','accepted')
                                     ->get();
 
             // Format tag users
@@ -322,7 +490,7 @@ class TagsController extends Controller
                     'last_name'      => $user->last_name,
                     'email'          => $user->email,
                     'username'       => $user->username,
-                    'image'          => $user->image ? $s3BaseUrl . $user->image : null,
+                    'image'          => $user->image ? $user->image : null,
                     'role'           => $member->role,
                     'approval_status'=> $member->approval_status,
                 ];
@@ -453,15 +621,24 @@ class TagsController extends Controller
                     $updated[] = $memberUserId;
                 } else {
                     TagUser::create([
-                        'tag_id' => $tag->id,
-                        'user_id'  => $memberUserId,
-                        'role'     => $role,
-                        'approval_status'     => 'pending',
+                        'tag_id'           => $tag->id,
+                        'user_id'          => $memberUserId,
+                        'role'             => $role,
+                        'invited_by'       => $authUser->id,
+                        'approval_status'  => 'pending',
                     ]);
                     $added[] = $memberUserId;
 
                     $notifType = $role === 'collaborator'? 'tag_collaborator_request': 'tag_viewer_request';
-                    $this->notifyMessage($authUser,$memberUserId,$tag->id,$notifType);
+                    // $this->notifyMessage($authUser,$memberUserId,$tag->id,$notifType);
+                    if($notifType == 'tag_collaborator_request')
+                    {
+                     $message = "$authUser->first_name has requested to add you as a collaborator to an tag $tag->title";
+                    }else{
+                     $message = "$authUser->first_name has requested to add you as a viewer to an tag $tag->title";
+                    }
+                    
+                    $this->notifyMessage($authUser, $memberUserId, $tag->id, $notifType, null, null,null,$message);
                 }
             }
             DB::commit();
@@ -492,63 +669,82 @@ class TagsController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'tag_id' => 'required|exists:family_tag_ids,id',
-                'status'   => 'required|in:accepted,rejected',
+                'status' => 'required|in:accepted,rejected',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'message' => $validator->errors()->first(),
-                    'status' => 'failed'
+                    'status'  => 'failed'
                 ], 400);
             }
 
             $record = TagUser::where('tag_id', $request->tag_id)
-                                ->where('user_id', $authUser->id)
-                                ->first();
+                              ->where('user_id', $authUser->id)
+                              ->first();
 
             if (!$record) {
                 return response()->json([
-                    'message' => 'You are not added to this Tag.',
-                    'status' => 'failed'
+                    'message' => 'You are not invited to this Tag.',
+                    'status'  => 'failed'
                 ], 400);
             }
 
             if ($record->approval_status !== 'pending') {
                 return response()->json([
-                    'message' => 'Request already resolved.',
-                    'status' => 'failed'
+                    'message' => 'This request is already processed.',
+                    'status'  => 'failed'
                 ], 400);
             }
 
             DB::beginTransaction();
 
-            // Update approval status
+            // Update status
             $record->approval_status = $request->status;
             $record->save();
 
             // Notify the owner
-            $tag = FamilyTagId::find($request->tag_id);
+            $tag     = FamilyTagId::find($request->tag_id);
             $ownerId = $tag->created_user_id;
 
-            $notifType = $request->status === 'accepted'? 'tag_member_approved':'tag_member_rejected';
+            // Create notification message
+            if ($request->status === 'accepted') {
+                $notifType = 'tag_member_approved';
+                $message   = "{$authUser->first_name} has accepted your invitation to join the tag {$tag->title}.";
+            } else {
+                $notifType = 'tag_member_rejected';
+                $message   = "{$authUser->first_name} has rejected your invitation to join the tag {$tag->title}.";
+            }
 
-            $this->notifyMessage($authUser, $ownerId, $tag->id, $notifType);
+            // Send notification
+            $this->notifyMessage(
+                $authUser,
+                $ownerId,
+                $tag->id,
+                $notifType,
+                null,
+                null,
+                null,
+                $message
+            );
+
             DB::commit();
-         
 
             return response()->json([
-                'message' => "Tag Request {$request->status} successfully.",
-                'status' => 'success'
+                'message' => "Tag request {$request->status} successfully.",
+                'status'  => 'success'
             ]);
 
         } catch (\Exception $e) {
             DB::rollBack();
+
             return response()->json([
                 'message' => 'Something went wrong! '.$e->getMessage(),
-                'status' => 'failed'
+                'status'  => 'failed'
             ], 500);
         }
     }
+
 
     public function removeTagMember(Request $request)
     {
@@ -617,26 +813,191 @@ class TagsController extends Controller
     {
         try 
         {
-            $authUser   = Auth::user();
-            $get_tagIds = FamilyTagId::where('created_user_id',$authUser->id)->pluck('id')->toArray();
-            $tag_request_user = TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
-                                         ->with('tags:id,family_tag_id,title,image','user:id,first_name,last_name,email,username,image')
-                                         ->whereIn('tag_id',$get_tagIds)
-                                         ->where('approval_status','pending')
-                                         ->get();                
+            $limit  = (int) $request->get('limit', 30);
+            $page   = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $search = $request->get('search');
+
+            $authUser = Auth::user();
+
+            // Fetch tag IDs owned by this user
+            $ownerTagIds = FamilyTagId::where('created_user_id', $authUser->id)
+                                      ->pluck('id')
+                                      ->toArray();
+
+            if (empty($ownerTagIds)) {
+                return response()->json([
+                    'message' => "No Requests Found",
+                    'status'  => "success",
+                    'data'    => [
+                        'count' => 0,
+                        'page' => $page,
+                        'limit' => $limit,
+                        'total_pages' => 0,
+                        'requests' => []
+                    ]
+                ], 200);
+            }
+
+            // Base Query
+            $query = TagUser::select(
+                        'id',
+                        'tag_id',
+                        'user_id',
+                        'role',
+                        'approval_status',
+                        'invited_by',
+                        'created_at'
+                    )
+                    ->with([
+                        'tags:id,title,image,family_tag_id',
+                        'user:id,first_name,last_name,email,username,image'
+                    ])
+                    ->whereIn('tag_id', $ownerTagIds)
+                    ->where('approval_status', 'pending')
+                    ->whereNotNull('invited_by')
+                    ->where('invited_by', '!=', $authUser->id);
+
+            // Optional Search — username / first_name etc.
+            if (!empty($search)) {
+                $query->whereHas('user', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('username', 'like', "%{$search}%");
+                });
+            }
+
+            // Count before pagination
+            $total = $query->count();
+
+            // Get Paginated results
+            $requests = $query->orderBy('id', 'desc')
+                              ->skip($offset)
+                              ->take($limit)
+                              ->get()
+                              ->map(function ($req) {
+
+                                    return [
+                                        'request_id'    => $req->id,
+                                        'tag_id'        => $req->tag_id,
+                                        'tag_title'     => $req->tags->title ?? '',
+                                        'tag_image'     => $req->tags->image ?? null,
+                                        'family_tag_id' => $req->tags->family_tag_id ?? "",
+
+                                        'user_id'       => $req->user_id,
+                                        'user_name'     => trim(($req->user->first_name ?? '') . ' ' . ($req->user->last_name ?? '')),
+                                        'username'      => $req->user->username ?? "",
+                                        'user_image'    => $req->user->image ?? null,
+
+                                        'role_requested'=> $req->role,
+                                        'requested_at'  => $req->created_at->format('Y-m-d H:i:s A')
+                                    ];
+                              });
+
+            $data = [
+                'count'       => $total,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($total / $limit),
+                'requests'    => $requests
+            ];
+
             return response()->json([
-                'message' => 'My Tags Request List successfully',
-                'status'  => 'success',
-                'data'    => $tag_request_user
+                'message' => "Tag Request List Fetched Successfully",
+                'status'  => "success",
+                'data'    => $data
             ], 200);
 
-        } catch (\Exception $e) {
+        } 
+        catch (\Exception $e) {
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
                 'status'  => 'failed'
             ], 400);
         }
     }
+
+    public function receivedTagInvitations(Request $request)
+    {
+        try 
+        {
+            $limit  = (int) $request->get('limit', 30);
+            $page   = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+
+            $authUser = Auth::user();
+
+            // Base Query: Invitations where user is the receiver
+            $query = TagUser::select(
+                        'id',
+                        'tag_id',
+                        'role',
+                        'approval_status',
+                        'invited_by',
+                        'created_at'
+                    )
+                    ->with([
+                        'tags:id,title,image,family_tag_id,created_user_id',
+                        'inviter:id,first_name,last_name,username,image'
+                    ])
+                    ->where('user_id', $authUser->id)
+                    ->where('approval_status', 'pending')
+                    ->whereNotNull('invited_by')
+                    ->where('invited_by', '!=', $authUser->id);  // Ensure invite came from owner/admin
+
+            // Count before pagination
+            $total = $query->count();
+
+            // Get paginated results
+            $invitations = $query->orderBy('id', 'desc')
+                ->skip($offset)
+                ->take($limit)
+                ->get()
+                ->map(function ($invite) {
+
+                    return [
+                        'invite_id'     => $invite->id,
+                        'tag_id'        => $invite->tag_id,
+                        'family_tag_id' => $invite->tags->family_tag_id ?? '',
+                        'tag_title'     => $invite->tags->title ?? '',
+                        'tag_image'     => $invite->tags->image ?? null,
+
+                        'invited_by_id'   => $invite->inviter->id ?? null,
+                        'invited_by_name' => trim(($invite->inviter->first_name ?? '') . ' ' . ($invite->inviter->last_name ?? '')),
+                        'invited_by_username' => $invite->inviter->username ?? '',
+                        'invited_by_image'    => $invite->inviter->image ?? null,
+
+                        'role'          => $invite->role,
+                        'status'        => $invite->approval_status,
+                        'invited_at'    => $invite->created_at->format('Y-m-d H:i:s A'),
+                    ];
+            });
+
+            // Final response format
+            $data = [
+                'count'       => $total,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($total / $limit),
+                'invitations' => $invitations
+            ];
+
+            return response()->json([
+                'message' => "Received Tag Invitations Fetched Successfully",
+                'status'  => "success",
+                'data'    => $data
+            ], 200);
+
+        } 
+        catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+
 
     public function tagSave(Request $request)
     {
@@ -671,17 +1032,17 @@ class TagsController extends Controller
                 ], 403);
             }
 
-            if($tag->privacy_type == 'Private')
-            {
-                return response()->json([
-                    'message' => 'This tag is Private So Please send Request for tag owner as collaborator or viewer',
-                    'status' => 'failed'
-                ], 403);
-            }
+            // if($tag->privacy_type == 'Private')
+            // {
+            //     return response()->json([
+            //         'message' => 'This tag is Private So Please send Request for tag owner as collaborator or viewer',
+            //         'status' => 'failed'
+            //     ], 403);
+            // }
 
             $existingTag = SavedTag::where('user_id', $authUser->id)
-                               ->where('tag_id', $tag->id)
-                               ->first();
+                                   ->where('tag_id', $tag->id)
+                                   ->first();
             if($existingTag)
             {
                 return response()->json([
@@ -783,6 +1144,282 @@ class TagsController extends Controller
             ], 500);
         }
     }
+
+    public function sendTagRequest(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'tag_id'        => 'required|exists:family_tag_ids,id',
+                'access_type'   => 'required|in:collaborator,viewer',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            $tag = FamilyTagId::find($request->tag_id);
+
+            if (!$tag) {
+                return response()->json([
+                    'message' => 'Tag not found.',
+                    'status' => 'failed'
+                ], 404);
+            }
+
+            // Cannot request access for your own tag
+            if ($tag->created_user_id == $authUser->id) {
+                return response()->json([
+                    'message' => 'You cannot request access to your own Tag.',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            // Only private tags can have request flow
+            if ($tag->privacy_type === 'Public') 
+            {
+                return response()->json([
+                    'message' => 'This is a public tag. No request required.',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            // Prevent duplicate request (pending/accepted)
+            $existing = TagUser::where('tag_id', $tag->id)
+                ->where('user_id', $authUser->id)
+                ->whereIn('approval_status', ['pending', 'accepted'])
+                ->first();
+
+            if ($existing) {
+                return response()->json([
+                    'message' => 'A request or access for this tag already exists.',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            // Create request
+            $createRequest = TagUser::create([
+                'tag_id'          => $tag->id,
+                'user_id'         => $authUser->id,
+                'invited_by'      => $authUser->id,  // self-request
+                'role'            => $request->access_type,
+                'approval_status' => 'pending',
+            ]);
+
+            // Notification message
+            $type = $request->access_type === 'collaborator'
+                    ? 'tag_collaborator_request'
+                    : 'tag_viewer_request';
+
+            $message = "{$authUser->first_name} has requested access as {$request->access_type} for tag {$tag->title}.";
+
+            // Notify Tag Owner
+            $this->notifyMessage(
+                $authUser,
+                $tag->created_user_id,
+                $tag->id,
+                $type,
+                null,
+                null,
+                null,
+                $message
+            );
+
+            return response()->json([
+                'message' => 'Tag access request sent successfully!',
+                'status' => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
+    public function handleTagUserRequest(Request $request)
+    {
+         try 
+         {
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'tag_id'     => 'required|exists:family_tag_ids,id',
+                'member_id'  => 'required|exists:users,id',
+                'status'     => 'required|in:accepted,rejected',
+                'role'       => 'nullable|in:viewer,collaborator'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // check tag owner
+            $tag = FamilyTagId::find($request->tag_id);
+            if ($tag->created_user_id != $authUser->id) 
+            {
+                return response()->json([
+                    'message' => 'Only tag owner can approve/reject requests.',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            // check record
+            $record = TagUser::where('tag_id', $request->tag_id)
+                            ->where('user_id', $request->member_id)
+                            ->first();
+
+            if (!$record) {
+                return response()->json([
+                    'message' => 'No request found for this user.',
+                    'status' => 'failed'
+                ], 404);
+            }
+
+            if ($record->approval_status !== 'pending') {
+                return response()->json([
+                    'message' => 'Request already processed.',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            // update approval status
+            $record->approval_status = $request->status;
+
+            // if owner changes role
+            if (!empty($request->role)) {
+                $record->role = $request->role;
+            }
+
+            $record->save();
+
+            // Notify user
+            $notifType = $request->status === 'accepted'? 'tag_access_approved': 'tag_access_rejected';
+
+            $this->notifyMessage($authUser, $request->member_id, $tag->id, $notifType);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "User request {$request->status} successfully.",
+                'status' => 'success'
+            ]);
+             
+         } catch (Exception $e) {
+             return response()->json([
+                'message' => 'Something went wrong! '.$e->getMessage(),
+                'status' => 'failed'
+            ], 500);
+         }
+        
+    }
+
+    public function tagscanView(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'family_tag_id'     => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            // Fetch tag with creator
+            $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
+                                       ->where('family_tag_id', $request->family_tag_id)
+                                       ->first();
+
+            if (!$get_tag_data) {
+                return response()->json([
+                    'message' => 'Tags Details not found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            $checkTagUserAccess = TagUser::where('user_id',$authUser->id)
+                                         ->where('approval_status','accepted')
+                                         ->whereIn('role',['collaborator','viewer'])
+                                         ->first();
+
+            
+
+            
+            // Apply S3 URL for tag image
+            // if ($get_tag_data->image) {
+            //     $get_tag_data->image_url = rtrim($s3BaseUrl, '/') . '/' . ltrim($get_tag_data->image, '/');
+            // }
+            // $get_tag_data->makeHidden(['image','avatar']);
+
+
+            // Fetch tag users
+            $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
+                                    ->where('tag_id', $get_tag_data->id)
+                                    ->orderBy('id','DESC')
+                                    ->where('approval_status','accepted')
+                                    ->get();
+
+            // Format tag users
+            $tag_users = $tag_user_list->map(function ($member) use ($s3BaseUrl) {
+                $user = $member->user;
+
+                return [
+                    'id'             => $member->id,
+                    'user_id'        => $user->id,
+                    'first_name'     => $user->first_name,
+                    'last_name'      => $user->last_name,
+                    'email'          => $user->email,
+                    'username'       => $user->username,
+                    'image'          => $user->image ? $user->image : null,
+                    'role'           => $member->role,
+                    'approval_status'=> $member->approval_status,
+                ];
+            });
+
+            $get_tag_data['tag_user'] = $tag_users;
+            $posts = Post::with('user')
+                         ->withCount('like','comments')
+                         ->where('tag_id',$get_tag_data->id)
+                         ->orderBy('id','DESC')
+                         ->get();
+
+            $get_tag_data['tag_post'] = $posts;
+
+            return response()->json([
+                'message' => 'Tags fetched successfully',
+                'status'  => 'success',
+                'data'    => $get_tag_data
+            ], 200);
+
+        } catch (\Exception $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+
 
 
 

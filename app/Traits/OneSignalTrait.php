@@ -340,7 +340,8 @@ trait OneSignalTrait
                 break;
             case "tag_collaborator_request":
                 $title = "Tag Access Requested as a Collaborator";
-                $message = "$senderName has requested to add you as a collaborator to an tag.";
+                // $message = "$senderName has requested to add you as a collaborator to an tag.";
+                $message = $customMessage;
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
@@ -350,7 +351,8 @@ trait OneSignalTrait
 
             case "tag_viewer_request":
                 $title = "Tag Access Requested as a Viewer";
-                $message = "$senderName has requested to add you as a viewer to an tag.";
+                // $message = "$senderName has requested to add you as a viewer to an tag.";
+                $message = $customMessage;
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
@@ -366,9 +368,27 @@ trait OneSignalTrait
                     "album_id" => $item
                 ];
                 break;
+            case "tag_access_approved":
+                $title = "Tag Access Requested Approved";
+                $message = "$senderName Approved your Tag request";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
             case "tag_member_rejected":
                 $title = "Tag Access Requested Rejected";
                 $message = "$senderName rejected your Tag invitation.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "tag_access_rejected":
+                $title = "Tag Access Requested Rejected";
+                $message = "$senderName rejected your Tag request.";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,

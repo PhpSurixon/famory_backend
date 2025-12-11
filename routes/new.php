@@ -144,10 +144,14 @@ Route::get('tag/view/{id}',[TagsController::class,'view']);
 Route::post('tag/user/add-update', [TagsController::class, 'addOrUpdateTagMember']);
 Route::post('tag/user/approval-status', [TagsController::class, 'approveOrRejectTagMember']);
 Route::post('tag/user/remove', [TagsController::class, 'removeTagMember']);
-Route::get('tag/request-list',[TagsController::class,'tagRequestList']);
 Route::post('saved/tag', [TagsController::class, 'tagSave']);
 Route::get('saved/tag-list',[TagsController::class,'tagSaveList']);
 Route::post('saved/tag/remove', [TagsController::class, 'saveTagRemove']);
+Route::post('tag/request/send-by-user', [TagsController::class, 'sendTagRequest']);
+Route::post('tag/handle-user-request', [TagsController::class, 'handleTagUserRequest']);
+Route::get('tag/request-list',[TagsController::class,'tagRequestList']);
+Route::get('tag/invitations', [TagsController::class, 'receivedTagInvitations']);
+Route::get('tag/scan-view/{id}',[TagsController::class,'tagscanView']);
 
 
 
