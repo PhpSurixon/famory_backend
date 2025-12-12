@@ -104,6 +104,7 @@ Route::middleware(['checkBlocked'])->group(function () {
   Route::get('get-all-user', [UserController::class,'getuserList']);
 
   Route::post('albums/not/members', [AlbumMemberController::class, 'followersUserList']);
+  Route::post('tag/not/members', [TagsController::class, 'followersUserList']);
 
 });
 

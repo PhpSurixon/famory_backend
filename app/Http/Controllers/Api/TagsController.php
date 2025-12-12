@@ -18,6 +18,7 @@ use App\Models\FamilyTagId;
 use App\Models\TagUser;
 use App\Models\Post;
 use App\Models\SavedTag;
+use App\Models\Follow;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -780,7 +781,7 @@ class TagsController extends Controller
 
             if (!$tagUser) {
                 return response()->json([
-                    'message' => 'User is not a member of this album.',
+                    'message' => 'User is not a member of this tag.',
                     'status' => 'failed'
                 ], 400);
             }
@@ -790,10 +791,10 @@ class TagsController extends Controller
 
             // Notify removed user
             $this->notifyMessage(
-                $authUser,                 // sender (album owner)
-                $request->user_id,         // receiver (removed user)
-                $tag->id,                // album_id
-                'remove_tag'             // notification type
+                $authUser,                 
+                $request->user_id,        
+                $tag->id,               
+                'remove_tag'
             );
 
             return response()->json([
@@ -1430,6 +1431,127 @@ class TagsController extends Controller
                 'status'  => 'failed',
                 'is_request_sent'=> 3
             ], 500);
+        }
+    }
+
+    public function followersUserList(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|exists:family_tag_ids,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $limit = (int) $request->get('limit', 30);
+            $page = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $search = $request->get('search');
+            
+
+            $authId = Auth::id();
+            $authUser = Auth::user();
+            $tag = FamilyTagId::findOrFail($request->tag_id);
+
+            // Only owner can see member list (optional rule)
+            if ($tag->created_user_id != $authUser->id) {
+                return response()->json([
+                    'message' => 'You are not the Tag Owner, so you cannot view members.',
+                    'status'  => 'failed'
+                ], 403);
+            }
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+            $tagMemberIds = TagUser::where('tag_id', $request->tag_id)
+                                        ->pluck('user_id')
+                                        ->toArray();
+            $notgetUserIds = array_unique(array_merge($blockedUserIds,$tagMemberIds));
+
+            $get_follower_user_id = $authId;
+
+            $query = Follow::where('following_id', $get_follower_user_id)
+                            ->where('status', 'approved')
+                            ->whereNotIn('follower_id', $notgetUserIds)
+                            ->with('follower:id,first_name,last_name,email,username,image');
+
+            if (!empty($search)) {
+                $query->whereHas('follower', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            $totalUsers = $query->count();
+
+            $followers = $query->orderBy('id', 'desc')
+                                ->skip($offset)
+                                ->take($limit)
+                                ->get();
+
+            // Collect all follower user IDs
+            $followerIds = $followers->pluck('follower.id')->filter()->all();
+
+            // Fetch relations in one query
+            $relations = Follow::where('follower_id', $authId)
+                                ->whereIn('following_id', $followerIds)
+                                ->pluck('status', 'following_id'); // key = following_id, value = status
+
+            
+
+            $users = $followers->map(function ($follow) use ($relations) {
+                $follower = $follow->follower;
+                $status = $relations[$follower->id] ?? null;
+
+                if ($status === 'approved') {
+                    $action = "Following";
+                    $isFollowing = true;
+                } elseif ($status === 'pending') {
+                    $action = "Requested";
+                    $isFollowing = false;
+                } else {
+                    $action = "Follow";
+                    $isFollowing = false;
+                }
+
+                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+                return [
+                    'follow_id'     => $follow->id,
+                    'user_id'       => $follower->id,
+                    'first_name'    => $follower->first_name,
+                    'last_name'     => $follower->last_name,
+                    'email'         => $follower->email,
+                    'username'      => $follower->username,
+                    'image'         => $follower->image ? $follower->image : null,
+                ];
+            });
+
+            $data = [
+                'user_id'     => (int) $get_follower_user_id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $users
+            ];
+
+            return response()->json([
+                'message' => 'Followers fetched successfully',
+                'status'  => "success",
+                'data'    => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status' => 'failed'
+            ], 400);
         }
     }
 
