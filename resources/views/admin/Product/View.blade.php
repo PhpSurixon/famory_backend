@@ -167,7 +167,7 @@
                                                 <img src="{{ asset('assets/img/default_tag.jpg') }}" alt="Default Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'">
                                             @endif
                                         </td>
-                                        <td>{{ $data->name }}</td>
+                                        <td>{{ $data->name }} {{ $data->image }}</td>
                                         <td>${{ $data->reseller_price ? number_format($data->reseller_price, 2) : 'N/A' }}</td>
                                         <td>${{ $data->price ? number_format($data->price, 2) : 'N/A'}}</td>
                                         <td>{{ $data->count ?? '-'}}</td>
