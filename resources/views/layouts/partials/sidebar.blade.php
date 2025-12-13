@@ -54,18 +54,18 @@
             </a>
         </li>
         
-        <li class="menu-item {{ request()->is('trusted-company', 'trusted-company','edit-trusted-company/*') ? 'active' : '' }}">
+        <!-- <li class="menu-item {{ request()->is('trusted-company', 'trusted-company','edit-trusted-company/*') ? 'active' : '' }}">
             <a href="{{ route('trusted-company') }}" class="menu-link">
-                <!--<i class="menu-icon tf-icons bx bx-layout"></i>-->
+                
                 <i class='menu-icon tf-icons bx bxs-user-circle' ></i>
                 <div data-i18n="Layouts">Trusted Partner</div>
             </a>
-        </li>
+        </li> -->
         
 
         <li class="menu-item {{ request()->is('openworld', 'openworld','post-details/*') ? 'active' : '' }}">
             <a href="{{ route('openworld') }}" class="menu-link">
-                <!--<i class="menu-icon tf-icons bx bx-layout"></i>-->
+                
                 <i class='menu-icon tf-icons bx bx-world' ></i>
                 <div data-i18n="Layouts">Open World</div>
             </a>
@@ -86,12 +86,12 @@
         
 
         
-        <li class="menu-item {{ request()->is('ads') ? 'active' : '' }}">
+        <!-- <li class="menu-item {{ request()->is('ads') ? 'active' : '' }}">
             <a href="{{ route('ads') }}" class="menu-link">
                 <i class='menu-icon tf-icons bx bx-bar-chart' ></i>
                 <div data-i18n="Layouts">Ads</div>
             </a>
-        </li>
+        </li> -->
         
         
         <li class="menu-item {{ request()->is('purchase-history', 'purchase-history','view-oder-detail/*') ? 'active' : '' }}">
@@ -110,21 +110,21 @@
                 <div>Price Setting</div>
             </a>
             <ul class="menu-sub">
-                <li class="menu-item {{ request()->is('ads-price', 'ads-price','edit-ads-price/*') ? 'active' : '' }}">
+                <!-- <li class="menu-item {{ request()->is('ads-price', 'ads-price','edit-ads-price/*') ? 'active' : '' }}">
                     <a href="{{ route('ads-price') }}" class="menu-link">
-                        <!--<i class="menu-icon tf-icons bx bx-layout"></i>-->
+                        
                         <i class='menu-icon tf-icons bx bxs-report' ></i>
                         <div data-i18n="Layouts">Ads Price</div>
                     </a>
-                </li>
+                </li> -->
                 
-                <li class="menu-item {{ request()->is('featured-company-payment', 'featured-company-payment','edit-featured-company-price/*','create-featured-company-price') ? 'active' : '' }}">
+                <!-- <li class="menu-item {{ request()->is('featured-company-payment', 'featured-company-payment','edit-featured-company-price/*','create-featured-company-price') ? 'active' : '' }}">
                     <a href="{{ route('featured-company-payment') }}" class="menu-link">
-                        <!--<i class="menu-icon tf-icons bx bx-layout"></i>-->
+                        
                         <i class='menu-icon tf-icons bx bxs-report' ></i>
                         <div data-i18n="Layouts">Featured Partner Price</div>
                     </a>
-                </li>
+                </li> -->
                 
                  <li class="menu-item {{ request()->is('subscription-setting', 'subscription-setting','create-subscription-setting','edit-subscription-setting/*') ? 'active' : '' }}">
                     <a href="{{ route('subscription-setting') }}" class="menu-link">

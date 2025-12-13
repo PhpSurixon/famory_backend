@@ -117,7 +117,7 @@
                             </div>
                         </div>
                         <div>
-                        <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Contacts</span>
+                        <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Contact us</span>
                         @php
                             $contactCount = DB::table('contacts')->count();
                         @endphp
@@ -254,7 +254,7 @@
                 </a>
             </div>
             
-            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
+            <!-- <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
                 <a href="{{ route('ads-price') }}">
                 <div class="card" >
                     <div class="card-body d-flex gap-3">
@@ -273,7 +273,7 @@
                     </div>
                 </div>
                 </a>
-            </div>
+            </div> -->
             
             
             <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">

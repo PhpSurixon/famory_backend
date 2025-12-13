@@ -77,6 +77,19 @@
                                             </span>
                                         @enderror
                                     </div>
+                                    <div class="col-xl-6 col-lg-6 col-md-6 col-12">
+                                        <label class="form-label" for="subscription_type">Subscription Type</label>
+                                        <select data-rule-required="true" data-msg-required="Subscription Type" class="form-control" name="subscription_type" required>
+                                            <option value="">Select Subscription Type</option>
+                                            <option value="Consumable" {{ (isset($data) && $data->subscription_type == 'Consumable') ? 'selected' : '' }} >Consumable</option>
+                                            <option value="Subscription" {{ (isset($data) && $data->subscription_type == 'Subscription') ? 'selected' : '' }}>Subscription</option>
+                                        </select>
+                                        @error('subscription_type')
+                                        <span class="help-block invalid-feedback" role="alert">
+                                            <strong>{{ $message }}</strong>
+                                        </span>
+                                        @enderror
+                                    </div>
                                     
                                 </div>
                             </div>

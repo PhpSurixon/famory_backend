@@ -169,8 +169,8 @@ Route::resource('info-pages', PageInfoController::class);
         Route::post('/update-ad-status/{id}', [AdminController::class, "updateAdStatus"])->name('update-ad-status');
 
         //deceased 
-        Route::get('/RIP-reports', [AdminController::class, 'deceasedReports'])->name('deceasedReports');
-        Route::post('/RIP-reports-delete', [AdminController::class, 'deceasedReportDelete'])->name('deceasedReportDelete');
+        Route::get('/rip-reports', [AdminController::class, 'deceasedReports'])->name('deceasedReports');
+        Route::post('/rip-reports-delete', [AdminController::class, 'deceasedReportDelete'])->name('deceasedReportDelete');
 
         //custom notifications
         Route::get("/custom-notification", [AdminController::class, 'customNotification'])->name('customNotification');

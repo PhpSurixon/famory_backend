@@ -14,6 +14,7 @@ class SubscriptionSetting extends Model
         'benefits',
         'plan_id_ios',
         'plan_id_android',
+        'subscription_type',
     ];
 
 

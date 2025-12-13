@@ -67,6 +67,7 @@
                                     <th>Benefits</th>
                                     <th>Plan ID (IOS)</th>
                                     <th>Plan ID (Android)</th>
+                                    <th>Subscription Type</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -79,6 +80,7 @@
                                         <td>{{ $data->benefits ?? 'N/A' }}</td>
                                         <td>{{ $data->plan_id_ios ?? 'N/A'}}</td>
                                         <td>{{ $data->plan_id_android ?? 'N/A'}}</td>
+                                        <td>{{ $data->subscription_type ?? 'N/A'}}</td>
                                         <td>
                                             <div class="dropdown">
                                                 <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">

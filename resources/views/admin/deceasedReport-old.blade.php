@@ -58,6 +58,9 @@
             <th>S.No.</th>
             <th>Deceased Name</th>
             <th>Deceased Email</th>
+            <th>Name of Abuser</th>
+            <th>Email of Abuser</th>
+            <th>How Often</th>
             <th>Action</th>
         </tr>
     </thead>
@@ -69,23 +72,36 @@
                 </td>
                 <td>{{ $key + 1 }}</td>
                 <td>
-                    @if($data['id'])
-                        <a href="{{ route('viewUserDeatils', $data['id']) }}">
-                            {{ $data['first_name'] . ' ' . $data['last_name'] }}
+                    @if($data['user'])
+                        <a href="{{ route('viewUserDeatils', $data['user']->id) }}">
+                            {{ $data['user']->first_name . ' ' . $data['user']->last_name }}
                         </a>
-                        <input type="hidden" class="user-id" value="{{ $data['id'] }}">
+                        <input type="hidden" class="user-id" value="{{ $data['user']->id }}">
                     @else
                         N/A
                     @endif
                 </td>
-                <td>{{ $data['email'] ? $data['email'] : 'N/A' }}</td>
-
+                <td>{{ $data['user'] ? $data['user']->email : 'N/A' }}</td>
                 <td>
-                    
-                <a class="dropdown-item" href="javascript:void(0);" onclick="deleteRecord('{{ $data['id'] }}')">
-                    <i class="bx bx-trash me-1" style="color:red;"></i>
-                </a>
-                    
+                    @if($data['deceased_by'])
+                        <a href="{{ route('viewUserDeatils', $data['deceased_by']->id) }}">
+                            {{ $data['deceased_by']->first_name . ' ' . $data['deceased_by']->last_name }}
+                        </a>
+                        <input type="hidden" class="deceased-by-id" value="{{ $data['deceased_by']->id }}">
+                    @else
+                        N/A
+                    @endif
+                </td>
+                <td>{{ $data['deceased_by'] ? $data['deceased_by']->email : 'N/A' }}</td>
+                <td>{{ $data['count'] ?? '-' }}</td>
+                <td>
+                    @if($data['user'] && $data['deceased_by'])
+                        <a class="dropdown-item" href="javascript:void(0);" onclick="deleteRecord('{{ $data['user']->id }}', '{{ $data['deceased_by']->id }}')">
+                            <i class="bx bx-trash me-1" style="color:red;"></i>
+                        </a>
+                    @else
+                       <div style="padding: 0.532rem 1.50rem;">-</div> 
+                    @endif
                 </td>
             </tr>
         @endforeach
@@ -146,10 +162,9 @@ $(document).ready(function() {
             
             var row = $(this).closest('tr');
             var userId = row.find('.user-id').val(); // Add a hidden field in your table rows
-            
-            if (userId) 
-            {
-                deleteData.push({ user_id: userId });
+            var deceasedById = row.find('.deceased-by-id').val(); // Add a hidden field in your table rows
+            if (userId && deceasedById) {
+                deleteData.push({ user_id: userId, deceased_by_id: deceasedById });
             }
         });
 
@@ -205,13 +220,12 @@ $(document).ready(function() {
     });
 });
 
-    function deleteRecord(userId) {
-        console.log("Ids==>",userId);
-        if (userId !== '') 
-        {
+    function deleteRecord(userId, deceasedById) {
+        console.log("Ids==>",userId,deceasedById);
+        if (userId !== '' && deceasedById !== '') {
             
             let deleteData = [
-                { user_id: userId }
+                { user_id: userId, deceased_by_id: deceasedById }
             ];
             
             swal.fire({
