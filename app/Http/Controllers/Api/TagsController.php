@@ -447,7 +447,7 @@ class TagsController extends Controller
             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
             // Fetch tag with creator
-            $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name')
+            $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
                                        ->where('id', $id)
                                        ->first();
 
