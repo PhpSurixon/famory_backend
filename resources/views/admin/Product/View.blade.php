@@ -159,8 +159,7 @@
                                         <td>{{ $key + 1 }}</td>
                                         <td>
                                             @php
-                                            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-                                            $imagpth = str_contains($data->image, $s3BaseUrl) ? $data->image : $s3BaseUrl . '/' . ltrim($data->image, '/');
+                                             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
                                             @endphp
                                             @if(!empty($data->image))
                                                 <img src="{{ str_contains($data->image, $s3BaseUrl) ? $data->image : $s3BaseUrl . '/' . ltrim($data->image, '/') }}" alt="Tag Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'">
@@ -168,7 +167,7 @@
                                                 <img src="{{ asset('assets/img/default_tag.jpg') }}" alt="Default Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'">
                                             @endif
                                         </td>
-                                        <td>{{ $data->name }} {{ $imagpth }}</td>
+                                        <td>{{ $data->name }}</td>
                                         <td>${{ $data->reseller_price ? number_format($data->reseller_price, 2) : 'N/A' }}</td>
                                         <td>${{ $data->price ? number_format($data->price, 2) : 'N/A'}}</td>
                                         <td>{{ $data->count ?? '-'}}</td>
