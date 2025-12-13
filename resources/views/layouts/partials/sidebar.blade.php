@@ -94,12 +94,12 @@
         </li> -->
         
         
-        <li class="menu-item {{ request()->is('purchase-history', 'purchase-history','view-oder-detail/*') ? 'active' : '' }}">
+        <!-- <li class="menu-item {{ request()->is('purchase-history', 'purchase-history','view-oder-detail/*') ? 'active' : '' }}">
             <a href="{{ route('purchase-history') }}" class="menu-link">
                 <i class="menu-icon tf-icons bx bx-layout"></i>
                 <div data-i18n="Layouts">Purchased History</div>
             </a>
-        </li>
+        </li> -->
         
         
         <li class="menu-item {{request()->is('ads-price', 'ads-price','edit-ads-price/*') || request()->is('featured-company-payment', 
