@@ -154,6 +154,7 @@ Route::get('tag/request-list',[TagsController::class,'tagRequestList']);
 Route::post('tag/scan-view',[TagsController::class,'tagscanView']);
 Route::get('tag/invitations', [TagsController::class, 'receivedTagInvitations']);
 
+Route::post('famory-tags/buy',[TagsController::class,'FamoryTagsBuy']);
 
 
 });

@@ -19,6 +19,7 @@ use App\Models\TagUser;
 use App\Models\Post;
 use App\Models\SavedTag;
 use App\Models\Follow;
+use App\Models\Product;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -238,6 +239,8 @@ class TagsController extends Controller
                 ->take(8)
                 ->get();
 
+            $FamoryTags = Product::get();
+
             /** ----------------------------------------------------
              * FINAL RESPONSE
              * --------------------------------------------------- */
@@ -251,6 +254,7 @@ class TagsController extends Controller
                 'latest_requests_to_my_tags'   => $latest_requests_to_my_tags,
                 'latest_invitations_received'  => $latest_invitations_received,
                 'my_saved_tag'                 => $my_saved_tag,
+                'FamoryTags'                   => $FamoryTags,
             ];
 
             return response()->json([
@@ -1576,6 +1580,14 @@ class TagsController extends Controller
                 'status' => 'failed'
             ], 400);
         }
+    }
+
+    public function FamoryTagsBuy(Request $request)
+    {
+        return response()->json([
+                'message' => "This tag Out of Stock.Try After some time",
+                'status' => 'failed'
+            ], 400);
     }
 
 
