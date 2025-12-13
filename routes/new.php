@@ -151,8 +151,8 @@ Route::post('saved/tag/remove', [TagsController::class, 'saveTagRemove']);
 Route::post('tag/request/send-by-user', [TagsController::class, 'sendTagRequest']);
 Route::post('tag/handle-user-request', [TagsController::class, 'handleTagUserRequest']);
 Route::get('tag/request-list',[TagsController::class,'tagRequestList']);
-Route::get('tag/invitations', [TagsController::class, 'receivedTagInvitations']);
 Route::post('tag/scan-view',[TagsController::class,'tagscanView']);
+Route::get('tag/invitations', [TagsController::class, 'receivedTagInvitations']);
 
 
 
