@@ -1356,13 +1356,14 @@ class TagsController extends Controller
                     'is_request_sent' => 3
                 ], 404);
             }
+            $get_tag_data['isTagOwner'] = ($get_tag_data->created_user_id == $authUser->id) ? 1 : 0;
 
             /**
              * ==========================
              * PRIVATE TAG ACCESS CHECK
              * ==========================
              */
-            if ($get_tag_data->privacy_type !== 'Public') 
+            if ($get_tag_data->privacy_type !== 'Public' && $get_tag_data->created_user_id != $authUser->id) 
             {
 
                 $checkTagUserAccess = TagUser::where('user_id', $authUser->id)
@@ -1426,11 +1427,13 @@ class TagsController extends Controller
                          ->orderBy('id', 'DESC')
                          ->get();
 
+
             $get_save_tag = SavedTag::where('tag_id',$get_tag_data->id)->where('user_id',$authUser->id)->first();
 
             $get_tag_data['tag_user'] = $tag_users;
             $get_tag_data['tag_post'] = $posts;
             $get_tag_data['isSaved'] = $get_save_tag ? 1 : 0;
+            
 
             /**
              * ==========================
