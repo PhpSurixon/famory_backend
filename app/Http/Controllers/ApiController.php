@@ -762,7 +762,8 @@ class ApiController extends Controller
             $data = $user->toArray();
 
             // ✅ Fix main user image
-            $data['image'] = !empty($data['image']) ? $s3BaseUrl . $data['image'] : null;
+            // $data['image'] = !empty($data['image']) ? $s3BaseUrl . $data['image'] : null;
+            $data['image'] = !empty($data['image']) ? $data['image'] : null;
 
             // Default values
             $data['saved_post_count'] = 0;
@@ -780,7 +781,8 @@ class ApiController extends Controller
                 ->limit(20)
                 ->get();
 
-            $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
+            // $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
+            $simplifiedData = $familyMembers->map(function ($familyMember) {
                 if ($familyMember->member_id == Auth::id()) {
                     if (empty($familyMember->member)) return null;
 
@@ -803,7 +805,8 @@ class ApiController extends Controller
                         'id'         => $user->id,
                         'first_name' => $user->first_name,
                         'last_name'  => $user->last_name,
-                        'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+                        // 'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+                        'image'      => $user->image ?  $user->image : null,
                     ],
                 ];
             })
@@ -813,31 +816,7 @@ class ApiController extends Controller
 
             $data['family'] = $simplifiedData;
 
-            // ✅ Fix group images
-            if (!empty($data['group'])) {
-                foreach ($data['group'] as &$group) {
-                    if (!empty($group['group_name']['image'])) {
-                        $group['group_name']['image'] = $s3BaseUrl . $group['group_name']['image'];
-                    }
-                }
-            }
-
-            // ✅ Fix album cover & posts images
-            if (!empty($data['album'])) {
-                foreach ($data['album'] as &$album) {
-                    if (!empty($album['album_cover'])) {
-                        $album['album_cover'] = $s3BaseUrl . $album['album_cover'];
-                    }
-
-                    if (!empty($album['posts'])) {
-                        foreach ($album['posts'] as &$post) {
-                            if (!empty($post['image'])) {
-                                $post['image'] = $s3BaseUrl . $post['image'];
-                            }
-                        }
-                    }
-                }
-            }
+            
 
             // Subscription
             $subscribed_user = Subscription::where('user_id', $current_user)->first();
@@ -938,8 +917,10 @@ class ApiController extends Controller
                                             ->map(function ($fw) use ($s3BaseUrl) {
                                                 return [
                                                     'id'    => $fw->id,
-                                                    'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
-                                                    'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                                                    // 'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
+                                                    'video' => $fw->video_path ? $fw->video_path : null,
+                                                    // 'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                                                    'video_formats' => $fw->video_path ? $fw->video_formats : [],
                                                 ];
                                             });
             $data['my_final_word_videos'] = $my_final_word_videos;
@@ -1678,99 +1659,7 @@ class ApiController extends Controller
         }
     }
 
-    // public function getUserById(Request $request, $user_id)
-    // {
-    //     $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-
-    //     $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
-    //                 ->find($user_id);
-
-    //     if (! $user) {
-    //         return response()->json([
-    //             'message' => 'User not found',
-    //             'status'  => 'error',
-    //             'data'    => null
-    //         ], 404);
-    //     }
-
-    //     // --- Live status calculation (same logic as you had) ---
-    //     $isExist = UserLiveStatus::where('user_id', $user_id)->orderBy('id', 'DESC')->first();
-    //     $is_live = null;
-    //     $passed_date = null;
-
-    //     if ($isExist) {
-    //         if ($isExist->is_alive == 0) {
-    //             $update_time  = $isExist->created_at->addHours(72)->toDateTimeString();
-    //             $current_time = \Carbon\Carbon::now()->toDateTimeString();
-    //             if ($current_time >= $update_time) {
-    //                 $is_live = false;
-    //                 $passed_date = $isExist->created_at->format('m/d/y');
-    //             } else {
-    //                 $is_live = true;
-    //             }
-    //         } else {
-    //             $is_live = true;
-    //         }
-    //     } else {
-    //         $is_live = null;
-    //     }
-
-    //     // --- Following / Family checks / Counts ---
-    //     $isFollowing = Follow::where('follower_id', Auth::id())
-    //                         ->where('following_id', $user_id)
-    //                         ->where('status', 'approved')
-    //                         ->exists();
-
-    //     $member = FamilyMember::where(function ($query) use ($user_id) {
-    //                 $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
-    //                     ->orWhere(function ($q) use ($user_id) {
-    //                         $q->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
-    //                     });
-    //             })->first();
-
-    //     $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
-    //     $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
-    //     $postCount      = Post::where('user_id', $user_id)->count();
-
-    //     // --- Convert to array and modify image paths safely (avoid double-prefix) ---
-    //     $userArray = $user->toArray();
-
-    //     // helper to prefix only when value exists and doesn't already start with http
-    //     $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
-    //         if (empty($path)) return null;
-    //         if (stripos($path, 'http://') === 0 || stripos($path, 'https://') === 0) return $path;
-    //         return $s3BaseUrl . $path;
-    //     };
-
-    //     // main profile image
-    //     $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
-    //     $userArray['is_live'] = $is_live;
-    //     $userArray['passed_date'] = $passed_date;
-    //     $userArray['is_following'] = (bool) $isFollowing;
-    //     $userArray['is_family_member'] = !empty($member) ? true : false;
-    //     $userArray['follower_count'] = (int) $followerCount;
-    //     $userArray['following_count'] = (int) $followingCount;
-    //     $userArray['post_count'] = (int) $postCount;
-
-    //     // remove the relationship we don't want in response (if present)
-    //     if (isset($userArray['userLiveStatus'])) unset($userArray['userLiveStatus']);
-    //     if (isset($userArray['user_live_status'])) unset($userArray['user_live_status']);
-
-    //     $authUser = $authUser = Auth::user();
-
-    //     $blockUser = BlockUser::where('user_id', $authUser->id)
-    //                            ->where('marked_user_id', $user_id)
-    //                            ->where('block',1)
-    //                            ->first();
-
-    //     $userArray['is_block'] = !empty($blockUser)?true:false;
-
-    //     return response()->json([
-    //         'message' => 'Successfully retrieved user data',
-    //         'status'  => 'success',
-    //         'data'    => $userArray
-    //     ], 200);
-    // }
+    
 
     public function getUserById(Request $request, $user_id)
     {
@@ -1836,7 +1725,8 @@ class ApiController extends Controller
                 return $s3BaseUrl . $path;
             };
 
-            $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
+            // $userArray['image'] = $prefixIfNeeded($userArray['image'] ?? null);
+            $userArray['image']    = $userArray['image'] ?? null;
 
             // ✅ Live/Dead logic from DB column
             $userArray['is_live']  = $user->is_dead ? false : true;
@@ -1860,7 +1750,8 @@ class ApiController extends Controller
                     'first_name'     => $user->first_name,
                     'last_name'      => $user->last_name,
                     'username'       => $user->username,
-                    'image'          => $prefixIfNeeded($user->image),
+                    // 'image'          => $prefixIfNeeded($user->image),
+                    'image'          => $user->image ?? null,
                     'post_count'     => $postCount,
                     'follower_count' => 0,
                     'following_count'=> 0,

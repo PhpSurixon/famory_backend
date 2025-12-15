@@ -209,7 +209,8 @@ class UserReportController extends Controller
                     'last_name'    => $blocked->last_name,
                     'email'        => $blocked->email,
                     'username'     => $blocked->username,
-                    'image'        => $blocked->image ? $s3BaseUrl . $blocked->image : null,
+                    // 'image'        => $blocked->image ? $s3BaseUrl . $blocked->image : null,
+                    'image'        => $blocked->image ? $blocked->image : null,
                     'action_button'=> "Unblock" // always unblock option
                 ];
             });

@@ -90,7 +90,8 @@ class TrustedUserController extends Controller
                     'last_name'  => $trusted->last_name,
                     'email'      => $trusted->email,
                     'username'   => $trusted->username,
-                    'image'      => $trusted->image ? $s3BaseUrl . $trusted->image : null,
+                    // 'image'      => $trusted->image ? $s3BaseUrl . $trusted->image : null,
+                    'image'      => $trusted->image ? $trusted->image : null,
                     'status'     => $trust->status,
                 ];
             })
@@ -176,7 +177,8 @@ class TrustedUserController extends Controller
                     'last_name'  => $user->last_name,
                     'email'      => $user->email,
                     'username'   => $user->username,
-                    'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+                    // 'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+                    'image'      => $user->image ? $user->image : null,
                     'status'     => $trust->status,
                 ];
             })

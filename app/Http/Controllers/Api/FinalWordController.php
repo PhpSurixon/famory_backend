@@ -58,8 +58,10 @@ class FinalWordController extends Controller
                             ->map(function ($fw) use ($s3BaseUrl) {
                                 return [
                                     'id'    => $fw->id,
-                                    'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
-                                    'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                                    // 'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
+                                    'video' => $fw->video_path ? $fw->video_path : null,
+                                    // 'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                                    'video_formats' => $fw->video_path ? $fw->video_formats : [],
                                 ];
                             });
                             
@@ -87,117 +89,6 @@ class FinalWordController extends Controller
 
 
     // View user’s Final Words
-    public function showByOtherUserOLD(Request $request, $user_id)
-    {
-        try {
-            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-
-            // 🔹 Helper for image prefix
-            $prefixIfNeeded = function ($path) use ($s3BaseUrl) {
-                if (empty($path)) return null;
-                if (preg_match('/^https?:\/\//', $path)) return $path;
-                return rtrim($s3BaseUrl, '/') . '/' . ltrim($path, '/');
-            };
-
-            // 🔹 Fetch user
-            $user = User::findOrFail($user_id);
-
-            // 🔹 Pagination params
-            $limit  = max((int) $request->get('limit', 10), 1);
-            $page   = max((int) $request->get('page', 1), 1);
-            $offset = ($page - 1) * $limit;
-
-            // 🔹 Get FinalWords
-            $query = FinalWord::where('user_id', $user_id);
-            $total = $query->count();
-
-            $videos = $query->orderByDesc('id')
-                            ->skip($offset)
-                            ->take($limit)
-                            ->get()
-                            ->map(fn($fw) => [
-                                'id'    => $fw->id,
-                                'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
-                                'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
-                            ]);
-
-            // 🔹 Format user data
-            $userdata = [
-                "id"                 => $user->id,
-                "first_name"         => $user->first_name,
-                "last_name"          => $user->last_name,
-                "email"              => $user->email,
-                "role_id"            => $user->role_id,
-                "phone"              => $user->phone,
-                "image"              => $prefixIfNeeded($user->image),
-                "company_name"       => $user->company_name,
-                "company_address"    => $user->company_address,
-                "company_logo"       => $prefixIfNeeded($user->company_logo),
-                "is_approved"        => $user->is_approved,
-                "stripe_customer_id" => $user->stripe_customer_id,
-                "agreed_terms"       => $user->agreed_terms,
-                "ban_user"           => $user->ban_user,
-                "deleted_at"         => $user->deleted_at,
-                "username"           => $user->username,
-                "gender"             => $user->gender,
-                "dob"                => $user->dob,
-                "agree_on_receiving" => $user->agree_on_receiving,
-                "country_code"       => $user->country_code,
-                "is_private"         => $user->is_private,
-                "is_dead"            => (bool) $user->is_dead,
-                "description"        => $user->description,
-            ];
-
-            // 🔹 Get trusted users
-            $getTrustUserID = TrustedUser::where('user_id', $user->id)
-                                        ->where('status', 'accepted')
-                                        ->pluck('trusted_user_id');
-
-            $manage_user = User::select('id','first_name','last_name','email','image')
-                                ->whereNull('deleted_at')
-                                ->where('role_id', 2)
-                                ->whereIn('id', $getTrustUserID)
-                                ->get();
-
-            $manage_user_list = $manage_user->map(function ($trust_user) use ($s3BaseUrl, $user, $prefixIfNeeded) {
-                $checkMarkdeath = DeathConfirmation::where('user_id', $user->id)
-                                                ->where('trusted_user_id', $trust_user->id)
-                                                ->first();
-
-                return [
-                    'user_id'                  => $trust_user->id,
-                    'first_name'               => $trust_user->first_name,
-                    'last_name'                => $trust_user->last_name,
-                    'email'                    => $trust_user->email,
-                    'image'                    => $prefixIfNeeded($trust_user->image),
-                    'is_mark_death_or_not'     => $checkMarkdeath ? 1 : 0,
-                    'death_confirmation_data'  => $checkMarkdeath->status ?? null,
-                ];
-            });
-
-            // 🔹 Final response
-            return response()->json([
-                'message' => 'Final Words retrieved successfully',
-                'status'  => 'success',
-                'data'    => [
-                    'user'             => $userdata,
-                    'manage_user_list' => $manage_user_list,
-                    'videos'           => $videos,
-                    'count'            => $total,
-                    'page'             => $page,
-                    'limit'            => $limit,
-                    'total_pages'      => ceil($total / $limit),
-                ],
-            ], 200);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => "Something Went Wrong! " . $e->getMessage(),
-                'status'  => 'failed',
-            ], 400);
-        }
-    }
-
     public function showByOtherUser(Request $request, $user_id)
     {
         try {
@@ -229,7 +120,8 @@ class FinalWordController extends Controller
                 ->map(fn($fw) => [
                     'id'    => $fw->id,
                     'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
-                    'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                    // 'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
+                    'video_formats' => $fw->video_path ? $fw->video_formats : [],
                 ]);
 
             // 🔹 User info

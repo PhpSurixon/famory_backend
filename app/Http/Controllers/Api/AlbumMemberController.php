@@ -402,7 +402,8 @@ class AlbumMemberController extends Controller
                     'last_name'     => $user->last_name,
                     'email'         => $user->email,
                     'username'      => $user->username,
-                    'image'         => $user->image ? $s3BaseUrl . $user->image : null,
+                    // 'image'         => $user->image ? $s3BaseUrl . $user->image : null,
+                    'image'         => $user->image ?  $user->image : null,
                     'role'          => $member->role, // collaborator/viewer
                     'approval_status'=> $member->approval_status,
                 ];
@@ -527,7 +528,8 @@ class AlbumMemberController extends Controller
                     'last_name'     => $follower->last_name,
                     'email'         => $follower->email,
                     'username'      => $follower->username,
-                    'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
+                    // 'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
+                    'image'         => $follower->image ? $follower->image : null,
                 ];
             });
 
@@ -659,12 +661,14 @@ class AlbumMemberController extends Controller
                         return [
                             'album_id'      => $album->id,
                             'title'         => $album->title,
-                            'conver_image'  => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
+                            // 'conver_image'  => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
+                            'conver_image'  => $album->conver_image ? $album->conver_image : null,
                             'posts_count'   => $album->posts_count,
                             'owner_id'      => $album->owner->id ?? null,
                             'owner_name'    => $album->owner->first_name ?? '',
                             'is_dead'       => $album->owner->is_dead ? true : false,
-                            'owner_image'   => !empty($album->owner->image) ? $s3BaseUrl . $album->owner->image : null,
+                            // 'owner_image'   => !empty($album->owner->image) ? $s3BaseUrl . $album->owner->image : null,
+                            'owner_image'   => !empty($album->owner->image) ? $album->owner->image : null,
                         ];
                     });
 
@@ -706,15 +710,15 @@ class AlbumMemberController extends Controller
                             if ($album->sharedWith instanceof \Illuminate\Support\Collection) {
                                 $first = $album->sharedWith->first();
                                 if ($first) {
-                                    $sharedImage = $first->image ? $s3BaseUrl . $first->image : null;
+                                    // $sharedImage = $first->image ? $s3BaseUrl . $first->image : null;
+                                    $sharedImage = $first->image ?  $first->image : null;
                                     $sharedName  = $first->first_name ?? '';
                                 }
                             }
                             // If only one shared user (belongsTo)
                             else {
-                                $sharedImage = $album->sharedWith->image 
-                                    ? $s3BaseUrl . $album->sharedWith->image 
-                                    : null;
+                                // $sharedImage = $album->sharedWith->image ? $s3BaseUrl . $album->sharedWith->image : null;
+                                $sharedImage = $album->sharedWith->image ? $album->sharedWith->image : null;
 
                                 $sharedName  = $album->sharedWith->first_name ?? '';
                             }
@@ -723,7 +727,8 @@ class AlbumMemberController extends Controller
                         return [
                             'album_id'          => $album->id,
                             'title'             => $album->title,
-                            'conver_image'      => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
+                            // 'conver_image'      => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
+                            'conver_image'      => $album->conver_image ? $album->conver_image : null,
                             'posts_count'       => $album->posts_count,
                             'is_dead'           => false,  // creator is current user
                             'shared_user_name'  => $sharedName,

@@ -468,15 +468,7 @@ class TagsController extends Controller
                     'status' => 'failed'
                 ], 403);
             }
-
             
-            // Apply S3 URL for tag image
-            // if ($get_tag_data->image) {
-            //     $get_tag_data->image_url = rtrim($s3BaseUrl, '/') . '/' . ltrim($get_tag_data->image, '/');
-            // }
-            // $get_tag_data->makeHidden(['image','avatar']);
-
-
             // Fetch tag users
             $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
                                     ->where('tag_id', $get_tag_data->id)
