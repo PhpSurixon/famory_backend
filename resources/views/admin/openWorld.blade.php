@@ -83,7 +83,7 @@
                 @foreach ($posts as $key => $post)
                     @if($post->user)
                     <div class="box post-cards col-xl-4 col-lg-4 col-md-6 col-12 mb-4 h-85">
-                        <div class="card" onclick="window.location.href='{{ route('postDetails',$post['id']) }}'" style="cursor: pointer;">
+                        <div class="card" onclick="window.location.href='{{ route('postDetails',$post['post_id']) }}'" style="cursor: pointer;">
                             @php
                                 $file = $post['file'] ?? null;
                                 $extension = $file ? pathinfo($file, PATHINFO_EXTENSION) : null;

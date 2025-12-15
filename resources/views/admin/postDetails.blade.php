@@ -199,7 +199,7 @@
                             <img src="{{ $file }}" class="card-img-top" alt="...">
                         </div>
                         @elseif($file && in_array($extension, $audioExtensions))
-                            <div class="audio-container " style="background-image:url('{{ asset('assets/img/audio_bg.png') }}');">
+                            <div class="audio-container " style="background-image:url('{{ asset("assets/img/audio_bg.png") }}');">
                                 
                                 <h5 style="color:#fff; margin-bottom: 20px; margin-top: 30px;">Listen to Audio:</h5>
                                 <audio class="w-100" style="margin-bottom:200px;" controls  muted>
