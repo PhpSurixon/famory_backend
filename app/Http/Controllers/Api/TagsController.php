@@ -1582,6 +1582,98 @@ class TagsController extends Controller
             ], 400);
     }
 
+    public function listMembers(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'tag_id'      => 'required|exists:family_tag_ids,id',
+                'search'      => 'nullable|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+            $album = FamilyTagId::findOrFail($request->tag_id);
+
+            // Pagination parameters
+            $limit  = (int) $request->get('limit', 30);
+            $page   = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $search = $request->get('search');
+
+            // Base query
+            $query = TagUser::where('tag_id', $album->id)
+                ->with('user:id,first_name,last_name,email,username,image');
+
+            // Search by user fields
+            if (!empty($search)) {
+                $query->whereHas('user', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('username', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            $totalMembers = $query->count();
+
+            // Paginated results
+            $albumMembers = $query->orderBy('id', 'desc')
+                                  ->skip($offset)
+                                  ->take($limit)
+                                  ->get();
+
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            // Format data like follower list
+            $members = $albumMembers->map(function ($member) use ($s3BaseUrl) {
+                $user = $member->user;
+                return [
+                    'id'            => $member->id,
+                    'user_id'       => $user->id,
+                    'first_name'    => $user->first_name,
+                    'last_name'     => $user->last_name,
+                    'email'         => $user->email,
+                    'username'      => $user->username,
+                    // 'image'         => $user->image ? $s3BaseUrl . $user->image : null,
+                    'image'         => $user->image ?  $user->image : null,
+                    'role'          => $member->role, // collaborator/viewer
+                    'approval_status'=> $member->approval_status,
+                ];
+            });
+
+            // Paginated meta response
+            $data = [
+                'tag_id'       => $album->id,
+                'family_tag_id'=> $album->family_tag_id,
+                'tag_image'    => $album->image,
+                'title'        => $album->title,
+                'count'        => $totalMembers,
+                'page'         => $page,
+                'limit'        => $limit,
+                'total_pages'  => ceil($totalMembers / $limit),
+                'members'      => $members,
+            ];
+
+            return response()->json([
+                'message' => 'Album members fetched successfully',
+                'status'  => 'success',
+                'data'    => $data
+            ]);
+
+        } catch (Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
 
 
 

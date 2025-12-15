@@ -60,9 +60,7 @@ Route::resource('info-pages', PageInfoController::class);
             return route('dashboard');
         });
 
-        Route::get('/dashboard', function () {
-            return view('dashboard');
-        })->name('dashboard');
+        Route::get('/dashboard',[AdminController::class, 'dashboard'])->name('dashboard');
         Route::get('/openworld', [AdminController::class, 'getOpenWorld'])->name('openworld');
         Route::get('/contacts', [AdminController::class, 'getContactUs'])->name('contacts');
         Route::get('/user/profile/{id}', [AdminController::class, 'profile'])->name('user.profile');
