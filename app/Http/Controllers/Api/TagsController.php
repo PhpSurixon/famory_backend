@@ -1099,8 +1099,8 @@ class TagsController extends Controller
         try 
         {
             $validator = Validator::make($request->all(), [
-                // 'tag_id' => 'required|exists:family_tag_ids,id',
-                'save_tag_id'  => 'required',
+                'tag_id' => 'required|exists:family_tag_ids,id',
+                // 'save_tag_id'  => 'required',
             ]);
 
             if ($validator->fails()) {
@@ -1114,7 +1114,7 @@ class TagsController extends Controller
 
             
 
-            $checkSavetag = SavedTag::where('id', $request->save_tag_id)
+            $checkSavetag = SavedTag::where('tag_id', $request->tag_id)
                                     ->where('user_id', $authUser->id)
                                     ->first();
 
