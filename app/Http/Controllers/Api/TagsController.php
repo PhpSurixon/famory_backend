@@ -1390,6 +1390,9 @@ class TagsController extends Controller
                     ], 404);
                 }
                 $tag_permission_type = $checkTagUserAccess->role;
+            }else{
+
+                $tag_permission_type = 'owner';
             }
 
             /**
