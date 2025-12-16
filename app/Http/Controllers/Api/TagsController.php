@@ -202,7 +202,7 @@ class TagsController extends Controller
             $latest_invitations_received = $showMyRequests
                 ? TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
                     ->with(
-                        'tags:id,family_tag_id,title,image',
+                        'tags:id,family_tag_id,title,privacy_type,image',
                         'user:id,first_name,last_name,email,username,image',
                         'tagOwner'
                     )
@@ -219,7 +219,7 @@ class TagsController extends Controller
             $latest_requests_to_my_tags = $showMyRequests
                 ? TagUser::select('id','tag_id','role','user_id','approval_status','created_at')
                     ->with(
-                        'tags:id,family_tag_id,title,image',
+                        'tags:id,family_tag_id,title,privacy_type,image',
                         'user:id,first_name,last_name,email,username,image'
                     )
                     ->whereIn('tag_id', $myOwnedTagIds)
@@ -233,7 +233,7 @@ class TagsController extends Controller
              * 5. SAVED TAGS (always)
              * --------------------------------------------------- */
             $my_saved_tag = SavedTag::select('id','tag_id','created_at')
-                ->with('tagData:id,family_tag_id,title,image')
+                ->with('tagData:id,family_tag_id,title,privacy_type,image')
                 ->where('user_id',$authUser->id)
                 ->orderBy('id','DESC')
                 ->take(8)
@@ -1077,7 +1077,7 @@ class TagsController extends Controller
         {
             $authUser   = Auth::user();
             $my_saved_tag = SavedTag::select('id','tag_id','created_at')
-                                      ->with('tagData:id,family_tag_id,title,image')
+                                      ->with('tagData:id,family_tag_id,title,privacy_type,image')
                                       ->where('user_id',$authUser->id)
                                       ->get();                
             return response()->json([
@@ -1339,6 +1339,7 @@ class TagsController extends Controller
             }
 
             $authUser = Auth::user();
+            $tag_permission_type = "";
 
             // Fetch tag with creator
             $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
@@ -1353,6 +1354,11 @@ class TagsController extends Controller
                 ], 404);
             }
             $get_tag_data['isTagOwner'] = ($get_tag_data->created_user_id == $authUser->id) ? 1 : 0;
+
+            if($get_tag_data->created_user_id == $authUser->id)
+            {
+                $tag_permission_type= 'owner';
+            }
 
             /**
              * ==========================
@@ -1383,6 +1389,7 @@ class TagsController extends Controller
                         'data'    => $get_tag_data
                     ], 404);
                 }
+                $tag_permission_type = $checkTagUserAccess->role;
             }
 
             /**
@@ -1429,6 +1436,7 @@ class TagsController extends Controller
             $get_tag_data['tag_user'] = $tag_users;
             $get_tag_data['tag_post'] = $posts;
             $get_tag_data['isSaved'] = $get_save_tag ? 1 : 0;
+            $get_tag_data['tag_permission_type'] = $tag_permission_type;
             
 
             /**
