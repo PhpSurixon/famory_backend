@@ -1218,7 +1218,7 @@ class TagsController extends Controller
             $this->notifyMessage(
                 $authUser,
                 $tag->created_user_id,
-                $tag->id,
+                $createRequest->id,
                 $type,
                 null,
                 null,
