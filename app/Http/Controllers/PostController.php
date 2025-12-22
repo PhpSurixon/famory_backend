@@ -2573,7 +2573,7 @@ class PostController extends Controller
     
     
     // This function is used to Reoccurring post
-    public function scheduleReoccurring() {
+    public function scheduleReoccurringOLD() {
         \Log::info("run schedule Reoccurring");
         $now = Carbon::now();
         $posts = SchedulingPost::where('reoccurring_type', 'yes')->get();
@@ -2605,6 +2605,53 @@ class PostController extends Controller
             }
         }
     }
+
+    public function scheduleReoccurring()
+    {
+        \Log::info("run schedule Reoccurring");
+
+        $now = Carbon::now();
+
+        $posts = SchedulingPost::where('reoccurring_type', 'yes')->get();
+
+        foreach ($posts as $post) {
+
+            $updatedAt = $post->updated_at->copy();
+            $nextOccurrence = null;
+
+            switch (strtolower($post->reoccurring_time)) {
+
+                case 'daily':
+                    $nextOccurrence = $updatedAt->addDay();
+                    break;
+
+                case 'weekly':
+                    $nextOccurrence = $updatedAt->addWeek();
+                    break;
+
+                case 'monthly':
+                    $nextOccurrence = $updatedAt->addMonth();
+                    break;
+
+                case 'yearly':
+                    $nextOccurrence = $updatedAt->addYear();
+                    break;
+            }
+
+            if ($nextOccurrence && $now->greaterThanOrEqualTo($nextOccurrence)) {
+
+                // Update scheduling post
+                $post->update([
+                    'updated_at' => $nextOccurrence
+                ]);
+
+                // Update actual post
+                Post::where('id', $post->post_id)
+                    ->update(['updated_at' => $nextOccurrence]);
+            }
+        }
+    }
+
     
     
     // Cron job function
