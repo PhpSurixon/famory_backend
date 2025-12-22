@@ -1377,7 +1377,7 @@ class TagsController extends Controller
                         'status'  => 'failed',
                         'is_request_sent' => 0,
                         'data'    => $get_tag_data
-                    ], 404);
+                    ], 200);
                 }
 
                 if ($checkTagUserAccess->approval_status === 'pending') {
@@ -1386,7 +1386,7 @@ class TagsController extends Controller
                         'status'  => 'failed',
                         'is_request_sent' => 1,
                         'data'    => $get_tag_data
-                    ], 404);
+                    ], 200);
                 }
                 $tag_permission_type = $checkTagUserAccess->role;
             }else{
