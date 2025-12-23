@@ -45,7 +45,7 @@ class LoginController extends Controller
         ];
         $bearer_token = $token;
         
-        if($user->role_id == '1'){
+        if($user->role_id == '1' || $user->role_id == '4'){
             // append bearer_token
             Auth::attempt($datas);
             $user->bearer_token = $bearer_token;

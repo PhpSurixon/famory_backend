@@ -24,7 +24,14 @@ class AdminUserController extends Controller
 
     public function index(Request $request)
     {
-        $detail['admin_users'] = User::with('role')->where('role_id',1)->paginate(10);
+        
+        if(Auth::user()->role_id != 1)
+        {
+             return redirect()
+             ->route('dashboard')
+             ->with('error', 'You are not authorized to access this page.');
+        }
+        $detail['admin_users'] = User::with('role')->where('role_id',4)->paginate(10);
         return view('admin.adminUser.index',$detail);
     }
 
