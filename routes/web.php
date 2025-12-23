@@ -7,6 +7,7 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\PageInfoController;
 use App\Http\Controllers\AdvertiserController;
+use App\Http\Controllers\AdminUserController;
 use Illuminate\Http\Request;
 
 Route::get('/test-ffmpeg', function () {
@@ -61,6 +62,14 @@ Route::resource('info-pages', PageInfoController::class);
         });
 
         Route::get('/dashboard',[AdminController::class, 'dashboard'])->name('dashboard');
+        Route::get('/admin-user/list',[AdminUserController::class,'index'])->name('admin_user');
+        Route::get('/admin-user/create',[AdminUserController::class,'create'])->name('admin_user_create');
+        Route::get('/admin-user/edit/{id}',[AdminUserController::class,'edit'])->name('admin_user_edit');
+        Route::post('/admin-user/store', [AdminUserController::class, 'store'])->name('admin_user_store');
+        Route::post('/admin-user/update/{id}', [AdminUserController::class, 'update'])->name('admin_user_update');
+        Route::post('/admin-user/destroy', [AdminUserController::class, "destroy"])->name('admin_user_delete');
+
+
         Route::get('/openworld', [AdminController::class, 'getOpenWorld'])->name('openworld');
         Route::get('/contacts', [AdminController::class, 'getContactUs'])->name('contacts');
         Route::get('/user/profile/{id}', [AdminController::class, 'profile'])->name('user.profile');

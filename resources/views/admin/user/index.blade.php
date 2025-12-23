@@ -116,7 +116,7 @@
                     </div>
                     <div class="card-datatable table-responsive pb-0">
                         <table class="datatables-basic table border-top" >
-                            <thead 
+                            <thead>
                                 <tr>
                                     <th>
                                         <input class="form-check-input border-dark" type="checkbox" id="selectMultiple" />
@@ -251,7 +251,9 @@
                                 let userActions = '';
                                 console.log(user)
                                 if (user.deleted_at == null) {
-                                     const editUrl = `/user/${user.id}/edit`;
+                                    const editUserBaseUrl = "{{ url('/user') }}";
+                                     // const editUrl = `/user/${user.id}/edit`;
+                                      const editUrl = `${editUserBaseUrl}/${user.id}/edit`;
                                     if (user.role_id != 1) {
                                         userActions += `<a class="dropdown-item" href="{{ route('viewUserDeatils', '') }}/${user.id}">
                                                             <i class="bx bx-detail me-1"></i> View

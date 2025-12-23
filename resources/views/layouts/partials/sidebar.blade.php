@@ -33,6 +33,12 @@
             </a>
         </li>
 
+        <li class="menu-item {{ request()->is('admin-user/list','admin-user/create','admin-user/edit/*','admin-user/details/*') ? 'active' : '' }}">
+            <a href="{{ route('admin_user') }}" class="menu-link">
+                <i class='menu-icon tf-icons bx bxs-user'></i>
+                <div data-i18n="Layouts">Admin Users</div>
+            </a>
+        </li>
         <li class="menu-item {{ request()->is('get-users','user/create','user/*/edit','user/details/*') ? 'active' : '' }}">
             <a href="{{ route('get-users') }}" class="menu-link">
                 <i class='menu-icon tf-icons bx bxs-user'></i>
