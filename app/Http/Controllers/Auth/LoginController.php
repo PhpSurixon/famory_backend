@@ -112,6 +112,7 @@ class LoginController extends Controller
         
         if($roleId == 1 || $roleId == 4)
         {
+            dd(1);
             return redirect()->route('admin.login');
         }
         return redirect()->route('login');
