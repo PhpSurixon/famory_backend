@@ -110,7 +110,8 @@ class LoginController extends Controller
 
         $request->session()->regenerateToken();
         
-        if($roleId == 1){
+        if($roleId == 1 || $roleId == 4)
+        {
             return redirect()->route('admin.login');
         }
         return redirect()->route('login');
