@@ -932,6 +932,7 @@ class ApiController extends Controller
             ], 200);
 
         } catch (\Exception $exception) {
+            dd($exception);
             return response()->json([
                 'message'    => $exception->getMessage(),
                 'status'     => 'failed',
