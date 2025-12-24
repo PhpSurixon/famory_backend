@@ -82,9 +82,9 @@
 
                 <td>
                     
-                <a class=" btn btn-danger" href="javascript:void(0);" onclick="deleteRecord('{{ $data['id'] }}')">
+                <a class="btn btn-danger" href="javascript:void(0);" onclick="deleteRecord('{{ $data['id'] }}')">
                     <!-- <i class="bx bx-trash me-1" style="color:red;"></i> -->
-                     Make A Live 
+                     Make Alive 
                 </a>
                     
                 </td>
