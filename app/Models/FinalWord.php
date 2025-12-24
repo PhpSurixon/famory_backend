@@ -49,33 +49,49 @@ class FinalWord extends Model
 
     public function getVideoFormatsAttribute($value)
     {
-        // Initialize as an empty array if $value is null
-        $videoFormats = is_string($value) ? json_decode($value, true) : $value;
-
-        // Check if $videoFormats is null and initialize as an empty array
-        if ($videoFormats === null || (is_array($videoFormats) && empty($videoFormats))) {
-            return null; // Return null instead of an empty array
+        if (empty($value)) {
+            return null;
         }
 
-        // Define the old and new base URLs
+        // Decode only if JSON
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            // If not valid JSON, treat it as a single URL
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                return $this->updateUrl(
+                    $value,
+                    'https://famorys3.s3.amazonaws.com',
+                    config('services.s3.cdn_url')
+                );
+            }
+
+            $videoFormats = $decoded;
+        } else {
+            $videoFormats = $value;
+        }
+
+        // Final safety check
+        if (!is_array($videoFormats) || empty($videoFormats)) {
+            return null;
+        }
+
         $oldBaseUrl = 'https://famorys3.s3.amazonaws.com';
         $newBaseUrl = config('services.s3.cdn_url');
 
-        // Iterate over the video formats and update the URLs
         foreach ($videoFormats as $key => $format) {
             if (is_array($format)) {
-                // Recursively update the thumbnails if it's an array
                 foreach ($format as $size => $url) {
                     $videoFormats[$key][$size] = $this->updateUrl($url, $oldBaseUrl, $newBaseUrl);
                 }
-            } else {
-                // Update the URL for original and compressed formats
+            } elseif (is_string($format)) {
                 $videoFormats[$key] = $this->updateUrl($format, $oldBaseUrl, $newBaseUrl);
             }
         }
 
-        return $videoFormats ?? null;
+        return $videoFormats;
     }
+
 
     private function updateUrl($url, $oldBaseUrl, $newBaseUrl)
     {
