@@ -280,7 +280,7 @@ class FinalWordController extends Controller
                 DB::beginTransaction();
                 $insertData = [
                     'video_path' => $videoPath['compressed'],
-                    'video_formats' => json_encode($videoPath),
+                    'video_formats' => $videoPath,
                     'user_id'    => $userId
                 ];
 
