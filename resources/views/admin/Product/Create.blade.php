@@ -32,6 +32,7 @@
                                             <option value="" disabled selected>Select Type</option>
                                             <option value="metal" {{ old('tag_type') == 'metal' ? 'selected' : '' }}>Metal</option>
                                             <option value="plastic" {{ old('tag_type') == 'plastic' ? 'selected' : '' }}>Plastic</option>
+                                            <option value="magnet" {{ old('tag_type') == 'magnet' ? 'selected' : '' }}>Magnet</option>
                                         </select>
                                         @error('type_of_tag')
                                             <span class="help-block invalid-feedback" role="alert">

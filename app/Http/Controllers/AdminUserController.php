@@ -69,7 +69,7 @@ class AdminUserController extends Controller
             $user = new User;
             $user->first_name = $request->first_name;
             $user->last_name = $request->last_name;
-            $user->role_id = 1; 
+            $user->role_id = 4; 
             $user->email = $request->email;
             $user->phone = $request->phone;
             $user->password = Hash::make($request->password);

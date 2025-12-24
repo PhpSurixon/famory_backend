@@ -299,7 +299,8 @@ class UserController extends Controller
 
             // 🔎 Base query
             $query = User::where('id', '!=', $currentUserId)
-                ->where('role_id', '<>', 1)
+                // ->where('role_id', '<>', 1)
+                ->where('role_id',2)
                 ->whereNotIn('id', $blockedUserIds)
                 ->where(function ($q) use ($searchTerm) {
                     $q->where('first_name', 'like', "%$searchTerm%")

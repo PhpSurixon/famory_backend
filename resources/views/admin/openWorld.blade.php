@@ -95,7 +95,7 @@
                         
                             @if($file && in_array($extension, $imageExtensions))
                             <div class="img-container">
-                                <img src="{{ $file }}" class="card-img-top" alt="...">
+                                <img src="{{ $file }}" class="card-img-top" alt="..." onerror="this.onerror=null; this.src='{{ asset('no_image_available.jpg') }}';">
                             </div>
                             @elseif($file && in_array($extension, $audioExtensions))
                                 <div class="audio-container " style="background-image:url('{{ asset('assets/img/audio_bg.png') }}');">
@@ -106,15 +106,20 @@
                                     </audio>
                                 </div>
                             @elseif(!empty($post['video_formats']))
+                            
                             <div class= "video-container">
-                                <video class="card-img-top" muted controls>
+                                @php
+                                  $video_thum = $post['video_formats']['thumbnails']['small']?? null;
+                                @endphp
+                                <img src="{{ $video_thum }}" class="card-img-top" alt="..." onerror="this.onerror=null; this.src='{{ asset('no_image_available.jpg') }}';">
+                                <!-- <video class="card-img-top" muted controls>
                                     <source src="{{ $post['video_formats']['original']}}" type="video/mp4" >
                                     Your browser does not support the video tag.
-                                </video>
+                                </video> -->
                             </div>
                             @else
                             <div class="img-container ">
-                                <img src="{{ asset('assets/img/famcam.jpg') }}" class="card-img-top" alt="...">
+                                <img src="{{ asset('assets/img/famcam.jpg') }}" class="card-img-top" alt="..." onerror="this.onerror=null; this.src='{{ asset('no_image_available.jpg') }}';">
                             </div>
                             @endif
                             <div class="card-body">

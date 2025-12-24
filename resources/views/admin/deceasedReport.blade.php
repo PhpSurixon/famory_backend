@@ -82,8 +82,9 @@
 
                 <td>
                     
-                <a class="dropdown-item" href="javascript:void(0);" onclick="deleteRecord('{{ $data['id'] }}')">
-                    <i class="bx bx-trash me-1" style="color:red;"></i>
+                <a class=" btn btn-danger" href="javascript:void(0);" onclick="deleteRecord('{{ $data['id'] }}')">
+                    <!-- <i class="bx bx-trash me-1" style="color:red;"></i> -->
+                     Make A Live 
                 </a>
                     
                 </td>

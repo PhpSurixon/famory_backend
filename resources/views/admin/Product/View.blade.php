@@ -144,6 +144,7 @@
                                     <th>Description</th>
                                     <th>Tag Purpose</th>
                                     <th>Color</th>
+                                    <th>Tag Type</th>
                                     <th>Priority</th>
                                     <th>Action</th>
                                 </tr>
@@ -179,6 +180,7 @@
                                             <div id="td-scroll">{{ $data->tag_purpose ?? '-'}}</div>
                                         </td>
                                         <td>{{ ucfirst($data->color) ?? '-'}}</td>
+                                        <td>{{ ucfirst($data->type_of_tag) ?? '-'}}</td>
                                         <td>{{ $data->is_favourite == '1' ? 'Yes' : 'No' }}</td>
                                         <td>
                                             <div class="dropdown">

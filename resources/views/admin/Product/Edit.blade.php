@@ -31,6 +31,7 @@
                                                 name="type_of_tag">
                                             <option value="metal" {{ $data->tag_type == 'metal' ? 'selected' : '' }}>Metal</option>
                                             <option value="plastic" {{ $data->tag_type == 'plastic' ? 'selected' : '' }}>Plastic</option>
+                                            <option value="magnet" {{ $data->tag_type == 'magnet' ? 'selected' : '' }}>Magnet</option>
                                         </select>
                                         @error('type_of_tag')
                                             <span class="help-block invalid-feedback" role="alert">
