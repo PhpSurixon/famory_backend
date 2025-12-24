@@ -52,7 +52,7 @@ use App\Models\TagCollaborator;
 use App\Models\SchedulingPost;
 use App\Models\SavedTag;
 use App\Models\PostMember;
-
+use App\Models\Comment;
 use App\Mail\AdsRenewalReminder;
 use App\Mail\RenewalAdPaymentProcess;
 use App\Mail\ContactMail;
@@ -1914,6 +1914,7 @@ class ApiController extends Controller
                     $post = $albumPost->post;
 
                     $post->like_count = Like::where('post_id', $post->id)->count() ?? 0;
+                    $post->comments_count = Comment::where('post_id', $post->id)->count() ?? 0;
                     $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $user->id])->exists();
                     $post->is_following = FollowerUnfollwer::where(['user_id' => $user->id, 'following_id' => $post->user_id])->exists();
 
