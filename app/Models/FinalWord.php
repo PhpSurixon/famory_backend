@@ -60,7 +60,6 @@ class FinalWord extends Model
         // Define the old and new base URLs
         $oldBaseUrl = 'https://famorys3.s3.amazonaws.com';
         $newBaseUrl = config('services.s3.cdn_url');
-        dd($videoFormats,'11');
 
         // Iterate over the video formats and update the URLs
         foreach ($videoFormats as $key => $format) {
