@@ -779,6 +779,7 @@ class PostController extends Controller
                 $post->save();
 
                 // Scheduling
+                dd($timezone);
                 $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)
                                           ->setTimezone('UTC');
 
