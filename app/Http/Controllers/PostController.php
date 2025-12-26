@@ -689,7 +689,7 @@ class PostController extends Controller
     //     }
     // }
 
-    public function createPost(Request $request)
+    public function createPostOLD_1(Request $request)
     {
         $validator = Validator::make($request->all(), [
             // 'title' => 'required',
@@ -914,6 +914,191 @@ class PostController extends Controller
         } catch (\Exception $exception) {
             DB::rollBack();
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
+        }
+    }
+
+    public function createPost(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'post_type'        => 'required',
+            'tag_id'           => 'nullable',
+            'schedule_type'    => 'required',
+            'reoccurring_type' => 'required',
+            'media'            => 'nullable|file',
+            'video_formats'    => 'nullable|file',
+            'album_id'         => 'nullable|exists:albums,id',
+            'media_type'       => 'required|in:audio,video,picture,note',
+            'shared_user_id'   => 'required_if:schedule_type,when-pass|exists:users,id',
+            'schedule_date'    => 'required',
+            'schedule_time'    => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'status'  => 'failed'
+            ], 400);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            /**
+             * ==============================
+             * TIMEZONE HANDLING (ALL COUNTRIES)
+             * ==============================
+             */
+
+            // Apache headers
+            $apacheHeaders = function_exists('apache_request_headers')? apache_request_headers(): [];
+            // Normalize header keys
+            $headers = array_change_key_case($apacheHeaders, CASE_LOWER);
+
+            // Priority: body > header > default
+            $timezone = $request->timezone
+                ?? $headers['time_zone']
+                ?? $headers['timezone']
+                ?? $headers['time-zone']
+                ?? 'UTC';
+
+            // Validate timezone
+            if (!in_array($timezone, timezone_identifiers_list())) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Invalid timezone provided'
+                ], 400);
+            }
+
+            /**
+             * ==============================
+             * TAG VALIDATION
+             * ==============================
+             */
+
+            $tag_id = null;
+
+            if (!empty($request->tag_id)) 
+            {
+                if ($request->post_type !== 'private') {
+                    return response()->json([
+                        'message' => 'Tag Post only Create private Mode',
+                        'status'  => 'failed'
+                    ], 400);
+                }
+
+                if (!$this->canAddToTag($request->tag_id, Auth::id())) {
+                    return response()->json([
+                        'message' => 'You do not have access to add post in this album',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                $tag_id = $request->tag_id;
+            }
+
+            /**
+             * ==============================
+             * MEDIA UPLOAD
+             * ==============================
+             */
+
+            $filePath  = null;
+            $videoPath = null;
+            $folder    = null;
+
+            if ($request->hasFile('media') && $request->file('media')->isValid()) 
+            {
+                $file      = $request->file('media');
+                $extension = $file->getClientOriginalExtension();
+                $folder    = $this->getFolderName($extension);
+
+                $res = $this->UploadImage->saveMedia($file, Auth::id());
+
+                if ($folder === 'videos') {
+                    $videoPath = $res;
+                } else {
+                    $filePath = $res;
+                }
+            }
+
+            /**
+             * ==============================
+             * CREATE POST
+             * ==============================
+             */
+
+            $post = new Post();
+            $post->tag_id        = $tag_id;
+            $post->title         = $request->title;
+            $post->description   = $request->description;
+            $post->media_type    = $request->media_type;
+            $post->file          = $filePath;
+            $post->video_formats= $videoPath;
+            $post->post_type     = $request->post_type;
+            $post->album_id      = $request->album_id;
+            $post->user_id       = Auth::id();
+            $post->save();
+
+            /**
+             * ==============================
+             * SCHEDULING (UTC STORAGE)
+             * ==============================
+             */
+
+            $scheduledUTC = Carbon::createFromFormat(
+                'd-m-Y h:i A',
+                trim($request->schedule_date . ' ' . $request->schedule_time),
+                $timezone
+            )->utc();
+            // dd($scheduledUTC);
+
+            $schedule = new SchedulingPost();
+            $schedule->post_id         = $post->id;
+            $schedule->timezone        = $timezone;
+            $schedule->schedule_type   = $request->schedule_type;
+            $schedule->is_post         = ($request->schedule_type === 'now') ? 1 : 0;
+            $schedule->schedule_date   = $scheduledUTC->toDateString();
+            $schedule->schedule_time   = $scheduledUTC->toTimeString();
+            $schedule->reoccurring_type= $request->reoccurring_type;
+            $schedule->reoccurring_time= $request->reoccurring_time ?? null;
+            $schedule->save();
+
+            /**
+             * ==============================
+             * ALBUM POST
+             * ==============================
+             */
+
+            if ($request->schedule_type === 'now' && $request->album_id) {
+                if (!$this->canAddToAlbum($request->album_id, Auth::id())) {
+                    return response()->json([
+                        'message' => 'You do not have access to add post in this album',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                AlbumPost::create([
+                    'album_id' => $request->album_id,
+                    'post_id'  => $post->id,
+                    'user_id'  => Auth::id()
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'You have created a new post!',
+                'data'    => $post
+            ], 200);
+
+        } catch (\Exception $e) {
+            dd($e);
+            DB::rollBack();
+            return response()->json([
+                'status'  => 'failed',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 
@@ -1914,7 +2099,7 @@ class PostController extends Controller
         }
     }
 
-    public function getPost(Request $request)
+    public function getPostOLD2(Request $request)
     {
         try {
             $followedata = new \Illuminate\Support\Collection();
@@ -2109,6 +2294,221 @@ class PostController extends Controller
             ], 500);
         }
     }
+
+    public function getPost(Request $request)
+    {
+        try 
+        {
+            $followedata = new \Illuminate\Support\Collection();
+            $topPosts = new \Illuminate\Support\Collection();
+            $viewTop = false;
+            $currentUser = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            /**
+             * ==============================
+             * USER TIMEZONE DETECTION
+             * ==============================
+             */
+            $apacheHeaders = function_exists('apache_request_headers')? apache_request_headers(): [];
+            $headers = array_change_key_case($apacheHeaders, CASE_LOWER);
+            $userTimezone = $request->timezone
+                ?? $headers['time_zone']
+                ?? $headers['timezone']
+                ?? $headers['time-zone']
+                ?? 'UTC';
+
+            if (!in_array($userTimezone, timezone_identifiers_list())) {
+                $userTimezone = 'UTC';
+            }
+
+            /**
+             * ==============================
+             * POST QUERY LOGIC (UNCHANGED)
+             * ==============================
+             */
+            if ($request->type == "my-post") {
+                $getPost = Post::where('user_id', $currentUser);
+            } elseif ($request->filled('user_id')) {
+                $userId = $request->user_id;
+                $getPost = Post::where('user_id', $userId);
+
+                if ($request->type == "open-world") {
+                    $getPost = $getPost->where('post_type', 'public');
+                } else {
+                    $getPost = $getPost->where('post_type', 'private');
+                    $Posts = Post::where('post_type', '=', 'family')->get();
+
+                    foreach ($Posts as $post) {
+                        $isPosted = SchedulingPost::where(['is_post' => 1, 'post_id' => $post->id])->first();
+                        if ($isPosted) {
+                            $getData = PostMember::where(['post_id' => $post->id, 'post_by' => $request->user_id])->get();
+                            if ($getData->isNotEmpty()) {
+                                $getPost->orWhere('id', $post->id);
+                            }
+                        }
+                    }
+                }
+            } elseif ($request->filled('group_id')) {
+                $groupId = $request->group_id;
+
+                if ($groupId == 1) {
+                    $groupMemberIds = Familymember::where(['group_id' => $groupId, 'user_id' => $currentUser])->pluck('member_id');
+                    $groupUserIds  = Familymember::where(['group_id' => $groupId, 'member_id' => $currentUser])->pluck('user_id');
+                    $allMemberIds = $groupMemberIds->merge($groupUserIds)->unique();
+                    $getPost = Post::whereIn('user_id', $allMemberIds);
+                } else {
+                    $groupMemberIds = MemberGroup::where(['group_id' => $groupId, 'user_id' => $currentUser])->pluck('member_id');
+                    $groupUserIds  = MemberGroup::where(['group_id' => $groupId, 'member_id' => $currentUser])->pluck('user_id');
+                    $allMemberIds = $groupMemberIds->merge($groupUserIds)->unique();
+                    $currentuser = ($groupId == 2) ? $allMemberIds : $allMemberIds->merge($currentUser)->unique();
+                    $getPost = Post::whereIn('user_id', $currentuser);
+                }
+            } else {
+                if ($request->type == "open-world") {
+                    $getPost = Post::where('post_type', 'public');
+                } elseif ($request->type == "scheduled") {
+                    $getPost = Post::where('user_id', $currentUser)
+                        ->whereHas('scheduling_post', function ($query) {
+                            $query->where('schedule_type', 'date-time')
+                                  ->where('schedule_date', '>=', now()->format('Y-m-d'));
+                        });
+                } elseif ($request->type == "when-pass") {
+                    $getPost = Post::where('user_id', $currentUser)
+                        ->whereHas('scheduling_post', function ($query) {
+                            $query->where('schedule_type', 'when-pass');
+                        });
+                } else {
+                    $following_Ids = Follow::where([
+                        'follower_id' => $currentUser,
+                        'status' => "approved"
+                    ])->pluck('following_id');
+
+                    $query = Post::query();
+
+                    if ($following_Ids->isNotEmpty()) {
+                        $query->whereIn('user_id', $following_Ids)
+                            ->whereIn('post_type', ['private', 'public'])
+                            ->whereHas('scheduling_post', function ($q) {
+                                $q->where('is_post', 1);
+                            });
+                    }
+
+                    $getPost = $query->orWhere(function ($query) use ($currentUser) {
+                        $query->where('user_id', $currentUser)
+                            ->where('post_type', 'private')
+                            ->whereHas('scheduling_post', function ($q) {
+                                $q->where('is_post', 1);
+                            });
+                    });
+                }
+            }
+
+            /**
+             * ==============================
+             * FETCH POSTS
+             * ==============================
+             */
+            if ($request->type == "when-pass" || $request->type == "scheduled") {
+                $query = $getPost->whereHas('scheduling_post', fn($q) => $q->where('is_post', 0));
+            } elseif ($request->type == "my-post") {
+                $query = $getPost->whereHas('scheduling_post', fn($q) => $q->whereIn('is_post', [0, 1]));
+            } else {
+                $query = $getPost->whereHas('scheduling_post', fn($q) => $q->where('is_post', 1));
+            }
+
+            if (!empty($blockedUserIds)) {
+                $query->whereNotIn('user_id', $blockedUserIds);
+            }
+
+            $posts = $query
+                ->with(['user' => fn($q) => $q->withTrashed()->select('id','first_name','last_name','image','deleted_at')])
+                ->with('scheduling_post')
+                ->withCount(['like','comments'])
+                ->orderBy('updated_at','desc')
+                ->whereNull('tag_id')
+                ->get();
+
+            /**
+             * ==============================
+             * TIMEZONE CONVERSION (KEY PART)
+             * ==============================
+             */
+            foreach ($posts as $post) {
+
+                $post->is_like = Like::where([
+                    'post_id' => $post->id,
+                    'user_id' => $currentUser
+                ])->exists();
+
+                $post->is_following = Follow::where([
+                    'follower_id' => $currentUser,
+                    'following_id' => $post->user_id,
+                    'status' => 'approved'
+                ])->exists();
+
+                $createdAtUserTZ = $post->scheduling_post->created_at
+                    ->copy()
+                    ->timezone($userTimezone);
+
+                $post->created_date = $createdAtUserTZ->format('m/d/y');
+
+                if ($post->scheduling_post->schedule_type === 'now') {
+                    $postedDateTime = $createdAtUserTZ;
+                } else {
+                    $postedDateTime = \Carbon\Carbon::createFromFormat(
+                        'Y-m-d H:i:s',
+                        $post->scheduling_post->schedule_date . ' ' . $post->scheduling_post->schedule_time,
+                        'UTC'
+                    )->setTimezone($userTimezone);
+                }
+
+                $post->posted_date = $postedDateTime->format('m/d/y');
+                $post->scheduling_post->schedule_date = $postedDateTime->format('m/d/y');
+                $post->scheduling_post->schedule_time = $postedDateTime->format('h:i A');
+
+                if ($post->post_type === 'family') {
+                    $post->member_ids = PostMember::where('post_id', $post->id)
+                        ->pluck('member_id')
+                        ->toArray();
+                }
+
+                $post->scheduling_post->makeHidden(['id','post_id']);
+            }
+
+            /**
+             * ==============================
+             * PAGINATION (UNCHANGED)
+             * ==============================
+             */
+            $perPage = $request->input('per_page', 10);
+            $page = $request->input('page', 1);
+
+            $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+                $posts->slice(($page - 1) * $perPage, $perPage)->values(),
+                $posts->count(),
+                $perPage,
+                $page
+            );
+
+            return response()->json([
+                "message" => "Posts fetched successfully",
+                "status" => "success",
+                "data" => $paginated->items(),
+                "total_records" => $paginated->total(),
+                "total_pages" => $paginated->lastPage(),
+                "current_page" => $paginated->currentPage(),
+                "per_page" => $paginated->perPage(),
+            ]);
+
+        } catch (\Exception $exception) {
+            return response()->json([
+                'message' => $exception->getMessage(),
+                'status' => 'failed'
+            ], 500);
+        }
+    }
+
 
 
 
@@ -2501,7 +2901,7 @@ class PostController extends Controller
             }
         }
     }
-    public function updatePostSchedule()
+    public function updatePostScheduleOLD2()
     {
         \Log::info("run Post schedule Reoccurring");
 
@@ -2606,7 +3006,7 @@ class PostController extends Controller
         }
     }
 
-    public function scheduleReoccurring()
+    public function scheduleReoccurringOLD22()
     {
         \Log::info("run schedule Reoccurring");
 
@@ -2652,11 +3052,133 @@ class PostController extends Controller
         }
     }
 
+    public function updatePostSchedule()
+    {
+        \Log::info("run Post schedule (UTC)");
+
+        // FORCE UTC
+        $nowUTC = Carbon::now('UTC');
+
+        $currentDateUTC = $nowUTC->toDateString(); // Y-m-d
+        $currentTimeUTC = $nowUTC->toTimeString(); // H:i:s
+
+
+        $getAllPost = SchedulingPost::where('schedule_type', 'date-time')
+                                    ->where('is_post', 0)
+                                    ->where('schedule_date', '<=', $currentDateUTC)
+                                    ->where('schedule_time', '<=', $currentTimeUTC)
+                                    ->get();
+        echo count($getAllPost);
+
+        foreach ($getAllPost as $post) 
+        {
+
+            // Mark post as published
+            $post->update(['is_post' => 1]);
+
+            $getAlbum = Post::find($post->post_id);
+            if (!$getAlbum) {
+                continue;
+            }
+
+            // Notification
+            $this->notifyMessage(null, $getAlbum->user_id, $getAlbum, "post");
+
+            // Album logic (UNCHANGED)
+            if ($getAlbum->album_id) {
+
+                AlbumPost::firstOrCreate([
+                    'album_id' => $getAlbum->album_id,
+                    'post_id'  => $getAlbum->id,
+                    'user_id'  => $getAlbum->user_id,
+                ]);
+
+                // Thumbnail logic (keep as-is)
+                $thumbnailPath = null;
+                $fileExtension = strtolower(pathinfo(
+                    $getAlbum->video_formats['original'] ?? $getAlbum->file,
+                    PATHINFO_EXTENSION
+                ));
+
+                $fileType = $this->getFileType($fileExtension);
+
+                if ($fileType === 'videos') {
+                    $videoFilename = basename($getAlbum->video_formats['original']);
+                    $thumbnailPath = "https://famorys3.s3.amazonaws.com"
+                        . pathinfo($videoFilename, PATHINFO_FILENAME) . '.jpg';
+                } elseif ($fileType === 'images') {
+                    $thumbnailPath = $getAlbum->file;
+                } elseif ($fileType === 'audio') {
+                    $thumbnailPath = asset('assets/img/audio_bg.webp');
+                }
+
+                $album = Album::find($getAlbum->album_id);
+                if ($album) {
+                    $album->album_cover = $thumbnailPath;
+                    $album->save();
+                }
+            }
+        }
+    }
+    public function scheduleReoccurring()
+    {
+        \Log::info("run schedule Reoccurring (UTC)");
+
+        $nowUTC = Carbon::now('UTC');
+
+        $posts = SchedulingPost::where('reoccurring_type', 'yes')
+            ->where('is_post', 1)
+            ->get();
+
+        foreach ($posts as $post) {
+
+            $baseDateTime = Carbon::createFromFormat(
+                'Y-m-d H:i:s',
+                $post->schedule_date . ' ' . $post->schedule_time,
+                'UTC'
+            );
+
+            switch (strtolower($post->reoccurring_time)) {
+                case 'daily':
+                    $nextOccurrence = $baseDateTime->addDay();
+                    break;
+
+                case 'weekly':
+                    $nextOccurrence = $baseDateTime->addWeek();
+                    break;
+
+                case 'monthly':
+                    $nextOccurrence = $baseDateTime->addMonth();
+                    break;
+
+                case 'yearly':
+                    $nextOccurrence = $baseDateTime->addYear();
+                    break;
+
+                default:
+                    continue 2;
+            }
+
+            if ($nowUTC->greaterThanOrEqualTo($nextOccurrence)) {
+
+                // Reset schedule for next run
+                $post->update([
+                    'schedule_date' => $nextOccurrence->toDateString(),
+                    'schedule_time' => $nextOccurrence->toTimeString(),
+                    'is_post'       => 0,
+                ]);
+            }
+        }
+    }
+
+
+
     
     
     // Cron job function
-    public function runCronJobPost() {
-         \Log::info("run Cron JOB");
+    public function runCronJobPost()
+    {
+        \Log::info("run Cron JOB (UTC)");
         $this->updatePostSchedule();
         $this->scheduleReoccurring();
     }

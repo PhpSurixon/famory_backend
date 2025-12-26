@@ -778,7 +778,7 @@ class ApiController extends Controller
             $familyMembers = FamilyMember::where('user_id', $current_user)
                 ->orWhere('member_id', $current_user)
                 ->orderBy('id', 'desc')
-                ->limit(20)
+                ->limit(8)
                 ->get();
 
             // $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
@@ -861,7 +861,7 @@ class ApiController extends Controller
                 $postsQuery->whereNotIn('user_id', $blockedUserIds);
             }
 
-            $posts = $postsQuery->take(10)->get();
+            $posts = $postsQuery->take(8)->get();
 
             foreach ($posts as $post) {
                 $post->like_count = Like::where('post_id', $post->id)->count();
@@ -900,10 +900,12 @@ class ApiController extends Controller
             $my_legacy_album = LegacyAlbum::select('id','title','conver_image')
                                            ->where('user_id',$current_user)
                                            ->where('type','legacy')
+                                           ->take(6)
                                            ->get();
             $shared_legacy_album = LegacyAlbum::select('id','title','conver_image')
                                                ->where('shared_with_id',$current_user)
                                                ->where('type','legacy')
+                                               ->take(6)
                                                ->get();
             $data['legacy_data'] = [
                                      'my_legacy_album_count' => count($my_legacy_album),
@@ -913,6 +915,7 @@ class ApiController extends Controller
                                    ];
             $videos               = FinalWord::where('user_id', $current_user);
             $my_final_word_videos = $videos->orderBy('id', 'desc')
+                                            ->take(6)
                                             ->get()
                                             ->map(function ($fw) use ($s3BaseUrl) {
                                                 return [
