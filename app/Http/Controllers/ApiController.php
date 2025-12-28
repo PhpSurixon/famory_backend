@@ -739,7 +739,7 @@ class ApiController extends Controller
                     'last_will_url',
                     'post' => function($query1){
                         $query1->orderBy('updated_at', 'desc')
-                               ->take(10);
+                               ->take(5);
                     },
                     'album' => function ($query) {
                         $query->orderBy('created_at', 'desc')
@@ -776,10 +776,10 @@ class ApiController extends Controller
 
             // Family Members
             $familyMembers = FamilyMember::where('user_id', $current_user)
-                ->orWhere('member_id', $current_user)
-                ->orderBy('id', 'desc')
-                ->limit(8)
-                ->get();
+                                        ->orWhere('member_id', $current_user)
+                                        ->orderBy('id', 'desc')
+                                        ->limit(5)
+                                        ->get();
 
             // $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
             $simplifiedData = $familyMembers->map(function ($familyMember) {
@@ -861,7 +861,7 @@ class ApiController extends Controller
                 $postsQuery->whereNotIn('user_id', $blockedUserIds);
             }
 
-            $posts = $postsQuery->take(8)->get();
+            $posts = $postsQuery->take(5)->get();
 
             foreach ($posts as $post) {
                 $post->like_count = Like::where('post_id', $post->id)->count();
@@ -900,12 +900,12 @@ class ApiController extends Controller
             $my_legacy_album = LegacyAlbum::select('id','title','conver_image')
                                            ->where('user_id',$current_user)
                                            ->where('type','legacy')
-                                           ->take(6)
+                                           ->take(5)
                                            ->get();
             $shared_legacy_album = LegacyAlbum::select('id','title','conver_image')
                                                ->where('shared_with_id',$current_user)
                                                ->where('type','legacy')
-                                               ->take(6)
+                                               ->take(5)
                                                ->get();
             $data['legacy_data'] = [
                                      'my_legacy_album_count' => count($my_legacy_album),
@@ -935,7 +935,7 @@ class ApiController extends Controller
             ], 200);
 
         } catch (\Exception $exception) {
-            dd($exception);
+            // dd($exception);
             return response()->json([
                 'message'    => $exception->getMessage(),
                 'status'     => 'failed',
