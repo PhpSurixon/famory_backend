@@ -20,6 +20,7 @@ use DB;
 use App\Services\UploadImage;
 use Illuminate\Support\Carbon;
 use App\Models\Comment;
+use Illuminate\Support\Str;
 class PostCommentController extends Controller
 {
     use OneSignalTrait;
@@ -205,7 +206,7 @@ class PostCommentController extends Controller
 
 
 
-    public function store(Request $request)
+    public function storeOLD(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'post_id'   => 'required|integer',
@@ -274,6 +275,108 @@ class PostCommentController extends Controller
         }
 
     }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'post_id'   => 'required|integer|exists:posts,id',
+            'comment'   => 'required|string|max:1000',
+            'parent_id' => 'nullable|exists:comments,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status'  => 'failed',
+                'message' => $validator->errors()->first(),
+            ], 400);
+        }
+
+        DB::beginTransaction();
+
+        try 
+        {
+            $userId   = Auth::id();
+            $authUser = Auth::user();
+
+            // Get Post
+            $post = $this->post::find($request->post_id);
+
+            if (!$post) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Post not found',
+                ], 404);
+            }
+
+            // Validate Parent Comment (Reply case)
+            $parentComment = null;
+            if ($request->parent_id) {
+                $parentComment = $this->postComment::find($request->parent_id);
+
+                if (!$parentComment || $parentComment->post_id != $post->id) {
+                    return response()->json([
+                        'status'  => 'failed',
+                        'message' => 'Invalid parent comment',
+                    ], 400);
+                }
+            }
+
+            // Create Comment
+            $comment = $this->postComment::create([
+                'post_id'   => $post->id,
+                'user_id'   => $userId,
+                'parent_id' => $request->parent_id ?? null,
+                'comment'   => $request->comment,
+            ]);
+
+            // Load user for response
+            $comment->load('user:id,first_name,last_name,image');
+
+            /*
+            |--------------------------------------------------------------------------
+            | Notification Logic (IMPORTANT PART)
+            |--------------------------------------------------------------------------
+            */
+
+            // CASE 1: Reply on comment
+            if ($parentComment) {
+
+                // Notify parent comment owner (if not self)
+                if ($parentComment->user_id != $userId) 
+                {
+                    $preview = Str::limit(strip_tags($request->comment), 20);                   
+                    $this->notifyMessage($authUser, $parentComment->user_id, $post, 'comment', null, null,null,$preview);
+                }
+
+            } else {
+
+                // CASE 2: Comment on post
+                if ($post->user_id != $userId) {
+                    $preview = Str::limit(strip_tags($request->comment), 20);
+                    $this->notifyMessage($authUser, $post->user_id, $post, 'comment', null, null,null,$preview);
+                }
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Comment posted successfully',
+                'data'    => $comment,
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
+
     public function update(Request $request)
     {
         $validator = Validator::make($request->all(), [

@@ -181,7 +181,8 @@ class AdminUserController extends Controller
             }
 
             // Permanent delete
-            $user->forceDelete();
+            // $user->forceDelete();
+            $user->delete();
 
             return response()->json([
                 'status' => 200,

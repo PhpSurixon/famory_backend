@@ -186,165 +186,14 @@
                             
                             <!-- Tab links -->
                             <div class="tab px-3 py-2">
-                              <button class="tablinks active" onclick="openCity(event, 'Burial-Info')" id="defaultOpen">Burial Info</button>
-                              <button class="tablinks" onclick="openCity(event, 'Family-&-Friends')">Family Member</button>
-                              <button class="tablinks" onclick="openCity(event, 'Created-Groups-Info')">Created Groups Info</button>
-                              <button class="tablinks" onclick="openCity(event, 'Block-User-Info')">Block User Info</button>
-                                <!--<a href="{{ route('get-users') }}" class="btn grp-btnn">Back</a>-->
-                                <a href="{{ route('allPosts', $user->id) }}" class="btn grp-btnn">User All Post</a>
-                            
+                               <button class="tablinks active" onclick="openCity(event, 'Block-User-Info')">Block User Info</button> 
+                               <a href="{{ route('allPosts', $user->id) }}" class="btn grp-btnn">User All Post</a>
                             </div>
                             
-                            <!-- Tab content -->
-                            <div id="Burial-Info" class="tabcontent">
-                              <!--<div class="con card">-->
-                              <!--    <div class="d-flex">-->
-                              <!--        <span class="title" style="padding: 0.625rem 1.25rem;">Funeral Name</span>-->
-                              <!--        <span style="font-size: 18px; padding: 0.625rem 1.25rem;">{{($getBurial->funeral_home) ?? '-'}}</span>-->
-                              <!--    </div>-->
-                                  
-                              <!--    <div class="d-flex">-->
-                              <!--        <span class="title" style="padding: 0.625rem 1.25rem;">Address</span>-->
-                              <!--        <span style="font-size: 18px; padding: 0.625rem 1.25rem;">{{($getBurial->address) ?? '-'}}</span>-->
-                              <!--    </div>-->
-                                  
-                              <!--    <div class="d-flex">-->
-                              <!--        <span class="title" style="padding: 0.625rem 1.25rem;">Plot #</span>-->
-                              <!--        <span style="font-size: 18px; padding: 0.625rem 1.25rem;">{{($getBurial->plot_number) ?? '-'}}</span>-->
-                              <!--    </div>-->
-                                  
-                              <!--    <div class="d-flex">-->
-                              <!--        <span class="title" style="padding: 0.625rem 1.25rem;">Contact</span>-->
-                              <!--        <span style="font-size: 18px; padding: 0.625rem 1.25rem;">{{($getBurial->contact ) ?? '-'}}</span>-->
-                              <!--    </div>-->
-                                  
-                              <!--    <div class="d-flex">-->
-                              <!--        <span class="title" style="padding: 0.625rem 1.25rem;">Notes</span>-->
-                              <!--        <span style="font-size: 18px; padding: 0.625rem 1.25rem;">{{($getBurial->notes) ?? '-'}}</span>-->
-                              <!--    </div>-->
-                              <!--</div>-->
-                                  <table class="datatables-basic table border-top" style="border:  0.5px solid lightgray;">
-                                   <thead class="table-light">
-                                       <tr style="border:none;">
-                                           <td style="border:none;" class="title">
-                                               Funeral Name
-                                           </td>
-                                           <td style="font-size: 18px; border:none;">
-                                               {{($getBurial->funeral_home) ?? '-'}}
-                                           </td>
-                                       </tr>
-                                        <tr style="border:none;">
-                                           <td class="title" style="border:none;">
-                                               Address
-                                           </td>
-                                           <td style="font-size: 18px; border:none;">
-                                              {{($getBurial->address) ?? '-'}}
-                                           </td>
-                                       </tr>
-                                        <tr style="border:none;">
-                                           <td class="title" style="border:none;">
-                                                Plot #
-                                           </td>
-                                           <td style="font-size: 18px; border:none;">
-                                              {{($getBurial->plot_number) ?? '-'}}
-                                           </td>
-                                       </tr>
-                                        <tr style="border:none;">
-                                           <td class="title" style="border:none;">
-                                               Contact
-                                           </td>
-                                           <td style="font-size: 18px; border:none;">
-                                               {{($getBurial->contact ) ?? '-'}}
-                                           </td>
-                                       </tr>
-                                       <tr style="border:none;">
-                                           <td class="title" style="border:none;">
-                                               Notes
-                                           </td>
-                                           <td style="border:none;">
-                                               {{($getBurial->notes) ?? '-'}}
-                                           </td>
-                                       </tr>
-                                       <!--<tr>-->
-                                       <!--    <td class="title">-->
-                                       <!--        Burial PDF Url-->
-                                       <!--    </td>-->
-                                       <!--    <td style="font-size: 18px;">-->
-                                       <!--         @if($getBurial && $getBurial->burial_pdf_url)-->
-                                       <!--             <a href="{{ $getBurial->burial_pdf_url }}"  target="_blank">Link</a>-->
-                                       <!--         @else-->
-                                       <!--             --->
-                                       <!--         @endif-->
-                                       <!--    </td>-->
-                                       <!--</tr>-->
-                                   </thead>
-                               </table>
-                              </div>
-                            </div>
+                             
                             
-                            <div id="Family-&-Friends" class="tabcontent">
-                              <div>
-                                  <table class="datatables-basic table border-top" style="border:  0.5px solid lightgray;">
-                                  @if($paginatedUserGroups->isEmpty())
-                                    <tr>
-                                        <td colspan="2" style="text-align: center; vertical-align: middle;">
-                                            <span style="color: black; font-weight: 600;">Not Found</span>
-                                        </td>
-                                    </tr>
-                                    @else
-                                        <thead class="table-light">
-                                        @foreach($paginatedUserGroups as $data)
-                                           <tr>
-                                               <td style="width: 18px;">
-                                                    @if($data && $data->image)
-                                                        <img src="{{$data->image}}"  class = "img-circle"/>
-                                                    @else
-                                                        <img src="/assets/img/famcam.jpg" alt="Default Image" class="img-circle">
-                                                    @endif
-            
-                                               </td>
-                                               <td class="title">
-                                                   {{$data ? $data->first_name. ' ' . $data->last_name : '-'}}
-                                               </td>
-                                           </tr>
-                                        @endforeach
-                                        </thead>
-                                    @endif
-                                </table>
-                              </div>
-                            </div>
                             
-                            <div id="Created-Groups-Info" class="tabcontent">
-                              <div>
-                                  <table class="datatables-basic table border-top" style="border:  0.5px solid lightgray;">
-                                   @if($group->isEmpty())
-                                        <td colspan="2" style="text-align: center; vertical-align: middle;">
-                                            <span style="color: black; font-weight: 600;">Not Found</span>
-                                        </td>
-                                    @else
-                                       <thead class="table-light">
-                                        @foreach($group as $data)
-                                           <tr>
-                                               <td style="width: 18px;">
-                                                    @if($data && $data->image)
-                                                        <img src="{{$data->image}}"  class = "img-circle"/>
-                                                    @else
-                                                        <img src="/assets/img/fam-cam-logo.png" alt="Default Image" class="img-circle">
-                                                    @endif
-            
-                                               </td>
-                                               <td class="title">
-                                                   {{ ucfirst($data->name ?? '-') }}
-                                               </td>
-                                           </tr>
-                                            @endforeach
-                                       </thead>
-                                    @endif
-                               </table>
-                              </div>
-                            </div>
-                            
-                            <div id="Block-User-Info" class="tabcontent">
+                            <div id="Block-User-Info" class="mb-5 mt-2">
                               <div>
                                   <table class="datatables-basic table border-top" style="border:  0.5px solid lightgray;">
                                 @if($blockUsers->isEmpty())
@@ -359,7 +208,7 @@
                                                 @if($data->blockedUser && $data->blockedUser->image)
                                                     <img src="{{$data->blockedUser->image}}"  class = "img-circle"/>
                                                 @else
-                                                    <img src="/assets/img/famcam.jpg" alt="Default Image" class="img-circle">
+                                                    <img src="{{ asset('assets/img/famcam.jpg') }}" alt="Default Image" class="img-circle">
                                                 @endif
         
                                            </td>
@@ -372,13 +221,8 @@
                                 @endif
                                 </table>
                               </div>
-                            </div>
-                            
-                            
-                           <!--whole-content-->
+                            </div>      
                 </div>
-            <!--new-->
-            <!--</div>-->
         </div>
     </div>
 </div>

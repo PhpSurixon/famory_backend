@@ -78,7 +78,7 @@
                            </div>
                         </div>
                         <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Users</span>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Total Users</span>
                            @php
                            $userCount = DB::table('users')->count();
                            @endphp
@@ -99,7 +99,7 @@
                            </div>
                         </div>
                         <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Open World</span>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Open World Posts</span>
                            @php
                            $postCount = DB::table('posts')->where('post_type','public')->count();
                            @endphp
@@ -140,9 +140,29 @@
                            </div>
                         </div>
                         <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Tag</span>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Registered  Digital Tags</span>
                            @php
                            $tagCount = DB::table('family_tag_ids')->count();
+                           @endphp
+                           <h3 class="card-title mb-0">{{ $tagCount }}</h3>
+                        </div>
+                     </div>
+                  </div>
+               </a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
+               <a href="{{ route('famory-tags') }}">
+                  <div class="card">
+                     <div class="card-body d-flex gap-3">
+                        <div class="card-title d-flex align-items-start justify-content-between mb-0">
+                           <div class="avatar flex-shrink-0">
+                              <i class='bx bxs-purchase-tag bx-rotate-90' ></i>
+                           </div>
+                        </div>
+                        <div>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Sold Digital Tags</span>
+                           @php
+                           $tagCount = DB::table('buy_new_tags')->count();
                            @endphp
                            <h3 class="card-title mb-0">{{ $tagCount }}</h3>
                         </div>
@@ -201,7 +221,7 @@
                            </div>
                         </div>
                         <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">F.A.Q</span>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">FAQ</span>
                            @php
                            $pageCount = DB::table('fqas')->count();
                            @endphp
