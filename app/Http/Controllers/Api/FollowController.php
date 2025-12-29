@@ -131,39 +131,46 @@ class FollowController extends Controller
     public function followers(Request $request)
     {
         try {
-            $limit = (int) $request->get('limit', 30);
-            $page = (int) $request->get('page', 1);
+
+            /* ---------------- Pagination ---------------- */
+            $limit  = max((int) $request->get('limit', 30), 1);
+            $page   = max((int) $request->get('page', 1), 1);
             $offset = ($page - 1) * $limit;
             $search = $request->get('search');
-            $user_id = $request->get('user_id');
+            $userId = $request->get('user_id');
 
             $authId = Auth::id();
             $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
 
-            if (!empty($user_id)) {
-                $checkUser = User::find($user_id);
-                if (!$checkUser) {
+            /* ---------------- Target User ---------------- */
+            if ($userId) {
+                $targetUser = User::find($userId);
+                if (!$targetUser) {
                     return response()->json([
-                        'message' => 'User not found',
-                        'status'  => 'failed'
+                        'status'  => 'failed',
+                        'message' => 'User not found'
                     ], 404);
                 }
-                $get_follower_user_id = $user_id;
+                $targetUserId = $userId;
             } else {
-                $get_follower_user_id = $authId;
+                $targetUserId = $authId;
             }
 
-            $query = Follow::where('following_id', $get_follower_user_id)
+            /* ---------------- Followers Query ---------------- */
+            $query = Follow::where('following_id', $targetUserId)
                 ->where('status', 'approved')
                 ->whereNotIn('follower_id', $blockedUserIds)
+                ->whereHas('follower') // 🔥 prevent null users
                 ->with('follower:id,first_name,last_name,email,username,image');
 
-            if (!empty($search)) {
+            if ($search) {
                 $query->whereHas('follower', function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('username', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%")
+                           ->orWhere('username', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%");
+                    });
                 });
             }
 
@@ -174,24 +181,30 @@ class FollowController extends Controller
                 ->take($limit)
                 ->get();
 
-            // Collect all follower user IDs
-            $followerIds = $followers->pluck('follower.id')->filter()->all();
+            /* ---------------- Collect follower IDs ---------------- */
+            $followerIds = $followers->pluck('follower.id')->filter()->values();
 
-            // Fetch relations in one query
+            /* ---------------- Follow relation (auth → follower) ---------------- */
             $relations = Follow::where('follower_id', $authId)
                 ->whereIn('following_id', $followerIds)
-                ->pluck('status', 'following_id'); // key = following_id, value = status
+                ->pluck('status', 'following_id');
 
-            // Fetch blocked users in one query
+            /* ---------------- Blocked users ---------------- */
             $blocked = BlockUser::where('user_id', $authId)
-                                ->whereIn('marked_user_id', $followerIds)
-                                ->where('block',1)
-                                ->pluck('marked_user_id')
-                                ->toArray();
+                ->whereIn('marked_user_id', $followerIds)
+                ->where('block', 1)
+                ->pluck('marked_user_id')
+                ->toArray();
 
-            $users = $followers->map(function ($follow) use ($relations,$blocked) {
+            /* ---------------- Response mapping ---------------- */
+            $users = $followers->map(function ($follow) use ($relations, $blocked) {
+
+                if (!$follow->follower) {
+                    return null;
+                }
+
                 $follower = $follow->follower;
-                $status = $relations[$follower->id] ?? null;
+                $status   = $relations[$follower->id] ?? null;
 
                 if ($status === 'approved') {
                     $action = "Following";
@@ -204,8 +217,6 @@ class FollowController extends Controller
                     $isFollowing = false;
                 }
 
-                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
-
                 return [
                     'follow_id'     => $follow->id,
                     'user_id'       => $follower->id,
@@ -213,35 +224,36 @@ class FollowController extends Controller
                     'last_name'     => $follower->last_name,
                     'email'         => $follower->email,
                     'username'      => $follower->username,
-                    // 'image'         => $follower->image ? $s3BaseUrl . $follower->image : null,
-                    'image'         => $follower->image ? $follower->image : null,
+                    'image'         => $follower->image,
                     'action_button' => $action,
                     'is_following'  => $isFollowing,
-                    'is_block'      => in_array($follower->id, $blocked)
+                    'is_block'      => in_array($follower->id, $blocked),
                 ];
-            });
+            })->filter()->values();
 
-            $data = [
-                'user_id'     => (int) $get_follower_user_id,
-                'count'       => $totalUsers,
-                'page'        => $page,
-                'limit'       => $limit,
-                'total_pages' => ceil($totalUsers / $limit),
-                'users'       => $users
-            ];
-
+            /* ---------------- Final Response ---------------- */
             return response()->json([
+                'status'  => 'success',
                 'message' => 'Followers fetched successfully',
-                'status'  => "success",
-                'data'    => $data
-            ]);
+                'data'    => [
+                    'user_id'     => (int) $targetUserId,
+                    'count'       => $totalUsers,
+                    'page'        => $page,
+                    'limit'       => $limit,
+                    'total_pages' => ceil($totalUsers / $limit),
+                    'users'       => $users
+                ]
+            ], 200);
+
         } catch (\Exception $e) {
+
             return response()->json([
-                'message' => "Something Went Wrong! " . $e->getMessage(),
-                'status' => 'failed'
-            ], 400);
+                'status'  => 'failed',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
+
 
 
     public function following(Request $request)
@@ -305,7 +317,13 @@ class FollowController extends Controller
                                 ->pluck('marked_user_id')
                                 ->toArray();
 
-            $users = $following->map(function ($follow) use ($relations,$blocked) {
+            $users = $following->map(function ($follow) use ($relations,$blocked) 
+            {
+                if (!$follow->following) 
+                {
+                    return null;
+                }
+                
                 $user = $follow->following;
                 $status = $relations[$user->id] ?? null;
 
