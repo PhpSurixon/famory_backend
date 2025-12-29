@@ -743,141 +743,169 @@ class UploadImage
                     throw new \Exception("Video not saved locally");
                 }
 
-                // FFmpeg path
+                        // FFmpeg path
                 $ffmpegPath = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
-                    ? "C:/ffmpeg/bin/ffmpeg.exe"
-                    : "ffmpeg";
+                ? "C:/ffmpeg/bin/ffmpeg.exe"
+                : "ffmpeg";
 
-                // ------------------------------------------
-                //  GET VIDEO ORIGINAL WIDTH x HEIGHT
-                // ------------------------------------------
-                $probeCmd = "$ffmpegPath -v error -select_streams v:0 -show_entries stream=width,height "
-                          . "-of csv=p=0:s=x " . escapeshellarg($originalVideoPath);
+                        // ------------------------------------------
+                        // GET VIDEO ORIGINAL WIDTH x HEIGHT
+                        // ------------------------------------------
+                        $ffprobePath = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
+                        ? "C:/ffmpeg/bin/ffprobe.exe"
+                        : "ffprobe";
 
-                $resolution = trim(shell_exec($probeCmd)); // e.g. "1920x1080"
-                if (!$resolution) $resolution = "640x360";
+                        $probeCmd = "$ffprobePath -v error -select_streams v:0 "
+                        . "-show_entries stream=width,height "
+                        . "-of csv=p=0:s=x "
+                        . escapeshellarg($originalVideoPath);
 
-                // Auto thumbnail sizes keeping ratio
-                list($w, $h) = explode("x", $resolution);
+                        $resolution = trim(shell_exec($probeCmd));
+                        if (!$resolution) $resolution = "1280x720";
 
-                $sizes = [
-                    'small'  => ($w/4) . "x" . ($h/4),
-                    'medium' => ($w/2) . "x" . ($h/2),
-                    'large'  => $w . "x" . $h
-                ];
+                        list($w, $h) = explode("x", $resolution);
 
-                // ------------ Generate Thumbnails ------------
-                $thumbnailPaths = [];
+                        // ------------------------------------------
+                        // ORIENTATION SAFE THUMBNAIL LOGIC
+                        // ------------------------------------------
 
-                foreach ($sizes as $size => $dimensions) {
-                    $thumbnailFilename = $baseDir . DIRECTORY_SEPARATOR . "{$size}.jpeg";
+                        // FFmpeg even-number safety
+                        $even = fn($n) => floor($n / 2) * 2;
 
-                    $command = "$ffmpegPath -i " . escapeshellarg($originalVideoPath) .
-                    " -ss 00:00:01.000 -vframes 1 -s {$dimensions} " .
-                    escapeshellarg($thumbnailFilename) . " -y";
+                        // Resize based on longest side (portrait / landscape auto)
+                        function resizeByMaxSide($w, $h, $max)
+                        {
+                            if ($w >= $h) {
+                        // Landscape
+                                $newW = $max;
+                                $newH = round(($h / $w) * $max);
+                            } else {
+                        // Portrait
+                                $newH = $max;
+                                $newW = round(($w / $h) * $max);
+                            }
 
-                    shell_exec($command);
+                            $newW = floor($newW / 2) * 2;
+                            $newH = floor($newH / 2) * 2;
 
-                    if (!file_exists($thumbnailFilename)) {
-                        throw new \Exception("Failed to generate {$size} thumbnail");
-                    }
+                            return "{$newW}x{$newH}";
+                        }
 
-                    $thumbnailPaths[$size] = $thumbnailFilename;
-                }
+                        // Thumbnail sizes
+                        $sizes = [
+                            'small'  => resizeByMaxSide($w, $h, 300),
+                            'medium' => resizeByMaxSide($w, $h, 600),
+                            'large'  => resizeByMaxSide($w, $h, 1200),
+                        ];
 
-                // ------------ Compress Video ------------
-                $compressedVideoPath = $baseDir . DIRECTORY_SEPARATOR . "{$videoBaseName}_compressed.mp4";
+                        // ------------------------------------------
+                        // GENERATE THUMBNAILS
+                        // ------------------------------------------
+                        $thumbnailPaths = [];
 
-                $command = "$ffmpegPath -i " . escapeshellarg($originalVideoPath) .
-                " -vcodec libx264 -crf 28 " . escapeshellarg($compressedVideoPath) . " -y";
+                        foreach ($sizes as $size => $dimensions) {
 
-                shell_exec($command);
+                            $thumbnailFilename = $baseDir . DIRECTORY_SEPARATOR . "{$size}.jpeg";
 
-                if (!file_exists($compressedVideoPath)) {
-                    throw new \Exception("Compressed video not generated");
-                }
+                            $command = "$ffmpegPath -i " . escapeshellarg($originalVideoPath) .
+                            " -ss 00:00:01.000 -vframes 1 -vf scale={$dimensions} " .
+                            escapeshellarg($thumbnailFilename) . " -y";
 
-                // ------------ Generate HLS (2 sec chunks) ------------
-                $hlsDir = $baseDir . DIRECTORY_SEPARATOR . 'hls';
-                if (!file_exists($hlsDir)) mkdir($hlsDir, 0755, true);
+                            shell_exec($command);
 
-                $hlsPlaylist = $hlsDir . DIRECTORY_SEPARATOR . "index.m3u8";
+                            if (!file_exists($thumbnailFilename)) {
+                                throw new \Exception("Failed to generate {$size} thumbnail");
+                            }
 
-                $command = "$ffmpegPath -i " . escapeshellarg($compressedVideoPath) .
-                    " -profile:v baseline -level 3.0 -start_number 0 -hls_time 2 -hls_list_size 0 "
-                    . escapeshellarg($hlsPlaylist) . " -y";
+                            $thumbnailPaths[$size] = $thumbnailFilename;
+                        }
 
-                shell_exec($command);
+                        // ------------------------------------------
+                        // COMPRESS VIDEO
+                        // ------------------------------------------
+                        $compressedVideoPath = $baseDir . DIRECTORY_SEPARATOR . "{$videoBaseName}_compressed.mp4";
 
-                if (!file_exists($hlsPlaylist)) {
-                    throw new \Exception('HLS playlist (m3u8) generation failed');
-                }
+                        $command = "$ffmpegPath -i " . escapeshellarg($originalVideoPath) .
+                        " -vcodec libx264 -crf 28 " . escapeshellarg($compressedVideoPath) . " -y";
 
-                // ------------ Upload to S3 ------------
-                $s3Paths = [];
+                        shell_exec($command);
 
-                // Original
-                $key = "videos/user_{$userId}/{$uniqueFolder}/{$renamedVideoFilename}";
-                $res = $this->uploadStreamingObject($key, $originalVideoPath);
-                $responseData = json_decode($res->getContent(), true);
-                if ($responseData['status'] !== "success") throw new \Exception("Original video upload failed");
-                $s3Paths['original'] = $responseData['data']['filePath'];
+                        if (!file_exists($compressedVideoPath)) {
+                            throw new \Exception("Compressed video not generated");
+                        }
 
-                // Compressed
-                $compressedKey = "videos/user_{$userId}/{$uniqueFolder}/{$videoBaseName}_compressed.mp4";
-                $res = $this->uploadStreamingObject($compressedKey, $compressedVideoPath);
-                $responseData = json_decode($res->getContent(), true);
-                if ($responseData['status'] !== "success") throw new \Exception("Compressed video upload failed");
-                $s3Paths['compressed'] = $responseData['data']['filePath'];
+                        // ------------------------------------------
+                        // GENERATE HLS
+                        // ------------------------------------------
+                        $hlsDir = $baseDir . DIRECTORY_SEPARATOR . 'hls';
+                        if (!file_exists($hlsDir)) mkdir($hlsDir, 0755, true);
 
-                // Thumbnails
-                foreach ($thumbnailPaths as $size => $thumbnailPath) {
-                    $thumbnailKey = "videos/user_{$userId}/{$uniqueFolder}/{$size}.jpeg";
+                        $hlsPlaylist = $hlsDir . DIRECTORY_SEPARATOR . "index.m3u8";
 
-                    $res = $this->uploadStreamingObject($thumbnailKey, $thumbnailPath);
-                    $responseData = json_decode($res->getContent(), true);
+                        $command = "$ffmpegPath -i " . escapeshellarg($compressedVideoPath) .
+                        " -profile:v baseline -level 3.0 -start_number 0 -hls_time 2 -hls_list_size 0 "
+                        . escapeshellarg($hlsPlaylist) . " -y";
 
-                    if ($responseData['status'] !== "success") {
-                        throw new \Exception("{$size} thumbnail upload failed");
-                    }
+                        shell_exec($command);
 
-                    $s3Paths['thumbnails'][$size] = $responseData['data']['filePath'];
-                }
+                        if (!file_exists($hlsPlaylist)) {
+                            throw new \Exception('HLS playlist generation failed');
+                        }
 
-                // HLS upload
-                $hlsFiles = scandir($hlsDir);
-                $s3Paths['hls'] = [];
+                        // ------------------------------------------
+                        // UPLOAD TO S3
+                        // ------------------------------------------
+                        $s3Paths = [];
 
-                foreach ($hlsFiles as $fileName) {
-                    if ($fileName == "." || $fileName == "..") continue;
+                        // Original
+                        $res = $this->uploadStreamingObject(
+                            "videos/user_{$userId}/{$uniqueFolder}/{$renamedVideoFilename}",
+                            $originalVideoPath
+                        );
+                        $responseData = json_decode($res->getContent(), true);
+                        $s3Paths['original'] = $responseData['data']['filePath'];
 
-                    $localFilePath = $hlsDir . DIRECTORY_SEPARATOR . $fileName;
-                    $hlsKey = "videos/user_{$userId}/{$uniqueFolder}/hls/{$fileName}";
+                        // Compressed
+                        $res = $this->uploadStreamingObject(
+                            "videos/user_{$userId}/{$uniqueFolder}/{$videoBaseName}_compressed.mp4",
+                            $compressedVideoPath
+                        );
+                        $responseData = json_decode($res->getContent(), true);
+                        $s3Paths['compressed'] = $responseData['data']['filePath'];
 
-                    $res = $this->uploadStreamingObject($hlsKey, $localFilePath);
-                    $responseData = json_decode($res->getContent(), true);
+                        // Thumbnails
+                        foreach ($thumbnailPaths as $size => $thumbnailPath) {
+                            $res = $this->uploadStreamingObject(
+                                "videos/user_{$userId}/{$uniqueFolder}/{$size}.jpeg",
+                                $thumbnailPath
+                            );
+                            $responseData = json_decode($res->getContent(), true);
+                            $s3Paths['thumbnails'][$size] = $responseData['data']['filePath'];
+                        }
 
-                    if ($responseData['status'] !== "success") {
-                        throw new \Exception("HLS upload failed: {$fileName}");
-                    }
+                        // HLS files
+                        foreach (scandir($hlsDir) as $fileName) {
+                            if ($fileName == "." || $fileName == "..") continue;
 
-                    $s3Paths['hls'][] = $responseData['data']['filePath'];
-                }
+                            $this->uploadStreamingObject(
+                                "videos/user_{$userId}/{$uniqueFolder}/hls/{$fileName}",
+                                $hlsDir . DIRECTORY_SEPARATOR . $fileName
+                            );
+                        }
 
-                // Cleanup
-                \File::deleteDirectory($baseDir);
+                        // Cleanup
+                        \File::deleteDirectory($baseDir);
 
-                $baseUrl = "https://famorys3.s3.amazonaws.com";
-                $removeBase = fn($url) => str_replace($baseUrl, '', $url);
+                        $baseUrl = "https://famorys3.s3.amazonaws.com";
+                        $removeBase = fn($url) => str_replace($baseUrl, '', $url);
 
-                return [
-                    'original'      => $removeBase($s3Paths['original']),
-                    'compressed'    => $removeBase($s3Paths['compressed']),
-                    'thumbnails'    => array_map($removeBase, $s3Paths['thumbnails']),
-                    'hls_playlist'  => "videos/user_{$userId}/{$uniqueFolder}/hls/index.m3u8",
-                ];
+                        return [
+                            'original'     => $removeBase($s3Paths['original']),
+                            'compressed'   => $removeBase($s3Paths['compressed']),
+                            'thumbnails'   => array_map($removeBase, $s3Paths['thumbnails']),
+                            'hls_playlist' => "videos/user_{$userId}/{$uniqueFolder}/hls/index.m3u8",
+                        ];
             }
-
             // ---------------- IMAGE ----------------
             elseif (in_array($fileExtension, $imgExtensions)) {
 
