@@ -102,67 +102,155 @@ class PostLikeController extends Controller
         }
     }
 
+    // public function commentLikeUnlike(Request $request)
+    // {  
+    //     try 
+    //     {
+    //         $validator = Validator::make($request->all(), [
+    //             'comment_id'   => 'required|integer',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status'  => 'failed'
+    //             ], 400);
+    //         }
+    //         DB::beginTransaction();
+
+    //         $authUser  = Auth::user();
+    //         $checkComment = $this->postComment::where('id',$request->comment_id)->first();
+    //         if(empty($checkComment))
+    //         {
+    //             return response()->json([
+    //                 'status' => 'failed',
+    //                 'message' => "Comment not found Please Pass correct Comment ID",
+    //             ], 400);
+    //         }
+
+    //         $existing = $this->commentLike::where('comment_id', $checkComment->id)
+    //                             ->where('user_id', $authUser->id)
+    //                             ->first();
+    //         if($existing)
+    //         {
+    //             $existing->delete();
+    //             $liked = false;
+
+    //         }else{
+    //             $this->commentLike::create([
+    //                 'comment_id' => $checkComment->id,
+    //                 'user_id' => $authUser->id
+    //             ]);
+    //             $liked = true;
+    //              // dd($checkComment->post_id);
+    //             $this->notifyMessage($authUser, $checkComment->user_id, $checkComment->post_id, "comment_like");
+    //         }
+
+    //         $likesCount = $checkComment->likeComment()->count();
+    //         DB::commit();
+    //         return response()->json([
+    //             'status' => 'success',
+    //             'data' => [
+    //                 'liked' => $liked,
+    //                 'likes_count' => $likesCount
+    //             ]
+    //         ], 200);
+
+            
+    //     } catch (\Exception $e) {
+    //         DB::rollBack();
+    //         return response()->json([
+    //             'message' => $e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 500);
+    //     }
+    // }
+
     public function commentLikeUnlike(Request $request)
-    {  
-        try 
-        {
+    {
+        try {
             $validator = Validator::make($request->all(), [
-                'comment_id'   => 'required|integer',
+                'comment_id' => 'required|integer|exists:comments,id',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
+                    'status'  => 'failed',
                     'message' => $validator->errors()->first(),
-                    'status'  => 'failed'
                 ], 400);
             }
+
             DB::beginTransaction();
 
-            $authUser  = Auth::user();
-            $checkComment = $this->postComment::where('id',$request->comment_id)->first();
-            if(empty($checkComment))
-            {
+            $authUser = Auth::user();
+
+            $comment = $this->postComment::find($request->comment_id);
+
+            if (!$comment) {
                 return response()->json([
-                    'status' => 'failed',
-                    'message' => "Comment not found Please Pass correct Comment ID",
-                ], 400);
+                    'status'  => 'failed',
+                    'message' => 'Comment not found',
+                ], 404);
             }
 
-            $existing = $this->commentLike::where('comment_id', $checkComment->id)
-                                ->where('user_id', $authUser->id)
-                                ->first();
-            if($existing)
-            {
-                $existing->delete();
+            $existingLike = $this->commentLike::where('comment_id', $comment->id)
+                ->where('user_id', $authUser->id)
+                ->first();
+
+            if ($existingLike) {
+
+                // 🔴 Unlike
+                $existingLike->delete();
                 $liked = false;
 
-            }else{
+            } else {
+
+                // 🟢 Like
                 $this->commentLike::create([
-                    'comment_id' => $checkComment->id,
-                    'user_id' => $authUser->id
+                    'comment_id' => $comment->id,
+                    'user_id'    => $authUser->id,
                 ]);
+
                 $liked = true;
-                 // dd($checkComment->post_id);
-                $this->notifyMessage($authUser, $checkComment->user_id, $checkComment->post_id, "comment_like");
+
+                /*
+                |--------------------------------------------------------------------------
+                | Notification Logic (IMPORTANT)
+                |--------------------------------------------------------------------------
+                | Notify comment owner ONLY if:
+                | - Liker is NOT the comment owner
+                */
+                if ($comment->user_id != $authUser->id) {
+                    $this->notifyMessage(
+                        $authUser,              // sender
+                        $comment->user_id,      // receiver (comment owner)
+                        $comment->post_id,      // post id
+                        'comment_like',         // type
+                    );
+                }
             }
 
-            $likesCount = $checkComment->likeComment()->count();
+            $likesCount = $comment->likeComment()->count();
+
             DB::commit();
+
             return response()->json([
                 'status' => 'success',
-                'data' => [
-                    'liked' => $liked,
-                    'likes_count' => $likesCount
-                ]
+                'data'   => [
+                    'liked'       => $liked,
+                    'likes_count' => $likesCount,
+                ],
             ], 200);
 
-            
         } catch (\Exception $e) {
+
             DB::rollBack();
+
             return response()->json([
+                'status'  => 'failed',
                 'message' => $e->getMessage(),
-                'status'  => 'failed'
             ], 500);
         }
     }
+
 }
