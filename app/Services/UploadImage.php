@@ -703,7 +703,7 @@ class UploadImage
         }
     }
 
-    public function saveMedia($image, $user_id)
+    public function saveMedia_old31_12_2025($image, $user_id)
     {
         set_time_limit(0);
         ini_set('memory_limit', '1024M');
@@ -965,6 +965,211 @@ class UploadImage
             throw $e;
         }
     }
+
+    public function saveMedia($image, $user_id)
+    {
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
+
+        try {
+
+            // ---------------- BASIC SETUP ----------------
+            if ($image instanceof \Illuminate\Http\UploadedFile) {
+                $file = $image;
+                $fileExtension = strtolower($file->getClientOriginalExtension());
+                $mimeType = $file->getMimeType();
+            } else {
+                throw new \Exception("Invalid file input");
+            }
+
+            $userId = $user_id;
+            $timestamp = time();
+            $uniqueFolder = $timestamp . $userId;
+
+            $imgExtensions   = ['jpeg', 'png', 'jpg', 'gif', 'svg'];
+            $videoExtensions = ['mp4', 'mov', 'mkv', 'avi', 'wmv'];
+            $audioExtensions = ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'bin'];
+            // ========================= VIDEO ============================
+            if (in_array($fileExtension, $videoExtensions)) 
+            {
+
+                $sanitizedOriginalFileName = $this->sanitizeFileName($file->getClientOriginalName());
+                $videoBaseName = pathinfo($sanitizedOriginalFileName, PATHINFO_FILENAME);
+
+                $baseDir = public_path("assets/tmp_media/videos/user_{$userId}/{$uniqueFolder}");
+                if (!file_exists($baseDir)) mkdir($baseDir, 0755, true);
+
+                $renamedVideoFilename = "video.{$fileExtension}";
+                $originalVideoPath = "{$baseDir}/{$renamedVideoFilename}";
+                $file->move($baseDir, $renamedVideoFilename);
+
+                // FFmpeg paths
+                $ffmpeg = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
+                    ? "C:/ffmpeg/bin/ffmpeg.exe"
+                    : "ffmpeg";
+
+                $ffprobe = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN'
+                    ? "C:/ffmpeg/bin/ffprobe.exe"
+                    : "ffprobe";
+
+                // ---------------- GET RESOLUTION ----------------
+                $probeCmd = "$ffprobe -v error -select_streams v:0 "
+                    . "-show_entries stream=width,height -of csv=p=0:s=x "
+                    . escapeshellarg($originalVideoPath);
+
+                $resolution = trim(shell_exec($probeCmd));
+                if (!$resolution) $resolution = "1280x720";
+                [$w, $h] = explode("x", $resolution);
+
+                // ---------------- THUMB SIZE LOGIC ----------------
+                function resizeByMaxSide($w, $h, $max)
+                {
+                    if ($w >= $h) {
+                        $nw = $max;
+                        $nh = round(($h / $w) * $max);
+                    } else {
+                        $nh = $max;
+                        $nw = round(($w / $h) * $max);
+                    }
+                    return floor($nw / 2) * 2 . "x" . floor($nh / 2) * 2;
+                }
+
+                $sizes = [
+                    'small'  => resizeByMaxSide($w, $h, 300),
+                    'medium' => resizeByMaxSide($w, $h, 600),
+                    'large'  => resizeByMaxSide($w, $h, 1200),
+                ];
+
+                // ---------------- GENERATE THUMBNAILS ----------------
+                $thumbnailPaths = [];
+                foreach ($sizes as $size => $dim) {
+                    $thumb = "{$baseDir}/{$size}.jpeg";
+                    shell_exec("$ffmpeg -i " . escapeshellarg($originalVideoPath)
+                        . " -ss 00:00:01 -vframes 1 -vf scale={$dim} "
+                        . escapeshellarg($thumb) . " -y");
+
+                    if (!file_exists($thumb)) {
+                        throw new \Exception("Thumbnail failed: {$size}");
+                    }
+                    $thumbnailPaths[$size] = $thumb;
+                }
+
+                // ---------------- COMPRESS VIDEO ----------------
+                $compressedPath = "{$baseDir}/{$videoBaseName}_compressed.mp4";
+                shell_exec("$ffmpeg -i " . escapeshellarg($originalVideoPath)
+                    . " -vcodec libx264 -crf 28 "
+                    . escapeshellarg($compressedPath) . " -y");
+
+                // ---------------- GENERATE HLS ----------------
+                $hlsDir = "{$baseDir}/hls";
+                if (!file_exists($hlsDir)) mkdir($hlsDir, 0755, true);
+
+                $playlist = "{$hlsDir}/index.m3u8";
+                shell_exec("$ffmpeg -i " . escapeshellarg($compressedPath)
+                    . " -profile:v baseline -level 3.0 "
+                    . " -start_number 0 -hls_time 2 -hls_list_size 0 "
+                    . escapeshellarg($playlist) . " -y");
+
+                if (!file_exists($playlist)) {
+                    throw new \Exception("HLS generation failed");
+                }
+
+                // ---------------- UPLOAD TO S3 ----------------
+                $s3 = [];
+
+                $res = $this->uploadStreamingObject(
+                    "videos/user_{$userId}/{$uniqueFolder}/{$renamedVideoFilename}",
+                    $originalVideoPath
+                );
+                $s3['original'] = json_decode($res->getContent(), true)['data']['filePath'];
+
+                $res = $this->uploadStreamingObject(
+                    "videos/user_{$userId}/{$uniqueFolder}/{$videoBaseName}_compressed.mp4",
+                    $compressedPath
+                );
+                $s3['compressed'] = json_decode($res->getContent(), true)['data']['filePath'];
+
+                foreach ($thumbnailPaths as $size => $path) {
+                    $res = $this->uploadStreamingObject(
+                        "videos/user_{$userId}/{$uniqueFolder}/{$size}.jpeg",
+                        $path
+                    );
+                    $s3['thumbnails'][$size] =
+                        json_decode($res->getContent(), true)['data']['filePath'];
+                }
+
+                // ---------------- UPLOAD HLS FILES ----------------
+                foreach (scandir($hlsDir) as $fileName) {
+                    if (in_array($fileName, ['.', '..'])) continue;
+
+                    $this->uploadStreamingObject(
+                        "videos/user_{$userId}/{$uniqueFolder}/hls/{$fileName}",
+                        "{$hlsDir}/{$fileName}"
+                    );
+                }
+
+                \File::deleteDirectory($baseDir);
+
+                return [
+                    'original'     => $s3['original'],
+                    'compressed'   => $s3['compressed'],
+                    'thumbnails'   => $s3['thumbnails'],
+                    'hls_playlist' => "videos/user_{$userId}/{$uniqueFolder}/hls/index.m3u8"
+                ];
+            }
+            // ========================= IMAGE ============================
+            elseif (in_array($fileExtension, $imgExtensions)) {
+
+                $name = $this->sanitizeFileName($file->getClientOriginalName());
+                $dir = public_path("assets/tmp_media/images/user_{$userId}/{$uniqueFolder}");
+                mkdir($dir, 0755, true);
+
+                $path = "{$dir}/{$name}";
+                $file->move($dir, $name);
+
+                $res = $this->uploadStreamingObject(
+                    "images/user_{$userId}/{$uniqueFolder}/{$name}",
+                    $path
+                );
+
+                \File::deleteDirectory($dir);
+                return json_decode($res->getContent(), true)['data']['filePath'];
+            }
+            
+            // ========================= AUDIO ============================
+            elseif (in_array($fileExtension, $audioExtensions) || str_starts_with($mimeType, 'audio/')) {
+
+                if ($fileExtension === 'bin' || $fileExtension === '') {
+                    $fileExtension = explode('/', $mimeType)[1] ?? 'mp3';
+                }
+
+                $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+                $final = "{$name}.{$fileExtension}";
+
+                $dir = public_path("assets/tmp_media/audio/user_{$userId}");
+                mkdir($dir, 0755, true);
+
+                $path = "{$dir}/{$final}";
+                $file->move($dir, $final);
+
+                $res = $this->uploadStreamingObject(
+                    "audio/user_{$userId}/{$final}",
+                    $path
+                );
+
+                unlink($path);
+                return json_decode($res->getContent(), true)['data']['filePath'];
+            }
+
+            else {
+                throw new \Exception("Unsupported file type: {$fileExtension}");
+            }
+
+        } catch (\Exception $e) {
+            throw $e;
+        }
+    }
+
 
 
 
