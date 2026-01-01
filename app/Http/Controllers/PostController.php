@@ -2447,6 +2447,11 @@ class PostController extends Controller
                     'status' => 'approved'
                 ])->exists();
 
+                $post->is_save = AlbumPost::where([
+                    'user_id' => $currentUser,
+                    'post_id'     => $post->id
+                ])->exists();
+
                 $createdAtUserTZ = $post->scheduling_post->created_at
                     ->copy()
                     ->timezone($userTimezone);
