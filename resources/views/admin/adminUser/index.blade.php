@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Users'])
+@extends('layouts.admin-master', ['title' => 'Admin Users'])
 @section('content')
 <div class="container-xxl flex-grow-1 container-p-y">
 	<div class="row">

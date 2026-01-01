@@ -207,6 +207,13 @@
                 <div data-i18n="Layouts">Contact Us</div>
             </a>
         </li>
+        <li class="menu-item {{ request()->is('reported-user/list') ? 'active' : '' }}">
+            <a href="{{ route('reported_user') }}" class="menu-link">
+                
+                <i class='menu-icon tf-icons bx bxs-contact' ></i>
+                <div data-i18n="Layouts">Reported Users</div>
+            </a>
+        </li>
     </ul>
     
 </aside>

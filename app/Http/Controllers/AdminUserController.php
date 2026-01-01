@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Models\UserReport;
 use App\Models\Role;
 use DB;
 use Illuminate\Support\Facades\Auth;
@@ -195,6 +196,17 @@ class AdminUserController extends Controller
                 'message' => 'Internal Server Error.'
             ]);
         }
+    }
+
+    public function reportedUser(Request $request)
+    {
+        $detail['reported_users'] = UserReport::with('reporter')->whereHas('reportedUser', function ($q) {
+            $q->whereNull('deleted_at');
+        })
+        ->with('reportedUser')
+        ->paginate(10);
+         // dd($detail);
+         return view('admin.reported-user-list',$detail);   
     }
 
 

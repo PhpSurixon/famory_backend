@@ -68,6 +68,7 @@ Route::resource('info-pages', PageInfoController::class);
         Route::post('/admin-user/store', [AdminUserController::class, 'store'])->name('admin_user_store');
         Route::post('/admin-user/update/{id}', [AdminUserController::class, 'update'])->name('admin_user_update');
         Route::post('/admin-user/destroy', [AdminUserController::class, "destroy"])->name('admin_user_delete');
+        Route::get('/reported-user/list',[AdminUserController::class,'reportedUser'])->name('reported_user');
 
 
         Route::get('/openworld', [AdminController::class, 'getOpenWorld'])->name('openworld');
