@@ -120,7 +120,7 @@ $('.deletPostBtn').on('click', function() {
 								confirmButtonText: 'OK'
 							}).then((result) => {
 								if (result.isConfirmed) {
-									window.location.href = '/reported-post/list';
+									window.location.href = '/reported-post/list'; 
 								}
 							});
 						} else {
