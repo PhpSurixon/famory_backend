@@ -68,10 +68,10 @@
                @endphp
                @if($file && in_array($extension, $imageExtensions))
                <div class="img-container m-0">
-                  <img src="{{ $file }}" class="card-img-top" alt="...">
+                  <img src="{{ asset($file) }}" class="card-img-top" alt="..." onerror="this.onerror=null; this.src='{{ asset('no_image_available.jpg') }}';">
                </div>
                @elseif($file && in_array($extension, $audioExtensions))
-               <div class="audio-container m-0" style="border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;    background-size: cover;background-repeat: no-repeat;height: 220px;background-image:url('{{ asset('assets/img/audio_bg.png') }}');">
+               <div class="audio-container m-0" style="border: 1px solid #ddd; border-radius: 10px; background-color: #f9f9f9;    background-size: cover;background-repeat: no-repeat;height: 220px;background-image:url('{{ asset("assets/img/audio_bg.png") }}');">
                   <h5 style="color:#fff; margin-bottom: 20px; margin-top: 30px;">Listen to Audio:</h5>
                   <audio class="w-100" controls muted>
                      <source src="{{ $file }}" type="audio/{{ $extension }}">
@@ -79,15 +79,11 @@
                   </audio>
                </div>
                @elseif(!empty($post['video_formats']))
-                @php
-                $video_thum = $post['video_formats']['thumbnails']['small']?? null;
-                @endphp
+               @php
+               $video_thum = $post['video_formats']['thumbnails']['small']?? null;
+               @endphp
                <div class= "video-container m-0">
                   <img src="{{ $video_thum }}" class="card-img-top" alt="..." onerror="this.onerror=null; this.src='{{ asset('no_image_available.jpg') }}';">
-                  <!-- <video class="card-img-top" muted controls>
-                     <source src="{{ $post['video_formats']['original']}}" type="video/mp4" >
-                     Your browser does not support the video tag.
-                  </video> -->
                </div>
                @else
                <div class="img-container m-0">
@@ -116,6 +112,7 @@
                      @endif
                   </p>
                   <hr>
+                  @if($post['scheduling_post'])
                   <div class="schedule-container">
                      <p class="card-text mb-0"><small class="text-muted">Schedule Type: </small><small style="color:#0a4ebb;">{{ ucfirst($post['scheduling_post']['schedule_type']) }}</small></p>
                      @php
@@ -139,6 +136,7 @@
                         @endif</small>
                      </p>
                   </div>
+                  @endif
                </div>
             </div>
          </div>

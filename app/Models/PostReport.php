@@ -22,5 +22,16 @@ class PostReport extends Model
         'updated_at',
     ];
 
+
+    public function reporter()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function reportedPost()
+    {
+        return $this->belongsTo(Post::class, 'post_id');
+    }
+
 }
 

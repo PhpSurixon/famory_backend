@@ -117,9 +117,9 @@
                  <div class="card-header  d-flex gap-4">
                      <div class="info-img">
                            @if($user->image)
-                            <img src="{{ $user->image }}" alt="User Image" width="100" height="100">
+                            <img src="{{ asset($user->image) }}" alt="User Image" width="100" height="100" onerror="this.onerror=null; this.src='{{ asset("assets/img/famcam.jpg") }}';">
                         @else
-                            <img src="/assets/img/famcam.jpg" alt="Default Image" width="100" height="100">
+                            <img src="{{ asset('assets/img/famcam.jpg') }}" alt="Default Image" width="100" height="100">
                         @endif
                      </div>
                      

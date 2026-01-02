@@ -126,9 +126,9 @@
                          <div class="card-body p-0 pt-3">
                              <div class="d-flex justify-content-between align-items-start">
                             <h5 class="card-title">{{ucfirst($post['title']) }}</h5>
-                            <div class="post-badge">
+                            <div class="">
                                 @if($post['scheduling_post']['is_post'] == 1)
-                                    <span class="post" data-id="{{ $post['id'] }}">Remove Post</span>
+                                    <button type="button" class="btn btn-danger post" data-id="{{ $post['id'] }}">Remove Post</button>
                                 @else
                                     <span>Not Post</span>
                                 @endif

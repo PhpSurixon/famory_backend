@@ -23,7 +23,7 @@
 								<th>Email</th>
 								<th>Mobile</th>
 								<th>Reported By User</th>
-								<!-- <th>Action</th> -->
+								<th>Action</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -40,23 +40,18 @@
 								<td>{{ $user->phone??""}}</td>
 								<td>{{ $reporter_user->full_name ?? ""}}</td>
 								
-								<!-- <td>
+								<td>
 									<div class="dropdown">
 										<button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" aria-expanded="false">
 											<i class="bx bx-dots-vertical-rounded"></i>
 										</button>
 										<div class="dropdown-menu" style="">
-											
-											<a class="dropdown-item" href="{{ route('admin_user_edit', [$user->id]) }}">
-											<i class="bx bx-edit-alt me-1"></i> Edit
-											</a>
-
-											<a class="dropdown-item" href="javascript:void(0);" onclick="deleteUser('{{ $user->id }}')">
-											<i class="bx bx-trash me-1"></i> Delete
+											<a class="dropdown-item" href="{{ route('viewUserDeatils',[$user->id]) }}">
+											<i class="bx bx-trash me-1"></i> Ban User
 											</a>
 										</div>
 									</div>
-								</td> -->
+								</td>
 							</tr>
 							@endforeach
 							@else

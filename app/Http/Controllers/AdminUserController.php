@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\UserReport;
 use App\Models\Role;
+use App\Models\PostReport;
 use DB;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\FormatResponseTrait;
@@ -200,13 +201,25 @@ class AdminUserController extends Controller
 
     public function reportedUser(Request $request)
     {
-        $detail['reported_users'] = UserReport::with('reporter')->whereHas('reportedUser', function ($q) {
+        $detail['reported_users'] = UserReport::whereHas('reportedUser', function ($q) {
             $q->whereNull('deleted_at');
         })
-        ->with('reportedUser')
+        ->with('reportedUser','reporter')
         ->paginate(10);
          // dd($detail);
          return view('admin.reported-user-list',$detail);   
+    }
+
+    public function reportedPost(Request $request)
+    {
+        $detail['reported_posts'] = PostReport::whereHas('reporter', function ($q) {
+            $q->whereNull('deleted_at');
+        })
+        ->whereHas('reportedPost')
+        ->with('reportedPost','reporter')
+        ->paginate(10);
+         // dd($detail);
+         return view('admin.reported-post-list',$detail);   
     }
 
 

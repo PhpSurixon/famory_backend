@@ -214,6 +214,13 @@
                 <div data-i18n="Layouts">Reported Users</div>
             </a>
         </li>
+        <li class="menu-item {{ request()->is('reported-post/list') ? 'active' : '' }}">
+            <a href="{{ route('reported_post') }}" class="menu-link">
+                
+                <i class='menu-icon tf-icons bx bxs-contact' ></i>
+                <div data-i18n="Layouts">Reported Posts</div>
+            </a>
+        </li>
     </ul>
     
 </aside>

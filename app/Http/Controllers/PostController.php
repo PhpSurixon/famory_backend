@@ -689,7 +689,7 @@ class PostController extends Controller
     //     }
     // }
 
-    public function createPostOLD_1(Request $request)
+    public function createPost(Request $request)
     {
         $validator = Validator::make($request->all(), [
             // 'title' => 'required',
@@ -711,8 +711,29 @@ class PostController extends Controller
 
         DB::beginTransaction();
         try {
-            $getHeaders = apache_request_headers();
-            $timezone = $getHeaders['time_zone'] ?? 'UTC';
+            // $getHeaders = apache_request_headers();
+            // $timezone = $getHeaders['time_zone'] ?? 'UTC';
+
+            $apacheHeaders = function_exists('apache_request_headers')? apache_request_headers(): [];
+            // Normalize header keys
+            $headers = array_change_key_case($apacheHeaders, CASE_LOWER);
+
+            // Priority: body > header > default
+            $timezone = $request->timezone
+                ?? $headers['time_zone']
+                ?? $headers['timezone']
+                ?? $headers['time-zone']
+                ?? 'UTC';
+
+            // Validate timezone
+            if (!in_array($timezone, timezone_identifiers_list())) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Invalid timezone provided'
+                ], 400);
+            }
+
+
             $tag_id = null;
             // Validate Tag
             if (isset($request->tag_id)) 
@@ -779,16 +800,19 @@ class PostController extends Controller
                 $post->save();
 
                 // Scheduling
-                $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)
-                                          ->setTimezone('UTC');
+                $scheduledUTC = Carbon::createFromFormat(
+                    'd-m-Y h:i A',
+                    trim($request->schedule_date . ' ' . $request->schedule_time),
+                    $timezone
+                )->utc();
 
                 $schedule = new SchedulingPost();
                 $schedule->post_id = $post->id;
                 $schedule->timezone = $timezone;
                 $schedule->schedule_type = $request->schedule_type;
                 $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
-                $schedule->schedule_date = $scheduledDateTime->toDateString();
-                $schedule->schedule_time = $scheduledDateTime->toTimeString();
+                $schedule->schedule_date = $scheduledUTC->toDateString();
+                $schedule->schedule_time = $scheduledUTC->toTimeString();
                 $schedule->reoccurring_type = $request->reoccurring_type;
                 if ($request->reoccurring_type == "yes") 
                 {
@@ -917,7 +941,7 @@ class PostController extends Controller
         }
     }
 
-    public function createPost(Request $request)
+    public function createPostNNNN(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'post_type'        => 'required',
@@ -1463,8 +1487,24 @@ class PostController extends Controller
 
         DB::beginTransaction();
         try {
-            $getHeaders = apache_request_headers();
-            $timezone = $getHeaders['time_zone'] ?? 'UTC';
+            $apacheHeaders = function_exists('apache_request_headers')? apache_request_headers(): [];
+            // Normalize header keys
+            $headers = array_change_key_case($apacheHeaders, CASE_LOWER);
+
+            // Priority: body > header > default
+            $timezone = $request->timezone
+                ?? $headers['time_zone']
+                ?? $headers['timezone']
+                ?? $headers['time-zone']
+                ?? 'UTC';
+
+            // Validate timezone
+            if (!in_array($timezone, timezone_identifiers_list())) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Invalid timezone provided'
+                ], 400);
+            }
 
             $post = Post::where('id', $id)
                 ->where('user_id', Auth::id())
@@ -1526,8 +1566,11 @@ class PostController extends Controller
             $post->save();
 
             // Scheduling (update existing or create new if missing)
-            $scheduledDateTime = Carbon::parse($request->schedule_date . ' ' . $request->schedule_time, $timezone)
-                                      ->setTimezone('UTC');
+            $scheduledUTC = Carbon::createFromFormat(
+                    'd-m-Y h:i A',
+                    trim($request->schedule_date . ' ' . $request->schedule_time),
+                    $timezone
+                )->utc();
 
             $schedule = SchedulingPost::where('post_id', $post->id)->first();
             if (!$schedule) {
@@ -1537,8 +1580,8 @@ class PostController extends Controller
             $schedule->timezone = $timezone;
             $schedule->schedule_type = $request->schedule_type;
             $schedule->is_post = ($request->schedule_type == "now") ? 1 : 0;
-            $schedule->schedule_date = $scheduledDateTime->toDateString();
-            $schedule->schedule_time = $scheduledDateTime->toTimeString();
+            $schedule->schedule_date = $scheduledUTC->toDateString();
+            $schedule->schedule_time = $scheduledUTC->toTimeString();
             $schedule->reoccurring_type = $request->reoccurring_type;
             if ($request->reoccurring_type == "yes") {
                 $schedule->reoccurring_time = $request->reoccurring_time;

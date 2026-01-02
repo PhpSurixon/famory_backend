@@ -69,6 +69,7 @@ Route::resource('info-pages', PageInfoController::class);
         Route::post('/admin-user/update/{id}', [AdminUserController::class, 'update'])->name('admin_user_update');
         Route::post('/admin-user/destroy', [AdminUserController::class, "destroy"])->name('admin_user_delete');
         Route::get('/reported-user/list',[AdminUserController::class,'reportedUser'])->name('reported_user');
+        Route::get('/reported-post/list',[AdminUserController::class,'reportedPost'])->name('reported_post');
 
 
         Route::get('/openworld', [AdminController::class, 'getOpenWorld'])->name('openworld');
@@ -191,6 +192,7 @@ Route::resource('info-pages', PageInfoController::class);
 
 
         Route::post('/open-world-post-hidden', [AdminController::class, 'openWorldPostHidden'])->name('openWorldPostHidden');
+        Route::post('/delete-reported-post', [AdminController::class, 'deletePost'])->name('delete_post');
 
     });
 
