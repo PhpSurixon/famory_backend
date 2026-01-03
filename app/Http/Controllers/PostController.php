@@ -779,7 +779,7 @@ class PostController extends Controller
                         $filePath = $res;
                     }
                 } catch (\Exception $e) {
-                    dd($e);
+                    
                     $fileUploadSuccess = false;
                     return response()->json(['message' => 'File upload failed: ' . $e->getMessage(), 'status' => 'failed'], 500);
                 }

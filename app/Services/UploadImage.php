@@ -1122,7 +1122,10 @@ class UploadImage
 
                 $name = $this->sanitizeFileName($file->getClientOriginalName());
                 $dir = public_path("assets/tmp_media/images/user_{$userId}/{$uniqueFolder}");
-                mkdir($dir, 0755, true);
+                // mkdir($dir, 0755, true);
+                if (!file_exists($dir)) {
+                    mkdir($dir, 0755, true);
+                }
 
                 $path = "{$dir}/{$name}";
                 $file->move($dir, $name);
@@ -1147,7 +1150,9 @@ class UploadImage
                 $final = "{$name}.{$fileExtension}";
 
                 $dir = public_path("assets/tmp_media/audio/user_{$userId}");
-                mkdir($dir, 0755, true);
+                if (!file_exists($dir)) {
+                    mkdir($dir, 0755, true);
+                }
 
                 $path = "{$dir}/{$final}";
                 $file->move($dir, $final);
