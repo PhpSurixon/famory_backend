@@ -1147,7 +1147,8 @@ class UploadImage
                 }
 
                 $name = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                $final = "{$name}.{$fileExtension}";
+                $fileName = $name.''.$timestamp;
+                $final = "{$fileName}.{$fileExtension}";
 
                 $dir = public_path("assets/tmp_media/audio/user_{$userId}");
                 if (!file_exists($dir)) {
