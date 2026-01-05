@@ -8,6 +8,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\PageInfoController;
 use App\Http\Controllers\AdvertiserController;
 use App\Http\Controllers\AdminUserController;
+use App\Http\Controllers\SettingController;
 use Illuminate\Http\Request;
 
 Route::get('/test-ffmpeg', function () {
@@ -70,6 +71,9 @@ Route::resource('info-pages', PageInfoController::class);
         Route::post('/admin-user/destroy', [AdminUserController::class, "destroy"])->name('admin_user_delete');
         Route::get('/reported-user/list',[AdminUserController::class,'reportedUser'])->name('reported_user');
         Route::get('/reported-post/list',[AdminUserController::class,'reportedPost'])->name('reported_post');
+
+        Route::get('/settings', [SettingController::class, 'index'])->name('bot_setting');
+        Route::post('/settings/bots-toggle', [SettingController::class, 'toggleBots']);
 
 
         Route::get('/openworld', [AdminController::class, 'getOpenWorld'])->name('openworld');

@@ -12,6 +12,7 @@ class Kernel extends ConsoleKernel
      */
     protected $commands = [
         \App\Console\Commands\RunReoccurringPost::class,
+        \App\Console\Commands\BotEngagementCron::class,
     ];
 
     /**
@@ -21,6 +22,7 @@ class Kernel extends ConsoleKernel
     {
         // Run every minute (you can change to hourly/daily)
         $schedule->command('cron:reoccurring-post')->everyMinute();
+        $schedule->command('bots:engage')->everyMinute()->withoutOverlapping();
     }
 
     /**

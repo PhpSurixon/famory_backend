@@ -98,13 +98,13 @@
                                 <img src="{{ $file }}" class="card-img-top" alt="..." onerror="this.onerror=null; this.src='{{ asset('no_image_available.jpg') }}';">
                             </div>
                             @elseif($file && in_array($extension, $audioExtensions))
-                                <div class="audio-container " style="background-image:url('{{ asset('assets/img/audio_bg.png') }}');">
+                            <div class="audio-container " style="background-image:url('{{ asset("assets/img/audio_bg.png") }}');">
                                     <h5 style="color:#fff; margin-bottom: 20px; margin-top: 30px;">Listen to Audio:</h5>
                                     <audio class="w-100" controls  muted>
                                         <source src="{{ $file }}" type="audio/{{ $extension }}">
                                         Your browser does not support the audio tag.
                                     </audio>
-                                </div>
+                            </div>
                             @elseif(!empty($post['video_formats']))
                             
                             <div class= "video-container">
@@ -124,7 +124,7 @@
                             @endif
                             <div class="card-body">
                                 @php
-                                    $postCount = DB::table('likes')->where('post_id',$post->id)->count();
+                                    $postCount = DB::table('likes')->where('post_id',$post['post_id'])->count();
                                 @endphp
                                 <h5 class="card-title mb-3">{{ ucfirst($post['title']) }}</h5>
                                 <div class="d-flex justify-content-between align-items-center mb-3">
@@ -139,7 +139,7 @@
                                     @endif
                                 </p>
                                 <hr>
-                                <p class="card-text"><small class="text-muted"><img src="{{ url('/') }}/assets/img/likes.png" height="20px" width="20px" alt="..."> <b> {{  $postCount > 0? $postCount:0}} </b></small></p>
+                                <p class="card-text"><small class="text-muted"><img src="{{ url('/') }}/assets/img/likes.png" height="20px" width="20px" alt="..."> <b> {{ $postCount  }} </b></small></p>
                             </div>
                         </div>
                     </div>

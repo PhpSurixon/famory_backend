@@ -111,10 +111,10 @@
         
         <li class="menu-item {{request()->is('ads-price', 'ads-price','edit-ads-price/*') || request()->is('featured-company-payment', 
         'featured-company-payment','edit-featured-company-price/*','create-featured-company-price') || 
-        request()->is('subscription-setting', 'subscription-setting','create-subscription-setting','edit-subscription-setting/*') ? 'active open' : '' }}">
+        request()->is('subscription-setting', 'subscription-setting','create-subscription-setting','edit-subscription-setting/*') || request()->is('settings') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-dock-top"></i>
-                <div>Price Setting</div>
+                <div>Setting</div>
             </a>
             <ul class="menu-sub">
                 <!-- <li class="menu-item {{ request()->is('ads-price', 'ads-price','edit-ads-price/*') ? 'active' : '' }}">
@@ -137,6 +137,12 @@
                     <a href="{{ route('subscription-setting') }}" class="menu-link">
                         <i class='menu-icon tf-icons bx bxs-cog'></i>
                         <div data-i18n="Layouts">Subscription Setting</div>
+                    </a>
+                </li>
+                 <li class="menu-item {{ request()->is('settings') ? 'active' : '' }}">
+                    <a href="{{ route('bot_setting') }}" class="menu-link">
+                        <i class='menu-icon tf-icons bx bxs-cog'></i>
+                        <div data-i18n="Layouts">Bot Setting</div>
                     </a>
                 </li>
                 
