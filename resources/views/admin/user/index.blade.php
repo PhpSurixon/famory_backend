@@ -101,7 +101,7 @@
                            <th>Email</th>
                            <th>Subscriptions</th>
                            <th>Subscriptions Expiry Date</th>
-                           <!--<th>Status</th>-->
+                           <th>User Type</th>
                            <th>Action</th>
                         </tr>
                      </thead>
@@ -212,9 +212,11 @@
                        let serialNo = (response.data.current_page - 1) * response.data.per_page;
                        
                        if (users.length > 0) {
-                           users.forEach(function(user, index) {
+                           users.forEach(function(user, index) 
+                           {
                                let dropdownMenu = '';
                                let userActions = '';
+                               let isBot = user.is_bot?"Bot User":"User";
                                const NoImage = "{{asset('assets/img/famcam.jpg')}}";
                                if (user.deleted_at == null) {
                                    const editUserBaseUrl = "{{ url('/user') }}";
@@ -275,6 +277,7 @@
                                        `<a href="javascript:void(0)" class="view-subscriptions" data-user-id="${user.id}" onclick='openModal(${JSON.stringify(user.subscription)})'>View Subscriptions</a>` 
                                        : 'No subscriptions'}</td>
                                    <td>${user.subscription && user.subscription.expiry_date ? new Date(user.subscription.expiry_date).toLocaleDateString() : '-'}</td>
+                                    <td>${isBot}</td>
                                    <td>
                                        <div class="dropdown">
                                            ${dropdownMenu}
