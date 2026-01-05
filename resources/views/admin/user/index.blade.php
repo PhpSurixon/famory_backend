@@ -216,7 +216,7 @@
                            {
                                let dropdownMenu = '';
                                let userActions = '';
-                               let isBot = user.is_bot?"Bot User":"User";
+                               let isBot = user.is_bot?"Bot":"User";
                                const NoImage = "{{asset('assets/img/famcam.jpg')}}";
                                if (user.deleted_at == null) {
                                    const editUserBaseUrl = "{{ url('/user') }}";
