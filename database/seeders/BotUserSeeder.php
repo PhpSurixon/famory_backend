@@ -14,7 +14,7 @@ class BotUserSeeder extends Seeder
     public function run(): void
     {
         User::factory()
-            ->count(3)   // 🔢 bots count
+            ->count(20)   // 🔢 bots count
             ->bot()       // 🤖 bot state
             ->create();
     }
