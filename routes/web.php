@@ -19,6 +19,7 @@ Route::get('chek',function(){
      phpinfo();
 });
 
+
 Route::get('/', function () {
     // return redirect('login'); 
     return redirect('admin/login');
