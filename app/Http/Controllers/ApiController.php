@@ -979,9 +979,10 @@ class ApiController extends Controller
             if($request->is_private){
                 $getUser->is_private = $request->is_private;
             }
-            if($request->description){
-                $getUser->description = $request->description;
-            }
+            // if($request->description){
+            //     $getUser->description = $request->description;
+            // }
+            $getUser->description = $request->description ? $request->description:null ;
             if($request->image){
                 
                 $file = $request->file('image');
