@@ -14,12 +14,23 @@ return new class extends Migration
         if (!Schema::hasTable('users')) {
             Schema::create('users', function (Blueprint $table) {
                 $table->id();
-                $table->string('name');
+                $table->string('first_name')->nullable();
+                $table->string('last_name')->nullable();
                 $table->string('email')->unique();
                 $table->timestamp('email_verified_at')->nullable();
-                $table->string('password');
+                $table->string('password')->nullable();
+                $table->integer('role_id')->nullable();
+                $table->string('image')->nullable();
+                $table->string('company_name')->nullable();
+                $table->longText('company_address')->nullable();
+                $table->string('company_logo')->nullable();
+                $table->boolean('is_approved')->nullable();
+                $table->string('stripe_customer_id')->nullable();
+                $table->string('agreed_terms')->nullable();
+                $table->boolean('ban_user')->default(0);
                 $table->rememberToken();
                 $table->timestamps();
+                $table->softDeletes();
             });
        }
         if (!Schema::hasTable('password_reset_tokens')) {

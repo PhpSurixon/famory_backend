@@ -80,7 +80,7 @@
                         <div>
                            <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Total Users</span>
                            @php
-                           $userCount = DB::table('users')->count();
+                           $userCount = DB::table('users')->where('role_id',2)->count();
                            @endphp
                            <h3 class="card-title mb-0">{{ $userCount }}</h3>
                         </div>

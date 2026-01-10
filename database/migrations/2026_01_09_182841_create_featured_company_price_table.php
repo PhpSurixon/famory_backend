@@ -11,10 +11,11 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'is_private')) {
-                $table->tinyInteger('is_private')->default(0)->comment('public => 0 ,private=>1');
-           }
+        Schema::create('featured_company_price', function (Blueprint $table) {
+            $table->id();
+            $table->integer('month')->nullable();
+            $table->decimal('price', 10, 2);
+            $table->timestamps();
         });
     }
 
@@ -23,8 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('is_private'); 
-        });
+        Schema::dropIfExists('featured_company_price');
     }
 };

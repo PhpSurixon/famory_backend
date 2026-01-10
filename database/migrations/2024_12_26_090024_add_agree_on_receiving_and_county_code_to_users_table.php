@@ -15,8 +15,11 @@ return new class extends Migration
             if (!Schema::hasColumn('users', 'agree_on_receiving')) {
                  $table->tinyInteger('agree_on_receiving')->default(0)->comment('Agreement on receiving notifications, 0 = No, 1 = Yes');
             }
+            if (!Schema::hasColumn('users', 'phone')) {
+                $table->string('phone')->nullable()->after('password');
+            }
             if (!Schema::hasColumn('users', 'country_code')) {
-                $table->string('country_code', 10)->default('')->after('phone');
+                $table->string('country_code')->nullable()->after('phone');
             }
         });
     }

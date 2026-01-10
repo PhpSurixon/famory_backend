@@ -12,12 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         if (!Schema::hasTable('comments')) {
-        Schema::create('comments', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('post_id')->constrained()->onDelete('cascade'); // foreign key to the posts table
-            $table->foreignId('user_id')->constrained()->onDelete('cascade'); // foreign key to the users table
-            $table->foreignId('parent_id')->nullable()->constrained('comments')->onDelete('cascade'); // This allows replies
-            $table->text('comment');
+        // Schema::create('comments', function (Blueprint $table) {
+        //     $table->id();
+        //     $table->foreignId('post_id')->constrained()->onDelete('cascade'); // foreign key to the posts table
+        //     $table->foreignId('user_id')->constrained()->onDelete('cascade'); // foreign key to the users table
+        //     $table->foreignId('parent_id')->nullable()->constrained('comments')->onDelete('cascade'); // This allows replies
+        //     $table->text('comment');
+        //     $table->timestamps();
+        // });
+
+            Schema::create('comments', function (Blueprint $table) {
+                $table->id();
+            $table->unsignedBigInteger('post_id')->index(); // foreign key to the posts table
+            $table->unsignedBigInteger('user_id')->index(); // foreign key to the users table
+            $table->unsignedBigInteger('parent_id')->nullable(); // This allows replies
+            $table->text('comment')->nullable();
             $table->timestamps();
         });
     }

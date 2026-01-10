@@ -11,10 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'is_private')) {
-                $table->tinyInteger('is_private')->default(0)->comment('public => 0 ,private=>1');
-           }
+        Schema::create('albums', function (Blueprint $table) {
+            $table->id();
+            $table->integer('user_id');
+            $table->string('album_name')->nullable();
+            $table->text('album_cover')->nullable();
+            $table->timestamps();
         });
     }
 
@@ -23,8 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('is_private'); 
-        });
+        Schema::dropIfExists('albums');
     }
 };
