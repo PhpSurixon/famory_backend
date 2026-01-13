@@ -1567,9 +1567,8 @@ class UploadImage
 
                         $cmd = "$ffmpeg -y -i " . escapeshellarg($originalPath) .
                         " -map_metadata -1" .
-                        " -vf scale='min(2048,iw)':-2" .
-                        " -frames:v 1" .
-                        " -q:v 3 " .
+                        " -vf \"scale=min(2048\\,iw):-2\"" .
+                        " -q:v 4 " .
                         escapeshellarg($compressedPath) .
                         " 2>&1";
 
@@ -1581,9 +1580,9 @@ class UploadImage
 
                         $cmd = "$ffmpeg -y -i " . escapeshellarg($originalPath) .
                         " -map_metadata -1" .
-                        " -vf scale='min(2048,iw)':-2" .
-                        " -frames:v 1" .
-                        " -compression_level 9 " .
+                        " -vf \"scale=min(2048\\,iw):-2\"" .
+                        " -compression_level 9" .
+                        " -frames:v 1 " .
                         escapeshellarg($compressedPath) .
                         " 2>&1";
 
@@ -1594,6 +1593,7 @@ class UploadImage
                     elseif ($fileExtension === 'gif') {
 
                         $cmd = "$ffmpeg -y -i " . escapeshellarg($originalPath) .
+                        " -map_metadata -1" .
                         " -frames:v 1 " .
                         escapeshellarg($compressedPath) .
                         " 2>&1";
