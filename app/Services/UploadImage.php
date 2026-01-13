@@ -1565,10 +1565,11 @@ class UploadImage
                         // ================= JPG / JPEG =================
                 elseif (in_array($fileExtension, ['jpg', 'jpeg'])) {
 
-                    $cmd = "\"$ffmpeg\" -y -i " . escapeshellarg($originalPath) .
-                    " -map_metadata -1" .
-                        " -vf \"scale=min(2048\\,iw):-2\"" . // IMPORTANT: escaped comma
-                        " -q:v 3 " .                         // visually lossless
+                        $cmd = "$ffmpeg -y -i " . escapeshellarg($originalPath) .
+                        " -map_metadata -1" .
+                        " -vf scale='min(2048,iw)':-2" .
+                        " -frames:v 1" .
+                        " -q:v 3 " .
                         escapeshellarg($compressedPath) .
                         " 2>&1";
 
@@ -1578,10 +1579,11 @@ class UploadImage
                         // ================= PNG =================
                     elseif ($fileExtension === 'png') {
 
-                        $cmd = "\"$ffmpeg\" -y -i " . escapeshellarg($originalPath) .
+                        $cmd = "$ffmpeg -y -i " . escapeshellarg($originalPath) .
                         " -map_metadata -1" .
-                        " -vf \"scale=min(2048\\,iw):-2\"" .
-                        " -compression_level 9 " .           // max PNG compression
+                        " -vf scale='min(2048,iw)':-2" .
+                        " -frames:v 1" .
+                        " -compression_level 9 " .
                         escapeshellarg($compressedPath) .
                         " 2>&1";
 
@@ -1591,8 +1593,8 @@ class UploadImage
                         // ================= GIF =================
                     elseif ($fileExtension === 'gif') {
 
-                        $cmd = "\"$ffmpeg\" -y -i " . escapeshellarg($originalPath) .
-                        " -map_metadata -1 " .
+                        $cmd = "$ffmpeg -y -i " . escapeshellarg($originalPath) .
+                        " -frames:v 1 " .
                         escapeshellarg($compressedPath) .
                         " 2>&1";
 
