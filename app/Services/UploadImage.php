@@ -1564,7 +1564,9 @@ class UploadImage
                             escapeshellarg($compressedPath) .
                             " -y 2>&1";
 
-                            exec($cmd);
+                    exec($cmd, $output, $returnCode);
+
+                
                 }elseif ($fileExtension === 'png') 
                 {
 
@@ -1575,7 +1577,7 @@ class UploadImage
                        escapeshellarg($compressedPath) .
                        " -y 2>&1";
 
-                        exec($cmd);
+                        exec($cmd, $output, $returnCode);
                 }
                 elseif ($fileExtension === 'gif') 
                 {
@@ -1585,11 +1587,13 @@ class UploadImage
                          escapeshellarg($compressedPath) .
                          " -y 2>&1";
 
-                        exec($cmd);
+                        exec($cmd, $output, $returnCode);
                 }
 
-                if (!file_exists($compressedPath)) {
-                    throw new \Exception("Image compression failed");
+                
+
+                if ($returnCode !== 0 || !file_exists($compressedPath)) {
+                    throw new \Exception("FFmpeg Image failed: " . implode("\n", $output));
                 }
                 
 
