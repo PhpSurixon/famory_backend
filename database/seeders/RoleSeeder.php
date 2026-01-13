@@ -24,7 +24,7 @@ class RoleSeeder extends Seeder
             Role::updateOrInsert(
                 ['name' => $role['name']],
                 [
-                    'name' => $role['name']
+                    'name' => $role['name'] 
                 ]
             );
         }
