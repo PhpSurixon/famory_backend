@@ -1537,11 +1537,14 @@ class UploadImage
 
                 $name = $this->sanitizeFileName($file->getClientOriginalName());
                 $dir = public_path("assets/tmp_media/images/user_{$userId}/{$uniqueFolder}");
-                if (!file_exists($dir)) mkdir($dir, 0775, true);
+                if (!file_exists($dir)) {
+                    mkdir($dir, 0775, true);
+                }
 
-                $originalPath = "{$dir}/original.{$fileExtension}";
+                $originalPath   = "{$dir}/original.{$fileExtension}";
                 $compressedPath = "{$dir}/compressed.{$fileExtension}";
 
+                        // Move uploaded file
                 $file->move($dir, "original.{$fileExtension}");
 
                         // FFmpeg path
@@ -1549,63 +1552,77 @@ class UploadImage
                 ? "C:/ffmpeg/bin/ffmpeg.exe"
                 : "ffmpeg";
 
-                        // ---------- SVG (NO COMPRESSION) ----------
                 $originalSize = filesize($originalPath);
-               
+                $finalPath    = $originalPath;
+                $output       = [];
+                $returnCode   = 0;
+
+                        // ================= SVG (NO COMPRESSION) =================
                 if ($fileExtension === 'svg') {
-                    $compressedPath = $originalPath;
-                }elseif (in_array($fileExtension, ['jpg', 'jpeg'])) 
-                {
+                    $finalPath = $originalPath;
+                }
 
-                    $cmd = "\"$ffmpeg\" -i " . escapeshellarg($originalPath) .
+                        // ================= JPG / JPEG =================
+                elseif (in_array($fileExtension, ['jpg', 'jpeg'])) {
+
+                    $cmd = "\"$ffmpeg\" -y -i " . escapeshellarg($originalPath) .
                     " -map_metadata -1" .
-                            " -vf scale='min(2048,iw)':-2" . // prevent upscaling
-                            " -q:v 3 " .                     // stronger compression
-                            escapeshellarg($compressedPath) .
-                            " -y 2>&1";
-
-                    exec($cmd, $output, $returnCode);
-
-                
-                }elseif ($fileExtension === 'png') 
-                {
-
-                       $cmd = "\"$ffmpeg\" -i " . escapeshellarg($originalPath) .
-                       " -map_metadata -1" .
-                       " -vf scale='min(2048,iw)':-2" .
-                       " -compression_level 9 " .
-                       escapeshellarg($compressedPath) .
-                       " -y 2>&1";
+                        " -vf \"scale=min(2048\\,iw):-2\"" . // IMPORTANT: escaped comma
+                        " -q:v 3 " .                         // visually lossless
+                        escapeshellarg($compressedPath) .
+                        " 2>&1";
 
                         exec($cmd, $output, $returnCode);
-                }
-                elseif ($fileExtension === 'gif') 
-                {
+                    }
 
-                         $cmd = "\"$ffmpeg\" -i " . escapeshellarg($originalPath) .
-                         " -map_metadata -1 " .
-                         escapeshellarg($compressedPath) .
-                         " -y 2>&1";
+                        // ================= PNG =================
+                    elseif ($fileExtension === 'png') {
+
+                        $cmd = "\"$ffmpeg\" -y -i " . escapeshellarg($originalPath) .
+                        " -map_metadata -1" .
+                        " -vf \"scale=min(2048\\,iw):-2\"" .
+                        " -compression_level 9 " .           // max PNG compression
+                        escapeshellarg($compressedPath) .
+                        " 2>&1";
 
                         exec($cmd, $output, $returnCode);
-                }
+                    }
 
-                
+                        // ================= GIF =================
+                    elseif ($fileExtension === 'gif') {
 
-                if ($returnCode !== 0 || !file_exists($compressedPath)) {
-                    throw new \Exception("FFmpeg Image failed: " . implode("\n", $output));
-                }
-                
+                        $cmd = "\"$ffmpeg\" -y -i " . escapeshellarg($originalPath) .
+                        " -map_metadata -1 " .
+                        escapeshellarg($compressedPath) .
+                        " 2>&1";
 
-                // Upload compressed image
-                $res = $this->uploadStreamingObject(
-                    "images/user_{$userId}/{$uniqueFolder}/{$name}",
-                    $compressedPath
-                );
+                        exec($cmd, $output, $returnCode);
+                    }
 
-                \File::deleteDirectory($dir);
+                        // ================= SAFETY CHECK =================
+                    if ($fileExtension !== 'svg') {
 
-                return json_decode($res->getContent(), true)['data']['filePath'];
+                        if ($returnCode !== 0 || !file_exists($compressedPath)) {
+                            throw new \Exception("FFmpeg Image failed: " . implode("\n", $output));
+                        }
+
+                        // Use compressed only if smaller
+                        if (filesize($compressedPath) < $originalSize) {
+                            $finalPath = $compressedPath;
+                        } else {
+                            $finalPath = $originalPath;
+                        }
+                    }
+
+                        // ================= UPLOAD =================
+                    $res = $this->uploadStreamingObject(
+                        "images/user_{$userId}/{$uniqueFolder}/{$name}",
+                        $finalPath
+                    );
+
+                    \File::deleteDirectory($dir);
+
+                    return json_decode($res->getContent(), true)['data']['filePath'];
             }
 
             // ========================= AUDIO ============================
