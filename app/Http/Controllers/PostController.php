@@ -2456,7 +2456,7 @@ class PostController extends Controller
             if ($request->type == "when-pass" || $request->type == "scheduled") {
                 $query = $getPost->whereHas('scheduling_post', fn($q) => $q->where('is_post', 0));
             } elseif ($request->type == "my-post") {
-                $query = $getPost->whereHas('scheduling_post', fn($q) => $q->whereIn('is_post', [0, 1]));
+                $query = $getPost->where('post_type','!=','private')->whereHas('scheduling_post', fn($q) => $q->whereIn('is_post', [0, 1]));
             } else {
                 $query = $getPost->whereHas('scheduling_post', fn($q) => $q->where('is_post', 1));
             }
@@ -2530,8 +2530,11 @@ class PostController extends Controller
              * PAGINATION (UNCHANGED)
              * ==============================
              */
-            $perPage = $request->input('per_page', 10);
-            $page = $request->input('page', 1);
+            $perPage = (int) $request->input('per_page', 10);
+            $perPage = $perPage > 0 ? $perPage : 10;
+
+            $page = (int) $request->input('page', 1);
+            $page = $page > 0 ? $page : 1;
 
             $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
                 $posts->slice(($page - 1) * $perPage, $perPage)->values(),

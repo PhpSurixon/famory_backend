@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Subscription extends Model
 {
  
-    protected $table = "Subscriptions"; 
+    protected $table = "subscriptions"; 
      
      
     protected $fillable = [
