@@ -837,6 +837,33 @@ class PostController extends Controller
                     $albumPost->post_id = $post->id;
                     $albumPost->user_id = Auth::id();
                     $albumPost->save();
+
+                    
+                    // Create Album Cover
+                    $thumbnailPath = null;
+                    if($post->media_type == 'picture')
+                    {
+                        $thumbnailPath = $post->file;
+                    }elseif($post->media_type == 'video')
+                    {
+                        $thumbnailPath = isset($videoPath) ?$videoPath['thumbnails']['small']:null;
+                    }else{
+                        $thumbnailPath = null;
+                         
+                    }
+                            
+                    if(!empty($thumbnailPath))
+                    {
+                        $album = Album::where('id',$post->album_id)->first();
+                        if($album){
+                           $album->album_cover = $thumbnailPath;
+                           $album->post_type   = $request->media_type;
+                           $album->save();
+                        }
+                        
+                    }
+
+
                 }
 
                 // Family post member logic
