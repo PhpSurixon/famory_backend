@@ -1427,11 +1427,14 @@ class UploadImage
                     : "ffprobe";
 
                 // ---------------- GET RESOLUTION ----------------
-                $probeCmd = "$ffprobe -v error -select_streams v:0
-                    -show_entries stream=width,height -of csv=p=0:s=x "
-                    . escapeshellarg($originalVideoPath);
+                $probeCmd = $ffprobe
+                . " -v error -select_streams v:0"
+                . " -show_entries stream=width,height"
+                . " -of csv=p=0:s=x "
+                . escapeshellarg($originalVideoPath);
 
                 $resolution = trim(shell_exec($probeCmd));
+                
                 if (!$resolution) $resolution = "1280x720";
                 [$w, $h] = explode("x", $resolution);
 
