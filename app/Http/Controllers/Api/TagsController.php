@@ -1439,6 +1439,19 @@ class TagsController extends Controller
             $get_tag_data['tag_post'] = $posts;
             $get_tag_data['isSaved'] = $get_save_tag ? 1 : 0;
             $get_tag_data['tag_permission_type'] = $tag_permission_type;
+
+            if ($get_tag_data->created_user_id != $authUser->id) 
+            {
+
+                $tagOwner = User::find($get_tag_data->created_user_id);
+
+                if ($tagOwner) 
+                {
+                    $message = "$authUser->first_name has Scan Your $get_tag_data->title tag";
+                    $this->notifyMessage($authUser, $tagOwner->id, $get_tag_data->id, 'tag_scan', null, null,null,$message);
+                   
+                }
+            }
             
 
             /**

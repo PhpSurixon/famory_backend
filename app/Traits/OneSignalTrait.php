@@ -415,6 +415,15 @@ trait OneSignalTrait
                     "album_id" => $item
                 ];
                 break;
+            case "tag_scan":
+                $title = "Tag Scan";
+                $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
 
             default:
                 return 1;
