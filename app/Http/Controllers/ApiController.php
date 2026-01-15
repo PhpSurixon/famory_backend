@@ -71,6 +71,7 @@ use App\Models\SubscriptionSetting;
 use App\Models\InviteGuestUser;
 use App\Models\Follow;
 use App\Models\FinalWord;
+use App\Models\TrustedUser;
 
 use App\Services\StripeService;
 use App\Services\UploadImage;
@@ -845,9 +846,11 @@ class ApiController extends Controller
             $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
             $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
             $postCount      = Post::where('user_id', $current_user)->count();
+            $TrustedAdminCount      = TrustedUser::where('user_id', $current_user)->count();
             $data['follower_count'] = $followerCount;
             $data['following_count'] = $followingCount;
             $data['post_count'] = $postCount;
+            $data['trusted_admin_count'] = $TrustedAdminCount;
 
             // ✅ Add all posts in same format as my-post
             $postsQuery = Post::where('user_id', $current_user)
@@ -6712,7 +6715,7 @@ public function getSavedTagsWithSearch(Request $request)
             $validator = Validator::make($request->all(), [
                 'first_name' => 'required|max:255',
                 'last_name' => 'required|max:255',
-                'dob' => 'required|date|before:' . Carbon::now()->subYears(18)->toDateString(), // Check if the DOB is older than 17
+                'dob' => 'required|date|before:' . Carbon::now()->subYears(17)->toDateString(), // Check if the DOB is older than 17
                 'gender' => 'required|in:male,female,other,notosay',
                 'is_private' => 'sometimes|required|in:0,1'
 

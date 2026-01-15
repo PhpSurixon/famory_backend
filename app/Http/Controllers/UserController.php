@@ -2246,8 +2246,91 @@ class UserController extends Controller
                 $userArray['user_id'] = $userArray['id'];
                 // unset($userArray['id']);
                 // if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
-                if (!empty($userArray['image']) && !preg_match('/^http/', $userArray['image'])) {
+                if (!empty($userArray['image'])) {
                     // $userArray['image'] = rtrim($s3BaseUrl, '/') . '/' . ltrim($userArray['image'], '/');
+                    $userArray['image'] = $userArray['image'];
+                } else {
+                    $userArray['image'] = null;
+                }
+                return $userArray;
+            });
+
+            $data = [
+                'user_id'     => $authUser->id,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $users
+            ];
+
+            return response()->json([
+                'message' => 'All User List successfully',
+                'status'  => "success",
+                'data'    => $data
+            ],200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! ".$e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+    public function userLists(Request $request)
+    {
+        try {
+            $limit = (int) $request->get('limit', 30);
+            $page  = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $authUser = Auth::user();
+            $search = $request->get('search');
+            $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+            //  Get blocked users (middleware set blocked_user_ids)
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            // Exclude myself
+            $relatedUserIds[] = $authUser->id;
+
+            // Merge with blocked users
+            $excludeUserIds = array_unique(array_merge($relatedUserIds, $blockedUserIds));
+
+            
+
+            //  Base query
+            $query = User::select('id','first_name','last_name','email','username','image')
+                        ->whereNotIn('id', $excludeUserIds)
+                        ->whereNull('deleted_at')
+                        ->where('role_id', 2);
+
+            //  Apply search filter if provided
+            if (!empty($search)) {
+                $query->where(function($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                      ->orWhere('last_name', 'like', "%{$search}%")
+                      ->orWhere('username', 'like', "%{$search}%")
+                      ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            //  Get total count
+            $totalUsers = $query->count();
+
+            //  Get paginated result
+            $users = $query->orderBy('id', 'desc')
+                            ->skip($offset)
+                            ->take($limit)
+                            ->get();
+
+            
+            $users = $users->map(function ($user) use ($s3BaseUrl) 
+            {
+                $userArray = $user->toArray();
+                $userArray['user_id'] = $userArray['id'];
+                if (!empty($userArray['image'])) 
+                {
                     $userArray['image'] = $userArray['image'];
                 } else {
                     $userArray['image'] = null;
