@@ -2303,6 +2303,9 @@ class UserController extends Controller
             $query = User::select('id','first_name','last_name','email','username','image')
                         ->whereNotIn('id', $excludeUserIds)
                         ->whereNull('deleted_at')
+                        ->whereNotNull('first_name')
+                        ->where('first_name', '!=', '')
+                        ->whereRaw("TRIM(first_name) != ''")
                         ->where('role_id', 2);
 
             //  Apply search filter if provided
@@ -2319,7 +2322,7 @@ class UserController extends Controller
             $totalUsers = $query->count();
 
             //  Get paginated result
-            $users = $query->orderBy('id', 'desc')
+            $users = $query->orderBy('first_name', 'asc')
                             ->skip($offset)
                             ->take($limit)
                             ->get();
