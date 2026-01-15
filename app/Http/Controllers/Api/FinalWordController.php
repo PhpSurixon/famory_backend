@@ -102,7 +102,14 @@ class FinalWordController extends Controller
             };
 
             // 🔹 Fetch user
-            $user = User::findOrFail($user_id);
+            $user = User::where('id', $user_id)->first();
+
+            if (!$user) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'User not found or deleted',
+                ], 404);
+            }
 
             // 🔹 Pagination
             $limit  = max((int) $request->get('limit', 10), 1);

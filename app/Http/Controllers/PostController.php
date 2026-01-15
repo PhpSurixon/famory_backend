@@ -888,7 +888,14 @@ class PostController extends Controller
                 if ($request->schedule_type == "when-pass") 
                 {
                     $authUser   = Auth::user();
-                    $sharedUser = User::find($request->shared_user_id);
+                    $sharedUser = User::where('id', $request->shared_user_id)->first();
+
+                    if (!$sharedUser) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => 'Shared User not found or deleted',
+                        ], 404);
+                    }
 
                     // STEP 1: Check existing legacy album
                     $album = LegacyAlbum::where('user_id', $authUser->id)
