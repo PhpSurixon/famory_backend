@@ -433,7 +433,7 @@ trait OneSignalTrait
             // $this->sendNotification($title, $message, $data, $token);
             if($device_type=='ios') {
                 $sss = $this->sendNotificationNew($title, $message, [$token],$data);
-                dd($sss);
+                
             }
            
             if($device_type=='android') {
