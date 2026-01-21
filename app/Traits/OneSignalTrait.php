@@ -17,6 +17,8 @@ trait OneSignalTrait
             'contents' => ["en" => $message],
         ];
 
+        dd(env('ONESIGNAL_REST_API_KEY'));
+
         if (!empty($playerIds)) {
             $data['include_player_ids'] = $playerIds;
         } else {
