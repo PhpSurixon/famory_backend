@@ -475,7 +475,7 @@ class ApiController extends Controller
     public function addDefaultAlbum($userId)
     {
         $album = new Album();
-        $album->album_name = "My Famory";
+        $album->album_name = "Saved Posts";
         $album->user_id = $userId;
         $album->isDefault = 1;
         $album->save();
