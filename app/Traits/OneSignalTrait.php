@@ -144,6 +144,28 @@ trait OneSignalTrait
 
                 ];
                 break;
+            case "family_rejected":
+                \Log::info($item);
+                $title = "Family Member Request Rejected";
+                $message = "$senderName  rejected your family request";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "group" => $item,
+
+                ];
+                break;
+            case "family_accepted":
+                \Log::info($item);
+                $title = "Family Member Request Accepted";
+                $message = "$senderName  accepted your family request";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "group" => $item,
+
+                ];
+                break;
             case "post":
                 $title = "New Posted Post";
                 $message = "Posted this post.";

@@ -16,6 +16,7 @@ class FamilyMember extends Model
         'user_id',
         'member_id',
         'group_id',
+        'approval_status',
     ];
 
 

@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Follow;
+use App\Models\FamilyMember;
 use App\Models\BlockUser;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
@@ -65,7 +66,6 @@ class FollowController extends Controller
             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
         }
     }
-
 
     public function unfollow(Request $request)
     {
@@ -254,8 +254,6 @@ class FollowController extends Controller
         }
     }
 
-
-
     public function following(Request $request)
     {
         try {
@@ -377,11 +375,6 @@ class FollowController extends Controller
         }
     }
 
-
-
-
-
-
     public function pendingRequests(Request $request)
     {
         try {
@@ -436,7 +429,6 @@ class FollowController extends Controller
             ], 400);
         }
     }
-
 
     public function respondToRequest(Request $request)
     {
@@ -543,6 +535,295 @@ class FollowController extends Controller
             ], 500);
         }
     }
+
+    public function addFamily(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            }
+
+            $id = $request->user_id;
+
+            $targetUser = User::findOrFail($id);
+            $authUser   = Auth::user();
+
+            if ($targetUser->id === $authUser->id) 
+            {
+                return response()->json(['message' => "You can't Add Family Member yourself", 'status' => 'failed'], 400);
+            }
+            $existing = FamilyMember::where('user_id', $authUser->id)
+                                    ->where('member_id', $targetUser->id)
+                                    ->first();
+
+            if ($existing) 
+            {
+                return response()->json(['message' => 'Already requested or Family Member'], 400);
+            }
+
+            if(isset($existing) &&$existing->approval_status =='rejected')
+            {
+                $existing->delete();
+            }
+
+            $createFollow=  FamilyMember::create([
+                'user_id' => Auth::id(),
+                'member_id' => $targetUser->id,
+                'approval_status' => 'pending',
+            ]);
+
+            $msg = "Add Family Member request sent to {$targetUser->first_name}";
+            $this->notifyMessage($authUser, $targetUser->id, $authUser->id, "invite"); 
+
+            return response()->json(['message' => $msg, 'status' => 'success'], 200);
+
+        } catch (\Exception $e) {
+            
+            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        }
+    }
+
+    public function getMyFmailyList(Request $request)
+    {
+        try 
+        {
+            $limit  = max((int) $request->get('limit', 30), 1);
+            $page   = max((int) $request->get('page', 1), 1);
+            $offset = ($page - 1) * $limit;
+
+            $search = $request->get('search');
+            $status = $request->get('status'); // pending | accepted | null
+
+            $authId = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            $query = FamilyMember::where('user_id', $authId)
+                ->whereNotIn('member_id', $blockedUserIds)
+                ->whereHas('user') // prevent null users
+                ->with('user:id,first_name,last_name,email,username,image');
+
+            // ✅ STATUS FILTER
+            if ($status) {
+                if ($status === 'pending') {
+                    $query->where('approval_status', 'pending');
+                } elseif (in_array($status, ['accepted', 'approved'])) {
+                    $query->where('approval_status', 'accepted');
+                }
+            } else {
+                // 🔥 status not passed → show all
+                $query->whereIn('approval_status', ['pending', 'approved']);
+            }
+
+            // 🔍 SEARCH FILTER
+            if ($search) {
+                $query->whereHas('user', function ($q) use ($search) {
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%")
+                           ->orWhere('username', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            $totalUsers = $query->count();
+
+            $users = $query->orderBy('id', 'desc')
+                           ->skip($offset)
+                           ->take($limit)
+                           ->get();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Family members fetched successfully',
+                'data'    => [
+                    'count'       => $totalUsers,
+                    'page'        => $page,
+                    'limit'       => $limit,
+                    'total_pages' => ceil($totalUsers / $limit),
+                    'users'       => $users
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            // dd($e);
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+    public function getAddedMeFamilyList(Request $request)
+    {
+        try {
+            $limit  = max((int) $request->get('limit', 30), 1);
+            $page   = max((int) $request->get('page', 1), 1);
+            $offset = ($page - 1) * $limit;
+
+            $search = $request->get('search');
+            $status = $request->get('status'); // pending | accepted | null
+
+            $authId = Auth::id();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            $query = FamilyMember::where('member_id', $authId)
+                ->whereNotIn('user_id', $blockedUserIds)
+                ->whereHas('member') // who added me
+                ->with('member:id,first_name,last_name,email,username,image');
+
+            // ✅ STATUS FILTER
+            if ($status) {
+                if ($status === 'pending') {
+                    $query->where('approval_status', 'pending');
+                } elseif (in_array($status, ['accepted', 'approved'])) {
+                    $query->where('approval_status', 'accepted');
+                }
+            } else {
+                // status not passed → all
+                $query->whereIn('approval_status', ['pending', 'accepted']);
+            }
+
+            // 🔍 SEARCH FILTER
+            if ($search) {
+                $query->whereHas('member', function ($q) use ($search) {
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('first_name', 'like', "%{$search}%")
+                           ->orWhere('last_name', 'like', "%{$search}%")
+                           ->orWhere('username', 'like', "%{$search}%")
+                           ->orWhere('email', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            $totalUsers = $query->count();
+
+            $users = $query->orderBy('id', 'desc')
+                           ->skip($offset)
+                           ->take($limit)
+                           ->get();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Family invitations fetched successfully',
+                'data'    => [
+                    'count'       => $totalUsers,
+                    'page'        => $page,
+                    'limit'       => $limit,
+                    'total_pages' => ceil($totalUsers / $limit),
+                    'users'       => $users
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+    public function respondFamilyRequest(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'request_id' => 'required|exists:family_members,id',
+                'action'     => 'required|in:accepted,rejected',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 422);
+            }
+
+            $authUser = Auth::user();
+            $authId   = $authUser->id;
+
+            // 🔹 Request jo mujhe aayi hai
+            $requestRow = FamilyMember::where('id', $request->request_id)
+                ->where('member_id', $authId)
+                ->where('approval_status', 'pending')
+                ->first();
+
+            if (!$requestRow) {
+                return response()->json([
+                    'message' => 'Invalid or already processed request',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            $senderUser = User::find($requestRow->user_id); // jisne request bheji
+
+            // ❌ REJECT
+            if ($request->action === 'rejected') 
+            {
+
+                $requestRow->update(['approval_status' => 'rejected']);
+
+                // 🔔 Notification → Sender
+                if ($senderUser) {
+                    $this->notifyMessage(
+                        $authUser,                 // actor
+                        $senderUser->id,           // receiver
+                        $authId,                   // sender
+                        'family_rejected'
+                    );
+                }
+
+                return response()->json([
+                    'message' => 'Family request rejected',
+                    'status'  => 'success'
+                ], 200);
+            }
+
+            // ✅ ACCEPT
+            DB::transaction(function () use ($requestRow, $authId) {
+
+                // 1️⃣ Update original request
+                $requestRow->update(['approval_status' => 'accepted']);
+
+                // // 2️⃣ Create reverse relation
+                // FamilyMember::firstOrCreate([
+                //     'user_id'   => $authId,
+                //     'member_id' => $requestRow->user_id,
+                // ], [
+                //     'approval_status' => 'accepted'
+                // ]);
+            });
+
+            // 🔔 Notification → Sender
+            if ($senderUser) {
+                $this->notifyMessage(
+                    $authUser,                 // actor
+                    $senderUser->id,           // receiver
+                    $authId,                   // sender
+                    'family_accepted'
+                );
+            }
+
+            return response()->json([
+                'message' => 'Family request accepted successfully',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            dd($e);
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+
+
+
 
 
 

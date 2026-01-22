@@ -64,6 +64,10 @@ Route::post('follow/request-status', [FollowController::class, 'respondToRequest
 Route::get('follow/pending', [FollowController::class, 'pendingRequests']);
 Route::post('follow/requests-detail', [FollowController::class, 'getFollowRequestDetail']);
 
+Route::post('family/add-member-request', [FollowController::class, 'addFamily']);
+Route::get('family/my-members', [FollowController::class, 'getMyFmailyList']);
+Route::get('family/added-me', [FollowController::class, 'getAddedMeFamilyList']);
+Route::post('family/respond-request', [FollowController::class, 'respondFamilyRequest']);
 
 
 
