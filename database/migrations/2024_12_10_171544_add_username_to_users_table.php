@@ -14,7 +14,7 @@ return new class extends Migration
         if (!Schema::hasColumn('users', 'username')) {
             Schema::table('users', function (Blueprint $table) {
                 // Add the 'username' column before the 'email' column
-                $table->string('username')->unique()->nullable(false)->before('email');
+                $table->string('username')->nullable()->before('email');
             });
         }
     }

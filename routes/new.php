@@ -23,6 +23,7 @@ Route::post('/register', [ApiController::class, 'register']);
 Route::post('/verify-otp-email', [ApiController::class, 'verifyEmailOTP']);
 Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
 Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
+Route::get('default-album-create-for-all-user',[UserController::class,'createDefaultAlbum']);
 
 Route::middleware(['jwt.verify'])->group(function () { 
  Route::put('/update-user-profile', [ApiController::class, 'updateUserProfile']);
@@ -94,6 +95,7 @@ Route::post('comment/delete',[PostCommentController::class,'destroy']);
 #Post Like New API
 Route::post('post/like-unlike',[PostLikeController::class,'toggle']);
 Route::post('comment/like-unlike',[PostLikeController::class,'commentLikeUnlike']);
+
 
 
 Route::middleware(['checkBlocked'])->group(function () { 

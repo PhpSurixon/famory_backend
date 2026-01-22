@@ -472,10 +472,12 @@ class ApiController extends Controller
         
     }
     
-    public function addDefaultAlbum($userId){
+    public function addDefaultAlbum($userId)
+    {
         $album = new Album();
-        $album->album_name = "Saved Posts";
+        $album->album_name = "My Famory";
         $album->user_id = $userId;
+        $album->isDefault = 1;
         $album->save();
     }
 
@@ -1806,6 +1808,12 @@ class ApiController extends Controller
                 }
             }
 
+            $checkAlbum = Album::where('album_name',$request->album_name)->where('user_id',$user_id)->first();
+            if($checkAlbum)
+            {
+                return response()->json(['message' => 'Album Name already exists.Please enter Other Name', 'status' => 'failed'], 400);
+            }
+
 
             $album = new Album();
             $album->album_name = $request->album_name;
@@ -1923,7 +1931,11 @@ class ApiController extends Controller
                     $post->like_count = Like::where('post_id', $post->id)->count() ?? 0;
                     $post->comments_count = Comment::where('post_id', $post->id)->count() ?? 0;
                     $post->is_like = Like::where(['post_id' => $post->id, 'user_id' => $user->id])->exists();
-                    $post->is_following = FollowerUnfollwer::where(['user_id' => $user->id, 'following_id' => $post->user_id])->exists();
+                    $post->is_following = Follow::where('follower_id', $user->id)
+                                ->where('following_id', $post->user_id)
+                                ->where('status', 'approved')
+                                ->exists();
+
 
                     if ($post->scheduling_post) {
                         $schedule = $post->scheduling_post;
@@ -2215,6 +2227,15 @@ class ApiController extends Controller
                 return response()->json(['message' => 'Album not found or you do not have permission', 'status' => 'failed'], 404);
             }
 
+            $checkAlbum = Album::where('album_name',$request->album_name)
+                                ->where('id','!=',$album->id)
+                                ->where('user_id',$user_id)
+                                ->first();
+            if($checkAlbum)
+            {
+                return response()->json(['message' => 'Album Name already exists.Please enter Other Name', 'status' => 'failed'], 400);
+            }
+
             // Update album name
             $album->album_name = $request->album_name;
             $album->save();
@@ -2258,10 +2279,11 @@ class ApiController extends Controller
                             'post_id' => $noti->post_id,
                             'user_id' => $user->id
                         ])->exists();
-                        $getPost->is_following = FollowerUnfollwer::where([
-                            'user_id' => $user->id,
-                            'following_id' => $getPost->user->id
-                        ])->exists();
+                        $getPost->is_following = Follow::where('follower_id', $user->id)
+                                                ->where('following_id', $getPost->user_id)
+                                                ->where('status', 'approved')
+                                                ->exists();
+
                         $getPost->created_date = date('Y-m-d', strtotime($getPost->scheduling_post->created_at));
                         $getPost->posted_date = $getPost->scheduling_post->schedule_type == "now" 
                             ? date('Y-m-d', strtotime($getPost->scheduling_post->created_at)) 
@@ -2367,10 +2389,11 @@ class ApiController extends Controller
                             'post_id' => $noti->post_id,
                             'user_id' => $user->id
                         ])->exists();
-                        $getPost->is_following = FollowerUnfollwer::where([
-                            'user_id' => $user->id,
-                            'following_id' => $getPost->user->id
-                        ])->exists();
+                        $getPost->is_following = Follow::where('follower_id', $user->id)
+                                                        ->where('following_id', $getPost->user_id)
+                                                        ->where('status', 'approved')
+                                                        ->exists();
+
                         $getPost->created_date = date('Y-m-d', strtotime($getPost->scheduling_post->created_at));
                         $getPost->posted_date = $getPost->scheduling_post->schedule_type == "now"
                             ? date('Y-m-d', strtotime($getPost->scheduling_post->created_at))

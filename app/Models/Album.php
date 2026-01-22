@@ -12,6 +12,7 @@ class Album extends Model
         'album_name',
         'album_cover',
         'post_type',
+        'isDefault',
     ];
     
     

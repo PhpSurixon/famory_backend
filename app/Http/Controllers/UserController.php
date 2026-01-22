@@ -1002,7 +1002,8 @@ class UserController extends Controller
 
     
 
-    public function deleteAlbumPost(Request $request){
+    public function deleteAlbumPostOLD(Request $request)
+    {
         try {
             $current_user = Auth::user();
             $deleted = false;
@@ -1103,6 +1104,83 @@ class UserController extends Controller
             return response()->json(['message' => $e->getMessage(), 'status' => 'fail', 'data' => null], 500);
         }
     }
+
+    public function deleteAlbumPost(Request $request)
+    {
+        try 
+        {
+            // dd($request->all());
+            $validator = Validator::make($request->all(), [
+                'album_id'   => 'required|integer|exists:albums,id',
+                'post_id'    => 'nullable|array',
+                'post_id.*'  => 'integer|exists:posts,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 422);
+            }
+
+            $user_id  = Auth::id();
+            $album_id = $request->album_id;
+            $album = Album::where('id', $album_id)
+                                ->where('user_id', $user_id)
+                                ->first();
+            if (!$album) {
+                return response()->json([
+                    'message' => 'Album not found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // ❌ Default album protection
+            if ($album->isDefault) 
+            {
+                return response()->json([
+                    'message' => 'Default album cannot be deleted or modified',
+                    'status'  => 'failed'
+                ], 403);
+            }
+
+            // ✅ CASE 1: Delete selected posts from album
+            if ($request->filled('post_id')) {
+
+                AlbumPost::where('album_id', $album_id)
+                            ->where('user_id', $user_id)
+                            ->whereIn('post_id', $request->post_id)
+                            ->delete();
+
+                return response()->json([
+                    'message' => 'Posts removed from album successfully',
+                    'status'  => 'success'
+                ], 200);
+            }
+
+            // ✅ CASE 2: Delete entire album
+            AlbumPost::where('album_id', $album_id)
+                    ->where('user_id', $user_id)
+                    ->delete();
+
+            Album::where('id', $album_id)
+                    ->where('user_id', $user_id)
+                    ->where('isDefault', 0)
+                    ->delete();
+
+            return response()->json([
+                'message' => 'Album deleted successfully',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Something went wrong! ' . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
 
 
     
@@ -2126,6 +2204,9 @@ class UserController extends Controller
             $query = User::select('id','first_name','last_name','email','username','image')
                         ->whereNotIn('id', $excludeUserIds)
                         ->whereNull('deleted_at')
+                        ->whereNotNull('first_name')
+                        ->where('first_name', '!=', '')
+                        ->whereRaw("TRIM(first_name) != ''")
                         ->where('role_id', 2);
 
             //  Apply search filter if provided
@@ -2362,6 +2443,33 @@ class UserController extends Controller
                 'status'  => 'failed'
             ], 400);
         }
+    }
+
+    public function createDefaultAlbum(Request $request)
+    {
+        $userList = User::select('id')->whereNull('deleted_at')->where('role_id', 2)->get();
+        foreach ($userList as $key => $value) 
+        {
+            $user_id = $value->id;
+            $checkAlbum = Album::where('album_name','My Famory')
+                                ->where('user_id',$user_id)
+                                ->where('isDefault',1)
+                                ->first();
+            if(!$checkAlbum)
+            {
+                $album = new Album();
+                $album->album_name = 'My Famory';
+                $album->user_id = $user_id;
+                $album->isDefault = 1;
+                $album->save();
+            }            
+        }
+        return response()->json([
+                'message' => 'All User List successfully',
+                'status'  => "success",
+                'length'  => count($userList),
+                'data'    => $userList
+            ],200);
     }
 
 
