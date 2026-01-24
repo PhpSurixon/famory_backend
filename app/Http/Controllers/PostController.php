@@ -2427,21 +2427,20 @@ class PostController extends Controller
                         }
                     }
                 }
-            } elseif ($request->filled('group_id')) {
-                $groupId = $request->group_id;
+            // } elseif ($request->filled('group_id')) {
+            } elseif ($request->type == "my_famory") 
+            {
+                
 
-                if ($groupId == 1) {
-                    $groupMemberIds = Familymember::where(['group_id' => $groupId, 'user_id' => $currentUser])->pluck('member_id');
-                    $groupUserIds  = Familymember::where(['group_id' => $groupId, 'member_id' => $currentUser])->pluck('user_id');
-                    $allMemberIds = $groupMemberIds->merge($groupUserIds)->unique();
-                    $getPost = Post::whereIn('user_id', $allMemberIds);
-                } else {
-                    $groupMemberIds = MemberGroup::where(['group_id' => $groupId, 'user_id' => $currentUser])->pluck('member_id');
-                    $groupUserIds  = MemberGroup::where(['group_id' => $groupId, 'member_id' => $currentUser])->pluck('user_id');
-                    $allMemberIds = $groupMemberIds->merge($groupUserIds)->unique();
-                    $currentuser = ($groupId == 2) ? $allMemberIds : $allMemberIds->merge($currentUser)->unique();
-                    $getPost = Post::whereIn('user_id', $currentuser);
-                }
+                 $groupMemberIds = Familymember::where(['user_id' => $currentUser,'approval_status' => 'accepted'])
+                                                ->pluck('member_id')
+                                                ->toArray();
+
+                 $groupUserIds = Familymember::where(['member_id' => $currentUser,'approval_status' => 'accepted'])
+                                             ->pluck('user_id')->toArray();
+
+                 $allMemberIds = array_unique(array_merge($groupMemberIds, $groupUserIds, [$currentUser]));
+                 $getPost = Post::where('post_type','my_famory')->whereIn('user_id', $allMemberIds);
             } else {
                 if ($request->type == "open-world") {
                     $getPost = Post::where('post_type', 'public');
