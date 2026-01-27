@@ -43,6 +43,8 @@ use App\Http\Controllers\StripeSubscriptionController;
     Route::middleware(['jwt.verify'])->group(function () { 
         // User
         Route::post('/update-profile', [ApiController::class, 'updateProfile']);
+        Route::post('/update-profile-image', [ApiController::class, 'updateProfileImage']);
+        Route::post('/remove-profile-image', [ApiController::class, 'removeProfileImage']);
         Route::post('/device-details', [ApiController::class, 'storeDeviceDetails']);
         Route::get('/logout', [ApiController::class, 'logout']);
         Route::get('/about-us', [ApiController::class, 'aboutUs']);

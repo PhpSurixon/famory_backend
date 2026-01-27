@@ -539,53 +539,80 @@ class FollowController extends Controller
     public function addFamily(Request $request)
     {
         try {
+
             $validator = Validator::make($request->all(), [
                 'user_id' => 'required',
             ]);
 
             if ($validator->fails()) {
-                return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status' => 'failed'
+                ], 400);
             }
 
-            $id = $request->user_id;
-
-            $targetUser = User::findOrFail($id);
+            $targetUser = User::findOrFail($request->user_id);
             $authUser   = Auth::user();
 
-            if ($targetUser->id === $authUser->id) 
-            {
-                return response()->json(['message' => "You can't Add Family Member yourself", 'status' => 'failed'], 400);
+            // Self check
+            if ($targetUser->id == $authUser->id) {
+                return response()->json([
+                    'message' => "You can't add yourself as family member",
+                    'status' => 'failed'
+                ], 400);
             }
+
+            // Existing relation check
             $existing = FamilyMember::where('user_id', $authUser->id)
                                     ->where('member_id', $targetUser->id)
                                     ->first();
 
-            if ($existing) 
-            {
-                return response()->json(['message' => 'Already requested or Family Member'], 400);
+            if ($existing) {
+
+                // 👉 If pending or accepted → error
+                if (in_array($existing->approval_status, ['pending','accepted'])) {
+                    return response()->json([
+                        'message' => 'Already requested or already family member',
+                        'status' => 'failed'
+                    ], 400);
+                }
+
+                // 👉 If rejected → delete old record
+                if ($existing->approval_status == 'rejected') {
+                    $existing->delete();
+                }
             }
 
-            if(isset($existing) &&$existing->approval_status =='rejected')
-            {
-                $existing->delete();
-            }
-
-            $createFollow=  FamilyMember::create([
-                'user_id' => Auth::id(),
+            // 👉 Create new request
+            FamilyMember::create([
+                'user_id' => $authUser->id,
                 'member_id' => $targetUser->id,
                 'approval_status' => 'pending',
             ]);
 
-            $msg = "Add Family Member request sent to {$targetUser->first_name}";
-            $this->notifyMessage($authUser, $targetUser->id, $authUser->id, "invite"); 
+            $msg = "Family request sent to {$targetUser->first_name}";
 
-            return response()->json(['message' => $msg, 'status' => 'success'], 200);
+            $this->notifyMessage(
+                $authUser,
+                $targetUser->id,
+                $authUser->id,
+                "invite"
+            );
+
+            return response()->json([
+                'message' => $msg,
+                'status' => 'success'
+            ], 200);
 
         } catch (\Exception $e) {
-            
-            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status' => 'failed'
+            ], 400);
         }
     }
+
 
     public function getMyFmailyList(Request $request)
     {

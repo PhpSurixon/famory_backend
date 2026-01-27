@@ -1009,6 +1009,111 @@ class ApiController extends Controller
             return response()->json(['message' => $e->getMessage(), 'status' => 'failed', "data" => []], 500);
         }
     }
+
+    public function updateProfileImage(Request $request)
+    {
+        try 
+        {
+
+            $current_user = Auth::id();
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'image' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048', // 2MB
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    "message" => $validator->errors()->first(),
+                    "status"  => "failed",
+                    "data"    => []
+                ], 400);
+            }
+
+            // ✅ Get user
+            $getUser = User::find($current_user);
+
+            if (!$getUser) {
+                return response()->json([
+                    "message" => "Profile not found",
+                    "status"  => "failed",
+                    "data"    => []
+                ], 404);
+            }
+
+            // ✅ Upload image
+            if ($request->hasFile('image')) {
+
+                $file = $request->file('image');
+                $res = $this->UploadImage->saveMedia($file, $current_user);
+                $getUser->image = $res;
+                $getUser->save();
+            }
+
+            return response()->json([
+                "message" => "Profile Image updated successfully",
+                "status"  => "success",
+                "data"    => $getUser
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "message" => $e->getMessage(),
+                "status"  => "failed",
+                "data"    => []
+            ], 500);
+        }
+    }
+
+    public function removeProfileImage(Request $request)
+    {
+        try 
+        {
+
+            $current_user = Auth::id();
+
+            // ✅ Get user
+            $getUser = User::find($current_user);
+
+            if (!$getUser) {
+                return response()->json([
+                    "message" => "Profile not found",
+                    "status"  => "failed",
+                    "data"    => []
+                ], 404);
+            }
+
+            // ✅ Check if image exists
+            if (!$getUser->image) {
+                return response()->json([
+                    "message" => "No profile image to remove",
+                    "status"  => "failed",
+                    "data"    => []
+                ], 400);
+            }
+
+            // ✅ Update DB
+            $getUser->image = null;
+            $getUser->save();
+
+            return response()->json([
+                "message" => "Profile image removed successfully",
+                "status"  => "success",
+                "data"    => $getUser
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                "message" => $e->getMessage(),
+                "status"  => "failed",
+                "data"    => []
+            ], 500);
+        }
+    }
+
+
     
     
     
@@ -1718,7 +1823,7 @@ class ApiController extends Controller
                                 ->orWhere(function ($q) use ($user_id, $authUser) {
                                     $q->where(['user_id' => $user_id, 'member_id' => $authUser->id]);
                                 });
-                    })->first();
+                    })->whereIn('approval_status',['accepted','pending'])->first();
 
             // ✅ Counts
             $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
@@ -1746,6 +1851,7 @@ class ApiController extends Controller
             // ✅ Extra info
             $userArray['is_following']    = (bool) $isFollowing;
             $userArray['is_family_member']= !empty($member);
+            $userArray['is_family_member_status']= isset($member)?$member->approval_status:null;
             $userArray['follower_count']  = (int) $followerCount;
             $userArray['following_count'] = (int) $followingCount;
             $userArray['post_count']      = (int) $postCount;

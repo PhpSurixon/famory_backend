@@ -658,6 +658,44 @@ class PostController extends Controller
         }
     }
 
+    public function generatePostShareLink(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'post_id'            => 'required'
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'status'  => 'failed'
+            ], 400);
+        }
+        $branchKey = env('BRANCH_KEY');
+        $postId = $request->post_id;
+
+        $data = [
+            "branch_key" => $branchKey,
+            "data" => [
+                "post_id" => $postId,
+                "\$desktop_url" => "https://famoryapp.com/post/$postId",
+                "\$android_url" => "https://play.google.com/store/apps/details?id=com.famory.app",
+                "\$ios_url" => "https://apps.apple.com/app/id6757708329"
+            ]
+        ];
+
+        $ch = curl_init("https://api2.branch.io/v1/url");
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($data));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+
+        $response = curl_exec($ch);
+        curl_close($ch);
+
+        return response()->json(json_decode($response), 200);
+    }
+
+
 
 
 

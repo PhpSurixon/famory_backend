@@ -25,6 +25,8 @@ Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
 Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
 Route::get('default-album-create-for-all-user',[UserController::class,'createDefaultAlbum']);
 
+Route::post('post-generate-deeplink',[NewPostController::class,'generatePostShareLink']);
+
 Route::middleware(['jwt.verify'])->group(function () { 
  Route::put('/update-user-profile', [ApiController::class, 'updateUserProfile']);
  Route::put('/update-user-phonenumber', [ApiController::class, 'updateUserPhoneNumber']);
@@ -89,6 +91,7 @@ Route::post('post/create',[NewPostController::class,'create']);
 Route::post('post/edit/{id}',[NewPostController::class,'edit']);
 Route::get('post/view/{id?}',[NewPostController::class,'view']);
 Route::get('post/list',[NewPostController::class,'list']);
+
 
 #Post Comment New API
 Route::post('get-post-with-comment',[PostCommentController::class,'index']);
