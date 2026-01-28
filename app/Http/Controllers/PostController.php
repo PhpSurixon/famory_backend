@@ -877,7 +877,7 @@ class PostController extends Controller
                                 $newMember->post_by = $post->user_id;
                                 $newMember->member_id = intval($singleMemberId);
                                 $newMember->save();
-                                $this->notifyMessage(Auth::user(), $singleMemberId, null, 'post');
+                                $this->notifyMessage(Auth::user()->id, $singleMemberId, null, 'post');
                             }
                         }
                     }

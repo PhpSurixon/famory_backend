@@ -536,12 +536,89 @@ class FollowController extends Controller
         }
     }
 
+    // public function addFamily(Request $request)
+    // {
+    //     try {
+
+    //         $validator = Validator::make($request->all(), [
+    //             'user_id' => 'required',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status' => 'failed'
+    //             ], 400);
+    //         }
+
+    //         $targetUser = User::findOrFail($request->user_id);
+    //         $authUser   = Auth::user();
+
+    //         // Self check
+    //         if ($targetUser->id == $authUser->id) {
+    //             return response()->json([
+    //                 'message' => "You can't add yourself as family member",
+    //                 'status' => 'failed'
+    //             ], 400);
+    //         }
+
+    //         // Existing relation check
+    //         $existing = FamilyMember::where('user_id', $authUser->id)
+    //                                 ->where('member_id', $targetUser->id)
+    //                                 ->first();
+
+    //         if ($existing) {
+
+    //             // 👉 If pending or accepted → error
+    //             if (in_array($existing->approval_status, ['pending','accepted'])) {
+    //                 return response()->json([
+    //                     'message' => 'Already requested or already family member',
+    //                     'status' => 'failed'
+    //                 ], 400);
+    //             }
+
+    //             // 👉 If rejected → delete old record
+    //             if ($existing->approval_status == 'rejected') {
+    //                 $existing->delete();
+    //             }
+    //         }
+
+    //         // 👉 Create new request
+    //         FamilyMember::create([
+    //             'user_id' => $authUser->id,
+    //             'member_id' => $targetUser->id,
+    //             'approval_status' => 'pending',
+    //         ]);
+
+    //         $msg = "Family request sent to {$targetUser->first_name}";
+
+    //         $this->notifyMessage(
+    //             $authUser,
+    //             $targetUser->id,
+    //             $authUser->id,
+    //             "invite"
+    //         );
+
+    //         return response()->json([
+    //             'message' => $msg,
+    //             'status' => 'success'
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'message' => 'Something went wrong!',
+    //             'status' => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function addFamily(Request $request)
     {
         try {
 
             $validator = Validator::make($request->all(), [
-                'user_id' => 'required',
+                'user_id' => 'required|exists:users,id',
             ]);
 
             if ($validator->fails()) {
@@ -551,25 +628,33 @@ class FollowController extends Controller
                 ], 400);
             }
 
-            $targetUser = User::findOrFail($request->user_id);
             $authUser   = Auth::user();
-
-            // Self check
-            if ($targetUser->id == $authUser->id) {
+            $targetUser = User::findOrFail($request->user_id);
+            
+            // 🚫 Self check
+            if ($authUser->id == $targetUser->id) {
                 return response()->json([
                     'message' => "You can't add yourself as family member",
                     'status' => 'failed'
                 ], 400);
             }
+            
+            // 🔍 Check existing in BOTH directions
+            $existing = FamilyMember::where(function ($q) use ($authUser, $targetUser) {
 
-            // Existing relation check
-            $existing = FamilyMember::where('user_id', $authUser->id)
-                                    ->where('member_id', $targetUser->id)
-                                    ->first();
+                $q->where('user_id', $authUser->id)
+                ->where('member_id', $targetUser->id);
 
-            if ($existing) {
+            })->orWhere(function ($q) use ($authUser, $targetUser) {
 
-                // 👉 If pending or accepted → error
+                $q->where('user_id', $targetUser->id)
+                ->where('member_id', $authUser->id);
+
+            })->first();
+
+            if ($existing) 
+            {
+
                 if (in_array($existing->approval_status, ['pending','accepted'])) {
                     return response()->json([
                         'message' => 'Already requested or already family member',
@@ -577,41 +662,39 @@ class FollowController extends Controller
                     ], 400);
                 }
 
-                // 👉 If rejected → delete old record
                 if ($existing->approval_status == 'rejected') {
                     $existing->delete();
                 }
             }
 
-            // 👉 Create new request
-            FamilyMember::create([
+            // ✅ Create new request (one way pending)
+            $familyRequest = FamilyMember::create([
                 'user_id' => $authUser->id,
                 'member_id' => $targetUser->id,
                 'approval_status' => 'pending',
             ]);
 
-            $msg = "Family request sent to {$targetUser->first_name}";
-
+            // 🔔 Notification
             $this->notifyMessage(
                 $authUser,
                 $targetUser->id,
-                $authUser->id,
+                $familyRequest->id,
                 "invite"
             );
 
             return response()->json([
-                'message' => $msg,
+                'message' => "Family request sent to {$targetUser->first_name}",
                 'status' => 'success'
             ], 200);
 
         } catch (\Exception $e) {
-
             return response()->json([
                 'message' => 'Something went wrong!',
                 'status' => 'failed'
             ], 400);
         }
     }
+
 
 
     public function getMyFmailyList(Request $request)
@@ -642,7 +725,7 @@ class FollowController extends Controller
                 }
             } else {
                 // 🔥 status not passed → show all
-                $query->whereIn('approval_status', ['pending', 'approved']);
+                $query->whereIn('approval_status', ['pending', 'accepted']);
             }
 
             // 🔍 SEARCH FILTER
@@ -754,9 +837,105 @@ class FollowController extends Controller
         }
     }
 
+    // public function respondFamilyRequest(Request $request)
+    // {
+    //     try {
+    //         $validator = Validator::make($request->all(), [
+    //             'request_id' => 'required|exists:family_members,id',
+    //             'action'     => 'required|in:accepted,rejected',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status'  => 'failed'
+    //             ], 422);
+    //         }
+
+    //         $authUser = Auth::user();
+    //         $authId   = $authUser->id;
+
+    //         // 🔹 Request jo mujhe aayi hai
+    //         $requestRow = FamilyMember::where('id', $request->request_id)
+    //             ->where('member_id', $authId)
+    //             ->where('approval_status', 'pending')
+    //             ->first();
+
+    //         if (!$requestRow) {
+    //             return response()->json([
+    //                 'message' => 'Invalid or already processed request',
+    //                 'status'  => 'failed'
+    //             ], 404);
+    //         }
+
+    //         $senderUser = User::find($requestRow->user_id); // jisne request bheji
+
+    //         // ❌ REJECT
+    //         if ($request->action === 'rejected') 
+    //         {
+
+    //             $requestRow->update(['approval_status' => 'rejected']);
+
+    //             // 🔔 Notification → Sender
+    //             if ($senderUser) {
+    //                 $this->notifyMessage(
+    //                     $authUser,                 // actor
+    //                     $senderUser->id,           // receiver
+    //                     $authId,                   // sender
+    //                     'family_rejected'
+    //                 );
+    //             }
+
+    //             return response()->json([
+    //                 'message' => 'Family request rejected',
+    //                 'status'  => 'success'
+    //             ], 200);
+    //         }
+
+    //         // ✅ ACCEPT
+    //         DB::transaction(function () use ($requestRow, $authId) {
+
+    //             // 1️⃣ Update original request
+    //             $requestRow->update(['approval_status' => 'accepted']);
+
+    //             // // 2️⃣ Create reverse relation
+    //             // FamilyMember::firstOrCreate([
+    //             //     'user_id'   => $authId,
+    //             //     'member_id' => $requestRow->user_id,
+    //             // ], [
+    //             //     'approval_status' => 'accepted'
+    //             // ]);
+    //         });
+
+    //         // 🔔 Notification → Sender
+    //         if ($senderUser) {
+    //             $this->notifyMessage(
+    //                 $authUser,                 // actor
+    //                 $senderUser->id,           // receiver
+    //                 $authId,                   // sender
+    //                 'family_accepted'
+    //             );
+    //         }
+
+    //         return response()->json([
+    //             'message' => 'Family request accepted successfully',
+    //             'status'  => 'success'
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+    //         dd($e);
+    //         return response()->json([
+    //             'message' => 'Something went wrong!',
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function respondFamilyRequest(Request $request)
     {
-        try {
+        try 
+        {
+
             $validator = Validator::make($request->all(), [
                 'request_id' => 'required|exists:family_members,id',
                 'action'     => 'required|in:accepted,rejected',
@@ -772,7 +951,7 @@ class FollowController extends Controller
             $authUser = Auth::user();
             $authId   = $authUser->id;
 
-            // 🔹 Request jo mujhe aayi hai
+            // 🔍 Only request which came to me and still pending
             $requestRow = FamilyMember::where('id', $request->request_id)
                 ->where('member_id', $authId)
                 ->where('approval_status', 'pending')
@@ -785,20 +964,20 @@ class FollowController extends Controller
                 ], 404);
             }
 
-            $senderUser = User::find($requestRow->user_id); // jisne request bheji
+            $senderUser = User::find($requestRow->user_id);
 
-            // ❌ REJECT
-            if ($request->action === 'rejected') 
-            {
+            // ❌ REJECT FLOW
+            if ($request->action === 'rejected') {
 
-                $requestRow->update(['approval_status' => 'rejected']);
+                $requestRow->update([
+                    'approval_status' => 'rejected'
+                ]);
 
-                // 🔔 Notification → Sender
                 if ($senderUser) {
                     $this->notifyMessage(
-                        $authUser,                 // actor
-                        $senderUser->id,           // receiver
-                        $authId,                   // sender
+                        $authUser,
+                        $senderUser->id,
+                        $authId,
                         'family_rejected'
                     );
                 }
@@ -809,27 +988,52 @@ class FollowController extends Controller
                 ], 200);
             }
 
-            // ✅ ACCEPT
+            // ✅ ACCEPT FLOW (2 WAY)
             DB::transaction(function () use ($requestRow, $authId) {
 
-                // 1️⃣ Update original request
-                $requestRow->update(['approval_status' => 'accepted']);
+                // 1️⃣ Update sender → me
+                $requestRow->update([
+                    'approval_status' => 'accepted'
+                ]);
 
-                // // 2️⃣ Create reverse relation
-                // FamilyMember::firstOrCreate([
-                //     'user_id'   => $authId,
-                //     'member_id' => $requestRow->user_id,
-                // ], [
-                //     'approval_status' => 'accepted'
-                // ]);
+                // 2️⃣ Create/update me → sender
+                FamilyMember::updateOrCreate(
+                    [
+                        'user_id'   => $authId,
+                        'member_id' => $requestRow->user_id,
+                    ],
+                    [
+                        'approval_status' => 'accepted'
+                    ]
+                );
+
+                // Automaticaly Follow
+                $follow =   Follow::updateOrCreate(
+                    [
+                        'follower_id'   => $authId,
+                        'following_id' => $requestRow->user_id,
+                    ],
+                    [
+                        'status' => 'approved'
+                    ]
+                );
+                //Automaticaly Following
+                $following =   Follow::updateOrCreate(
+                    [
+                        'following_id'   => $authId,
+                        'follower_id' => $requestRow->user_id,
+                    ],
+                    [
+                        'status' => 'approved'
+                    ]
+                );
             });
 
-            // 🔔 Notification → Sender
             if ($senderUser) {
                 $this->notifyMessage(
-                    $authUser,                 // actor
-                    $senderUser->id,           // receiver
-                    $authId,                   // sender
+                    $authUser,
+                    $senderUser->id,
+                    $authId,
                     'family_accepted'
                 );
             }
@@ -840,13 +1044,14 @@ class FollowController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            dd($e);
+
             return response()->json([
                 'message' => 'Something went wrong!',
                 'status'  => 'failed'
             ], 400);
         }
     }
+
 
 
 

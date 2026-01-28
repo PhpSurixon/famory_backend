@@ -779,7 +779,7 @@ class ApiController extends Controller
 
             // Family Members
             $familyMembers = FamilyMember::where('user_id', $current_user)
-                                        ->orWhere('member_id', $current_user)
+                                        // ->orWhere('member_id', $current_user)
                                         ->orderBy('id', 'desc')
                                         ->limit(5)
                                         ->get();
@@ -804,6 +804,7 @@ class ApiController extends Controller
                     'id'        => $familyMember->id,
                     'user_id'   => $userId,
                     'member_id' => $memberId,
+                    'approval_status'        => $familyMember->approval_status,
                     'user'      => [
                         'id'         => $user->id,
                         'first_name' => $user->first_name,
@@ -817,6 +818,11 @@ class ApiController extends Controller
             ->filter()
             ->values();
 
+            $my_family_count = FamilyMember::where('user_id', $current_user)
+                                         ->where('approval_status','accepted')
+                                         ->count();
+
+            $data['my_family_count'] = $my_family_count;
             $data['family'] = $simplifiedData;
 
             
