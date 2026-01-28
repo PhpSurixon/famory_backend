@@ -68,7 +68,7 @@ Route::post('follow/requests-detail', [FollowController::class, 'getFollowReques
 
 Route::post('family/add-member-request', [FollowController::class, 'addFamily']);
 Route::post('family/respond-request', [FollowController::class, 'respondFamilyRequest']);
-
+Route::post('family/remove-member', [FollowController::class, 'removeFamily']);
 
 
 #Notification Module API

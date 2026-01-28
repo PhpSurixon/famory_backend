@@ -747,6 +747,29 @@ class FollowController extends Controller
                            ->take($limit)
                            ->get();
 
+
+            $users = $users->map(function ($follow)
+            {
+
+                if (!$follow->user) {
+                    return null;
+                }
+
+                $follower = $follow->user;
+                
+
+                return [
+                    'id'            => $follow->id,
+                    'member_id'     => $follower->id,
+                    'first_name'    => $follower->first_name,
+                    'last_name'     => $follower->last_name,
+                    'email'         => $follower->email,
+                    'username'      => $follower->username,
+                    'image'         => $follower->image,
+                    'approval_status' => $follow->approval_status,
+                ];
+            })->filter()->values();
+
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Family members fetched successfully',
@@ -816,6 +839,27 @@ class FollowController extends Controller
                            ->skip($offset)
                            ->take($limit)
                            ->get();
+            $users = $users->map(function ($follow)
+            {
+
+                if (!$follow->member) {
+                    return null;
+                }
+
+                $follower = $follow->member;
+                
+
+                return [
+                    'id'            => $follow->id,
+                    'member_id'     => $follower->id,
+                    'first_name'    => $follower->first_name,
+                    'last_name'     => $follower->last_name,
+                    'email'         => $follower->email,
+                    'username'      => $follower->username,
+                    'image'         => $follower->image,
+                    'approval_status' => $follow->approval_status,
+                ];
+            })->filter()->values();
 
             return response()->json([
                 'status'  => 'success',
@@ -1051,6 +1095,65 @@ class FollowController extends Controller
             ], 400);
         }
     }
+
+    public function removeFamily(Request $request)
+    {
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|exists:users,id', // family member to remove
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 422);
+            }
+
+            $authId   = Auth::id();
+            $targetId = $request->user_id;
+
+            // 🚫 Self protection
+            if ($authId == $targetId) {
+                return response()->json([
+                    'message' => "You can't remove yourself",
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            DB::transaction(function () use ($authId, $targetId) {
+
+                // 🗑 Delete family relation BOTH ways
+                FamilyMember::where(function ($q) use ($authId, $targetId) {
+
+                    $q->where('user_id', $authId)
+                      ->where('member_id', $targetId);
+
+                })->orWhere(function ($q) use ($authId, $targetId) {
+
+                    $q->where('user_id', $targetId)
+                      ->where('member_id', $authId);
+
+                })->delete();
+
+                
+            });
+
+            return response()->json([
+                'message' => 'Family member removed successfully',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
 
 
 
