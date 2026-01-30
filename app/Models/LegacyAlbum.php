@@ -16,6 +16,7 @@ class LegacyAlbum extends Model
         'approval_status',
         'payment_status',
         'payment_id',
+        'is_deleted',
     ];
 
     public function owner()

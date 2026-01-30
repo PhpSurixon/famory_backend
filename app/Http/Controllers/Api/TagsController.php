@@ -12,7 +12,7 @@ use App\Traits\FormatResponseTrait;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Schema;
 use App\Services\UploadImage;
-
+use Carbon\Carbon;
 use App\Models\User;
 use App\Models\FamilyTagId;
 use App\Models\TagUser;
@@ -20,6 +20,7 @@ use App\Models\Post;
 use App\Models\SavedTag;
 use App\Models\Follow;
 use App\Models\Product;
+use App\Models\TagsPurchaseHistory;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -155,6 +156,7 @@ class TagsController extends Controller
             $tag_type = $request->get('tag_type'); // my, collaborator, viewer
 
             $query = FamilyTagId::query();
+            $remaining_tag_count   = $authUser->remaining_tag_count;
 
             /** ----------------------------------------------------
              * 1. collaborator/viewer = show shared tags
@@ -179,7 +181,7 @@ class TagsController extends Controller
                  * --------------------------------------------------- */
                 $query->where('created_user_id', $authUser->id);
 
-                $myOwnedTagIds = FamilyTagId::where('created_user_id', $authUser->id)
+                $myOwnedTagIds = FamilyTagId::where('created_user_id', $authUser->id)->where('is_deleted',0)
                     ->pluck('id')
                     ->toArray();
 
@@ -189,7 +191,7 @@ class TagsController extends Controller
             /** ----------------------------------------------------
              * PAGINATION
              * --------------------------------------------------- */
-            $total = $query->count();
+            $total = $query->where('is_deleted',0)->count();
 
             $tags = $query->orderBy('family_tag_ids.id', 'DESC')
                             ->skip($offset)
@@ -233,11 +235,11 @@ class TagsController extends Controller
              * 5. SAVED TAGS (always)
              * --------------------------------------------------- */
             $my_saved_tag = SavedTag::select('id','tag_id','created_at')
-                ->with('tagData:id,family_tag_id,title,privacy_type,image')
-                ->where('user_id',$authUser->id)
-                ->orderBy('id','DESC')
-                ->take(8)
-                ->get();
+                                    ->with('tagData:id,family_tag_id,title,privacy_type,image')
+                                    ->where('user_id',$authUser->id)
+                                    ->orderBy('id','DESC')
+                                    ->take(8)
+                                    ->get();
 
             $FamoryTags = Product::get();
 
@@ -245,6 +247,7 @@ class TagsController extends Controller
              * FINAL RESPONSE
              * --------------------------------------------------- */
             $data = [
+                'remaining_tag_count'       => $remaining_tag_count,
                 'count'       => $total,
                 'page'        => $page,
                 'limit'       => $limit,
@@ -293,6 +296,7 @@ class TagsController extends Controller
 
             $authUser = Auth::user();
             $userId   = $authUser->id;
+            $remaining_tag_count   = $authUser->remaining_tag_count;
 
             DB::beginTransaction();
 
@@ -303,6 +307,14 @@ class TagsController extends Controller
                     'message' => 'Invalid image upload.',
                     'status'  => 'failed'
                 ], 400);
+            }
+
+            if($remaining_tag_count <= 0)
+            {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Please purchase a package to create Tags'
+                ], 403);
             }
 
             $checkName = FamilyTagId::where('title',$request->title)->where('user_id',$userId)->first();
@@ -330,6 +342,10 @@ class TagsController extends Controller
                 'created_user_id'  => $userId,
                 'image'            => $filePath,
             ]);
+
+            $authUser->remaining_tag_count -= 1;
+            $authUser->save();
+
             DB::commit();
 
             return response()->json([
@@ -376,11 +392,12 @@ class TagsController extends Controller
             // Fetch record
             $getData = FamilyTagId::where('id', $request->id)
                                   ->where('user_id', $userId)
+                                  ->where('is_deleted', 0)
                                   ->first();
 
             if (!$getData) {
                 return response()->json([
-                    'message' => 'Tag Details Not Found',
+                    'message' => 'Tag Details Not Found or Tags deleted',
                     'status'  => 'failed'
                 ], 400);
             }
@@ -453,6 +470,7 @@ class TagsController extends Controller
             // Fetch tag with creator
             $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
                                        ->where('id', $id)
+                                       ->where('is_deleted',0)
                                        ->first();
 
             if (!$get_tag_data) {
@@ -553,6 +571,7 @@ class TagsController extends Controller
             
             $tag = FamilyTagId::where('id', $request->tag_id)
                                 ->where('created_user_id',$authUser->id)
+                                ->where('is_deleted',0)
                                 ->first();
 
             if (!$tag) {
@@ -761,7 +780,13 @@ class TagsController extends Controller
 
             $authUser = Auth::user();
 
-            $tag = FamilyTagId::find($request->tag_id);
+            $tag = FamilyTagId::where('id',$request->tag_id)->where('is_deleted',0)->first();
+            if(empty($tag)){
+                return response()->json([
+                    'message' => 'Tags Details not found',
+                    'status' => 'failed'
+                ], 403);
+            }
 
             // Owner check
             if ($tag->created_user_id !== $authUser->id) {
@@ -819,6 +844,7 @@ class TagsController extends Controller
 
             // Fetch tag IDs owned by this user
             $ownerTagIds = FamilyTagId::where('created_user_id', $authUser->id)
+                                      ->where('is_deleted',0)
                                       ->pluck('id')
                                       ->toArray();
 
@@ -1013,7 +1039,7 @@ class TagsController extends Controller
 
             $authUser = Auth::user();
 
-            $tag = FamilyTagId::where('id',$request->tag_id)->first();
+            $tag = FamilyTagId::where('id',$request->tag_id)->where('is_deleted',0)->first();
             if(empty($tag)){
                 return response()->json([
                     'message' => 'Tag Details not found.',
@@ -1159,7 +1185,7 @@ class TagsController extends Controller
 
             $authUser = Auth::user();
 
-            $tag = FamilyTagId::where('family_tag_id',$request->family_tag_id)->first();
+            $tag = FamilyTagId::where('family_tag_id',$request->family_tag_id)->where('is_deleted',0)->first();
 
             if (!$tag) {
                 return response()->json([
@@ -1270,7 +1296,7 @@ class TagsController extends Controller
             }
 
             // check tag owner
-            $tag = FamilyTagId::where('id',$record->tag_id)->first();
+            $tag = FamilyTagId::where('id',$record->tag_id)->where('is_deleted',0)->first();
             if ($tag->created_user_id != $authUser->id) 
             {
                 return response()->json([
@@ -1343,6 +1369,7 @@ class TagsController extends Controller
             // Fetch tag with creator
             $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
                                         ->where('family_tag_id', $request->family_tag_id)
+                                        ->where('is_deleted',0)
                                         ->first();
 
             if (!$get_tag_data) {
@@ -1499,7 +1526,13 @@ class TagsController extends Controller
 
             $authId = Auth::id();
             $authUser = Auth::user();
-            $tag = FamilyTagId::findOrFail($request->tag_id);
+            $tag = FamilyTagId::where('id',$request->tag_id)->where('is_deleted',0)->first();
+            if(empty($tag)){
+                return response()->json([
+                    'message' => 'Tags Details not found',
+                    'status' => 'failed'
+                ], 403);
+            }
 
             // Only owner can see member list (optional rule)
             if ($tag->created_user_id != $authUser->id) {
@@ -1621,7 +1654,14 @@ class TagsController extends Controller
             }
 
             $authUser = Auth::user();
-            $album = FamilyTagId::findOrFail($request->tag_id);
+            // $album = FamilyTagId::findOrFail($request->tag_id);
+            $album = FamilyTagId::where('id',$request->tag_id)->where('is_deleted',0)->first();
+            if(empty($tag)){
+                return response()->json([
+                    'message' => 'Tags Details not found',
+                    'status' => 'failed'
+                ], 403);
+            }
 
             // Pagination parameters
             $limit  = (int) $request->get('limit', 30);
@@ -1764,6 +1804,204 @@ class TagsController extends Controller
                 return 'documents';
             default:
                 return 'other';
+        }
+    }
+
+
+    public function buyTag(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'package_name' => 'required|string',
+                'tag_count'    => 'required|integer|min:1',
+                'amount'       => 'required|numeric',
+                'date'         => 'required',
+                'status'       => 'required|string',
+                'payment_id'   => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            // ✅ Convert date (dd-mm-yyyy -> yyyy-mm-dd)
+            try {
+                $formattedDate = Carbon::createFromFormat('d-m-Y', $request->date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => 'Invalid date format. Use DD-MM-YYYY',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // ✅ Total albums already used
+            $total_used_tag_count = FamilyTagId::where('created_user_id', $authUser->id)->count();
+
+            // ✅ Save purchase history
+            $createPurchase = [
+                'user_id'      => $authUser->id,
+                'tag_count'    => $request->tag_count,
+                'package_name' => $request->package_name,
+                'amount'       => $request->amount,
+                'date'         => $formattedDate,
+                'status'       => $request->status,
+                'payment_id'   => $request->payment_id,
+            ];
+
+            TagsPurchaseHistory::create($createPurchase);
+
+            // ✅ Total purchased albums
+            $get_total_purchase_count = TagsPurchaseHistory::where('user_id', $authUser->id)->sum('tag_count');
+
+            // ✅ Remaining credits
+            $remaining_tag_count = $get_total_purchase_count - $total_used_tag_count;
+
+            if ($remaining_tag_count < 0) {
+                $remaining_tag_count = 0;
+            }
+
+            // ✅ Update user remaining count (NOT +=)
+            $authUser->remaining_tag_count = $remaining_tag_count;
+            $authUser->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "Tags Package Purchased Successfully",
+                'status'  => 'success',
+                'data'    => [
+                    'remaining_tag_count' => $remaining_tag_count,
+                    'total_purchase_count'=> $get_total_purchase_count,
+                    'used_tag_count'      => $total_used_tag_count
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+    public function TagBuyHistory(Request $request)
+    {
+        try {
+
+            $authUser = Auth::user();
+
+            // ✅ Get purchase history (latest first)
+            $history = TagsPurchaseHistory::where('user_id', $authUser->id)
+                        ->orderBy('id', 'desc')
+                        ->get([
+                            'id',
+                            'package_name',
+                            'tag_count',
+                            'amount',
+                            'date',
+                            'status',
+                            'payment_id',
+                            'created_at'
+                        ]);
+
+            // ✅ Total purchased albums
+            $total_purchase_count = TagsPurchaseHistory::where('user_id', $authUser->id)
+                                        ->sum('tag_count');
+
+            // ✅ Total used albums
+            $total_used_tags_count = FamilyTagId::where('created_user_id', $authUser->id)->count();
+
+            // ✅ Remaining albums
+            $remaining_tag_count = $total_purchase_count - $total_used_tags_count;
+
+            if ($remaining_tag_count < 0) {
+                $remaining_tag_count = 0;
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Tags purchase history fetched successfully',
+                'summary' => [
+                    'total_purchased' => $total_purchase_count,
+                    'total_used' => $total_used_tags_count,
+                    'remaining' => $remaining_tag_count,
+                ],
+                'data' => $history
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Something went wrong! '.$e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteTags(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|integer|exists:family_tag_ids,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            // ✅ Fetch tag (owned by user & not deleted)
+            $tag = FamilyTagId::where('id', $request->tag_id)
+                        ->where('created_user_id', $authUser->id)
+                        ->where('is_deleted', 0)
+                        ->first();
+
+            if (!$tag) {
+                return response()->json([
+                    'message' => "Tag not found or already deleted",
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // ✅ Soft delete (mark as deleted)
+            $tag->is_deleted = 1;
+            $tag->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "Tag deleted successfully",
+                'status'  => 'success',
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something went wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
         }
     }
 

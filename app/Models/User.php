@@ -31,6 +31,8 @@ class User extends Authenticatable implements JWTSubject
         'dob', 
         'is_dead', 
         'is_bot', 
+        'remaining_lagecy_count', 
+        'remaining_tag_count', 
     ];
 
     /**

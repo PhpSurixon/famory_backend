@@ -18,7 +18,7 @@ class TagUser extends Model
 
     public function tags()
     {
-        return $this->belongsTo(FamilyTagId::class,'tag_id');
+        return $this->belongsTo(FamilyTagId::class,'tag_id')->wher('is_deleted',0);
     }
 
     /**

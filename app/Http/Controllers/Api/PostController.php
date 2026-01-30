@@ -696,6 +696,72 @@ class PostController extends Controller
     }
 
 
+    public function createDeepLink($targetUrl = 'https://famoryapp.com')
+    {
+        try {
+
+            $payload = [
+                'branch_key' => 'key_test_fuvrsB4lGDBs6vOyef5qzihlvzasJ285', // or env('BRANCH_KEY')
+                'campaign'  => 'general',
+                'feature'   => 'deep_link',
+                'channel'   => 'email',
+                'data'      => [
+                    '$canonical_url' => $targetUrl,
+                    '$desktop_url'   => $targetUrl,
+                    '$ios_url'       => $targetUrl,
+                    '$android_url'   => $targetUrl,
+                    'deep_link_target' => $targetUrl,
+                ],
+            ];
+
+            $ch = curl_init('https://api2.branch.io/v1/url');
+
+            curl_setopt_array($ch, [
+                CURLOPT_POST => true,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json'
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload),
+                CURLOPT_TIMEOUT => 30,
+            ]);
+
+            $response = curl_exec($ch);
+
+            if (curl_errno($ch)) {
+                Log::error('Branch cURL Error: ' . curl_error($ch));
+                curl_close($ch);
+                return false;
+            }
+
+            curl_close($ch);
+
+            $result = json_decode($response, true);
+
+            if (isset($result['url'])) {
+
+                
+
+                return [
+                    'shortLink' => $result['url'],
+                ];
+            }
+
+            // Log::error('Branch API Response Error: ' . $response);
+            dd($response);
+
+            return false;
+
+        } catch (\Exception $e) {
+
+            // Log::error('Deep link Exception: ' . $e->getMessage());
+            dd($e->getMessage());
+            return false;
+        }
+    }
+
+
+
 
 
 

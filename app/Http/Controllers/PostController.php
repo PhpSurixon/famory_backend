@@ -888,6 +888,7 @@ class PostController extends Controller
                 if ($request->schedule_type == "when-pass") 
                 {
                     $authUser   = Auth::user();
+                    $remaining_lagecy_count   = $authUser->remaining_lagecy_count;
                     $sharedUser = User::where('id', $request->shared_user_id)->first();
 
                     if (!$sharedUser) {
@@ -897,10 +898,13 @@ class PostController extends Controller
                         ], 404);
                     }
 
+                    
+
                     // STEP 1: Check existing legacy album
                     $album = LegacyAlbum::where('user_id', $authUser->id)
                                         ->where('shared_with_id', $sharedUser->id)
                                         ->where('type', 'legacy')
+                                        ->where('is_deleted', 0)
                                         ->first();
 
                     // ==========================
@@ -910,16 +914,24 @@ class PostController extends Controller
                     if (!$album) 
                     {
                         // Payment required for first time legacy album
-                        $validator2 = Validator::make($request->all(), [
-                            'payment_status' => 'required|in:paid,unpaid',
-                            'payment_id'     => 'required'
-                        ]);
+                        // $validator2 = Validator::make($request->all(), [
+                        //     'payment_status' => 'required|in:paid,unpaid',
+                        //     'payment_id'     => 'required'
+                        // ]);
 
-                        if ($validator2->fails()) {
+                        // if ($validator2->fails()) {
+                        //     return response()->json([
+                        //         'message' => $validator2->errors()->first(),
+                        //         'status'  => 'failed'
+                        //     ], 400);
+                        // }
+
+                        if($remaining_lagecy_count <= 0)
+                        {
                             return response()->json([
-                                'message' => $validator2->errors()->first(),
-                                'status'  => 'failed'
-                            ], 400);
+                                'status' => 'failed',
+                                'message' => 'Please purchase a package to create album'
+                            ], 403);
                         }
 
                         // Album title
@@ -950,9 +962,11 @@ class PostController extends Controller
                             'conver_image'   => $coverImage,
                             'type'           => 'legacy',
                             'approval_status'=> 'accepted',
-                            'payment_status' => $request->payment_status, // NEW
-                            'payment_id'     => $request->payment_id      // NEW
+                            'payment_status' => 'paid',
                         ]);
+
+                        $authUser->remaining_lagecy_count -= 1;
+                        $authUser->save();
                         // send notification (optional)
                         $this->notifyMessage($authUser, $sharedUser->id, $album->id, 'legacy_album');
                     }

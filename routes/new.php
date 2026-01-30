@@ -25,7 +25,7 @@ Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
 Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
 Route::get('default-album-create-for-all-user',[UserController::class,'createDefaultAlbum']);
 
-Route::post('post-generate-deeplink',[NewPostController::class,'generatePostShareLink']);
+Route::post('post-generate-deeplink',[NewPostController::class,'createDeepLink']);
 
 Route::middleware(['jwt.verify'])->group(function () { 
  Route::put('/update-user-profile', [ApiController::class, 'updateUserProfile']);
@@ -148,6 +148,9 @@ Route::post('leave-from-album', [AlbumMemberController::class, 'leaveLeave']);
 
 Route::post('legacy-album-list', [AlbumMemberController::class, 'getLegacyAlbumlist']);
 Route::post('legacy-album-post-list', [AlbumMemberController::class, 'getLegacyAlbumPostlist']);
+Route::post('legacy-album-buy', [AlbumMemberController::class, 'buyLegacyAlbum']);
+Route::get('legacy-album-buy-history', [AlbumMemberController::class, 'legacyAlbumBuyHistory']);
+Route::post('legacy-album-delete', [AlbumMemberController::class, 'deleteLegacyAlbum']);
 
 Route::get('tag/list',[TagsController::class,'index']);
 Route::post('tag/create',[TagsController::class,'store']);
@@ -166,6 +169,10 @@ Route::post('tag/scan-view',[TagsController::class,'tagscanView']);
 Route::get('tag/invitations', [TagsController::class, 'receivedTagInvitations']);
 Route::post('tag/member/list', [TagsController::class, 'listMembers']);
 Route::post('famory-tags/buy',[TagsController::class,'FamoryTagsBuy']);
+
+Route::post('tag/delete', [TagsController::class, 'deleteTags']);
+Route::post('tag-buy', [TagsController::class, 'buyTag']);
+Route::get('tag-buy-history', [TagsController::class, 'TagBuyHistory']);
 
 
 });

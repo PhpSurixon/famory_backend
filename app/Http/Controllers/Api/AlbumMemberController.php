@@ -12,6 +12,7 @@ use App\Models\Follow;
 use App\Models\User;
 use App\Models\LegacyAlbum;
 use App\Models\LegacyAlbumPost;
+use App\Models\LegacyAlbumPurchaseHistory;
 use App\Models\Post;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
@@ -19,6 +20,7 @@ use DB;
 use Illuminate\Support\Facades\Auth;
 use App\Traits\FormatResponseTrait;
 use Illuminate\Validation\Rule;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\Schema;
 class AlbumMemberController extends Controller
 {
@@ -632,6 +634,7 @@ class AlbumMemberController extends Controller
             }
 
             $authUser = Auth::user();
+            $remaining_lagecy_count   = $authUser->remaining_lagecy_count;
             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
 
             // =========================================================
@@ -642,6 +645,7 @@ class AlbumMemberController extends Controller
                 $query = LegacyAlbum::select('id','title','conver_image','user_id')
                     ->where('shared_with_id', $authUser->id)
                     ->where('type','legacy')
+                    ->where('is_deleted',0)
                     ->withCount('posts')
                     ->with([
                         'owner:id,first_name,is_dead,image'
@@ -682,6 +686,7 @@ class AlbumMemberController extends Controller
 
                 $query = LegacyAlbum::select('id','title','conver_image','shared_with_id')
                     ->where('user_id', $authUser->id)
+                    ->where('is_deleted',0)
                     ->where('type','legacy')
                     ->withCount('posts')
                     ->with([
@@ -744,6 +749,7 @@ class AlbumMemberController extends Controller
             // =========================================================
 
             $data = [
+                'remaining_lagecy_count'       => $remaining_lagecy_count,
                 'count'       => $total,
                 'page'        => $page,
                 'limit'       => $limit,
@@ -782,8 +788,13 @@ class AlbumMemberController extends Controller
         try 
         {
             $authUser = Auth::user();
+            $getLegacyAlbum = LegacyAlbum::where('id',$request->legacy_album_id)->where('is_deleted',0)->first();
+            if(empty($getLegacyAlbum))
+            {
+                 return response()->json(['message' =>"Legacy Album not found", 'status' => 'failed'], 400);
+            }
 
-            $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$request->legacy_album_id)
+            $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$getLegacyAlbum->id)
                                                  ->pluck('post_id')
                                                  ->toArray();
             $post = Post::withCount('like','comments')->whereIn('id',$get_legacy_postIds)->get();
@@ -799,6 +810,204 @@ class AlbumMemberController extends Controller
         catch (Exception $e) 
         {
             return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+        }
+    }
+
+    public function buyLegacyAlbum(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'package_name' => 'required|string',
+                'album_count'  => 'required|integer|min:1',
+                'amount'       => 'required|numeric',
+                'date'         => 'required',
+                'status'       => 'required|string',
+                'payment_id'   => 'required|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            // ✅ Convert date (dd-mm-yyyy -> yyyy-mm-dd)
+            try {
+                $formattedDate = Carbon::createFromFormat('d-m-Y', $request->date)->format('Y-m-d');
+            } catch (\Exception $e) {
+                return response()->json([
+                    'message' => 'Invalid date format. Use DD-MM-YYYY',
+                    'status' => 'failed'
+                ], 400);
+            }
+
+            // ✅ Total albums already used
+            $total_used_album_count = LegacyAlbum::where('user_id', $authUser->id)->count();
+
+            // ✅ Save purchase history
+            $createPurchase = [
+                'user_id'      => $authUser->id,
+                'album_count' => $request->album_count,
+                'package_name'=> $request->package_name,
+                'amount'      => $request->amount,
+                'date'        => $formattedDate,
+                'status'      => $request->status,
+                'payment_id'  => $request->payment_id,
+            ];
+
+            LegacyAlbumPurchaseHistory::create($createPurchase);
+
+            // ✅ Total purchased albums
+            $get_total_purchase_count = LegacyAlbumPurchaseHistory::where('user_id', $authUser->id)
+                                            ->sum('album_count');
+
+            // ✅ Remaining credits
+            $remaining_lagecy_count = $get_total_purchase_count - $total_used_album_count;
+
+            if ($remaining_lagecy_count < 0) {
+                $remaining_lagecy_count = 0;
+            }
+
+            // ✅ Update user remaining count (NOT +=)
+            $authUser->remaining_lagecy_count = $remaining_lagecy_count;
+            $authUser->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "Legacy Album Package Purchased Successfully",
+                'status'  => 'success',
+                'data'    => [
+                    'remaining_lagecy_count' => $remaining_lagecy_count,
+                    'total_purchase_count'  => $get_total_purchase_count,
+                    'used_album_count'      => $total_used_album_count
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+    public function legacyAlbumBuyHistory(Request $request)
+    {
+        try {
+
+            $authUser = Auth::user();
+
+            // ✅ Get purchase history (latest first)
+            $history = LegacyAlbumPurchaseHistory::where('user_id', $authUser->id)
+                        ->orderBy('id', 'desc')
+                        ->get([
+                            'id',
+                            'package_name',
+                            'album_count',
+                            'amount',
+                            'date',
+                            'status',
+                            'payment_id',
+                            'created_at'
+                        ]);
+
+            // ✅ Total purchased albums
+            $total_purchase_count = LegacyAlbumPurchaseHistory::where('user_id', $authUser->id)
+                                        ->sum('album_count');
+
+            // ✅ Total used albums
+            $total_used_album_count = LegacyAlbum::where('user_id', $authUser->id)->count();
+
+            // ✅ Remaining albums
+            $remaining_lagecy_count = $total_purchase_count - $total_used_album_count;
+
+            if ($remaining_lagecy_count < 0) {
+                $remaining_lagecy_count = 0;
+            }
+
+            return response()->json([
+                'status' => 'success',
+                'message' => 'Legacy album purchase history fetched successfully',
+                'summary' => [
+                    'total_purchased' => $total_purchase_count,
+                    'total_used' => $total_used_album_count,
+                    'remaining' => $remaining_lagecy_count,
+                ],
+                'data' => $history
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Something went wrong! '.$e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function deleteLegacyAlbum(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'legacy_album_id' => 'required|integer|exists:legacy_albums,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            // ✅ Fetch album (owned by user & not deleted)
+            $album = LegacyAlbum::where('id', $request->legacy_album_id)
+                        ->where('user_id', $authUser->id)
+                        ->where('is_deleted', 0)
+                        ->first();
+
+            if (!$album) {
+                return response()->json([
+                    'message' => "Album not found or already deleted",
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // ✅ Soft delete (mark as deleted)
+            $album->is_deleted = 1;
+            $album->save();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "Legacy Album deleted successfully",
+                'status'  => 'success',
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something went wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
         }
     }
 

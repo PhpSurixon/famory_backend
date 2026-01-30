@@ -911,11 +911,13 @@ class ApiController extends Controller
             $my_legacy_album = LegacyAlbum::select('id','title','conver_image')
                                            ->where('user_id',$current_user)
                                            ->where('type','legacy')
+                                           ->where('is_deleted',0)
                                            ->take(5)
                                            ->get();
             $shared_legacy_album = LegacyAlbum::select('id','title','conver_image')
                                                ->where('shared_with_id',$current_user)
                                                ->where('type','legacy')
+                                               ->where('is_deleted',0)
                                                ->take(5)
                                                ->get();
             $data['legacy_data'] = [
