@@ -619,10 +619,17 @@ class PostController extends Controller
             ->withCount('comments')
             // ->where('user_id', $currentUser->id)
             ->where('id',$postId)
+            ->with('user:id,first_name,last_name,image')
             ->first();
 
             if($getPost)
             {
+                $getPost->is_following = Follow::where([
+                    'follower_id' => $currentUser->id,
+                    'following_id' => $getPost->user_id,
+                    'status' => 'approved'
+                ])->exists();
+                
                 return response()->json([
                     'message' => 'Post Details successfully!',
                     'status'  => 'success',

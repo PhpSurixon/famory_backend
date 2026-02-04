@@ -1,0 +1,13 @@
+[ 
+  { 
+    "relation": ["delegate_permission/common.handle_all_urls"], 
+    "target": { 
+      "namespace": "android_app", 
+      "package_name": "io.famory.app", 
+      "sha256_cert_fingerprints": [ 
+        "5E:16:EC:B7:5B:03:A1:19:3F:CB:90:E1:9F:F0:2F:37:19:16:6C:1F:2A:F4:23:12:4B:C6:E4:54:EA:A1:6B:16", 
+        "D1:9C:E6:CF:88:2C:66:0A:E1:56:7C:63:E7:72:C1:BD:EF:44:25:B1:6B:59:98:0D:49:F9:78:CD:71:B1:F9:C8" 
+      ] 
+    } 
+  } 
+]

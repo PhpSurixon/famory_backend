@@ -136,7 +136,7 @@ trait OneSignalTrait
             case "invite":
                 \Log::info($item);
                 $title = "New Invited User";
-                $message = "$senderName  invite to join family";
+                $message = "$senderName  invited you to join family";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
