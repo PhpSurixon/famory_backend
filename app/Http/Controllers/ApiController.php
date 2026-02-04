@@ -1826,6 +1826,10 @@ class ApiController extends Controller
                                 ->where('status', 'approved')
                                 ->exists();
 
+            $my_family_count = FamilyMember::where('user_id', $authUser->id)
+                                         ->where('approval_status','accepted')
+                                         ->count();
+
             $member = FamilyMember::where(function ($query) use ($user_id, $authUser) {
                             $query->where(['user_id' => $authUser->id, 'member_id' => $user_id])
                                 ->orWhere(function ($q) use ($user_id, $authUser) {
@@ -1860,6 +1864,7 @@ class ApiController extends Controller
             $userArray['is_following']    = (bool) $isFollowing;
             $userArray['is_family_member']= !empty($member);
             $userArray['is_family_member_status']= isset($member)?$member->approval_status:null;
+            $userArray['my_family_count'] = (int) $my_family_count;
             $userArray['follower_count']  = (int) $followerCount;
             $userArray['following_count'] = (int) $followingCount;
             $userArray['post_count']      = (int) $postCount;

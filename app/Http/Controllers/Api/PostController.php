@@ -617,7 +617,7 @@ class PostController extends Controller
                     // ->with('scheduling_post','post_member.user_new')
             ->withCount('likes')
             ->withCount('comments')
-            ->where('user_id', $currentUser->id)
+            // ->where('user_id', $currentUser->id)
             ->where('id',$postId)
             ->first();
 
