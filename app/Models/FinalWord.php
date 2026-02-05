@@ -9,7 +9,7 @@ class FinalWord extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'title', 'video_path','video_formats'];
+    protected $fillable = ['user_id', 'title', 'video_path','video_formats','isPotrait'];
 
     protected $casts = [
         'video_formats' => 'array',

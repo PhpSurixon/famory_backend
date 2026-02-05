@@ -58,6 +58,7 @@ class FinalWordController extends Controller
                             ->map(function ($fw) use ($s3BaseUrl) {
                                 return [
                                     'id'    => $fw->id,
+                                    'isPotrait'    => $fw->isPotrait,
                                     // 'video' => $fw->video_path ? $s3BaseUrl . '/' . ltrim($fw->video_path, '/') : null,
                                     'video' => $fw->video_path ? $fw->video_path : null,
                                     // 'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
@@ -126,6 +127,7 @@ class FinalWordController extends Controller
                 ->get()
                 ->map(fn($fw) => [
                     'id'    => $fw->id,
+                    'isPotrait'    => $fw->isPotrait,
                     'video' => $fw->video_path ? $prefixIfNeeded($fw->video_path) : null,
                     // 'video_formats' => $fw->video_path ? json_decode($fw->video_formats) : null,
                     'video_formats' => $fw->video_path ? $fw->video_formats : [],
@@ -250,6 +252,7 @@ class FinalWordController extends Controller
         try {
             $validator = Validator::make($request->all(), [
                 'video' => 'required|file|mimes:mp4,mov,avi|max:51200',
+                'isPotrait'=> 'nullable'
             ]);
 
             if ($validator->fails()) {
@@ -288,7 +291,8 @@ class FinalWordController extends Controller
                 $insertData = [
                     'video_path' => $videoPath['compressed'],
                     'video_formats' => $videoPath,
-                    'user_id'    => $userId
+                    'user_id'    => $userId,
+                    'isPotrait'    => $request->isPotrait?? true
                 ];
 
                 

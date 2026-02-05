@@ -21,7 +21,8 @@ class Post extends Model
         'post_type',
         'tag_id',
         'album_id',
-        'media_type'
+        'media_type',
+        'isPotrait',
     ];
 
     protected $casts = [
