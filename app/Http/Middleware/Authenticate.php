@@ -16,7 +16,7 @@ class Authenticate extends Middleware
     {
         if (!$request->expectsJson()) {
             
-            if ($request->getHost() == 'admin.famoryapp.com') {
+            if ($request->getHost() == 'admin.famoryapp.com' || $request->getHost() =='admin-dev.famoryapp.com' ) {
                 return route('admin.login');
             }
             

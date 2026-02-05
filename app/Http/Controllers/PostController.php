@@ -703,6 +703,7 @@ class PostController extends Controller
             'album_id' => 'nullable|exists:albums,id',
             'media_type' => 'required|in:audio,video,picture,note',
             'shared_user_id' => 'required_if:schedule_type,when-pass|exists:users,id',
+            'isPotrait'      => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -794,6 +795,7 @@ class PostController extends Controller
                 $post->description = $request->description ?? null;
                 $post->media_type = $request->media_type;
                 $post->file = $filePath;
+                $post->isPotrait = $request->isPotrait ?? true;
                 $post->video_formats = $videoPath;
                 $post->post_type = $request->post_type;
                 $post->album_id = $request->album_id ?? null;
@@ -1528,6 +1530,7 @@ class PostController extends Controller
             'video_formats' => 'nullable|file',
             'album_id' => 'nullable|exists:albums,id',
             'media_type' => 'required|in:audio,video,picture,note',
+            'isPotrait' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -1608,6 +1611,7 @@ class PostController extends Controller
             // Update post
             $post->tag_id = $tag_id;
             $post->title = $request->title;
+            $post->isPotrait = $request->isPotrait ?? true;
             $post->description = $request->description;
             $post->media_type = $request->media_type;
             $post->post_type = $request->post_type;

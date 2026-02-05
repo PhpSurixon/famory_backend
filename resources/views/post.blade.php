@@ -72,7 +72,7 @@
 
     <!-- App Logo -->
     <img 
-        src="http://100.26.29.150/assets/img/app_logo.png" 
+        src="{{ asset('assets/img/app_logo.png') }}" 
         alt="Famory App Logo" 
         class="logo"
     >
