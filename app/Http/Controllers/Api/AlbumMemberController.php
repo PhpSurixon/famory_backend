@@ -11,6 +11,7 @@ use App\Models\BlockUser;
 use App\Models\Follow;
 use App\Models\User;
 use App\Models\LegacyAlbum;
+use App\Models\Notification;
 use App\Models\LegacyAlbumPost;
 use App\Models\LegacyAlbumPurchaseHistory;
 use App\Models\Post;
@@ -50,7 +51,7 @@ class AlbumMemberController extends Controller
                 $query->where('albums.user_id', $user->id);
             }
 
-            $albums = $query->withCount('posts')
+            $albums = $query->where('isDefault',0)->withCount('posts')
                             ->orderBy('albums.created_at', 'asc')
                             ->paginate($perPage);
 
@@ -115,6 +116,14 @@ class AlbumMemberController extends Controller
                 ], 404);
             }
 
+            if ($album->isDefault == 1) 
+            {
+                return response()->json([
+                    'message' => 'Default Album do not Add members',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
             // If albums table actually has deleted_at, ensure album is not soft-deleted
             if (Schema::hasColumn('albums', 'deleted_at') && $album->deleted_at !== null) {
                 return response()->json([
@@ -172,22 +181,87 @@ class AlbumMemberController extends Controller
                     ->where('user_id', $memberUserId)
                     ->first();
 
-                if ($existing) {
-                    $existing->role = $role;
-                    $existing->save();
-                    $updated[] = $memberUserId;
-                } else {
-                    AlbumUser::create([
-                        'album_id' => $album->id,
-                        'user_id'  => $memberUserId,
-                        'role'     => $role,
-                        'approval_status'     => 'pending',
-                    ]);
-                    $added[] = $memberUserId;
+                    if ($existing) 
+                    {
 
-                    $notifType = $role === 'collaborator'? 'album_collaborator_request': 'album_viewer_request';
-                    $this->notifyMessage($authUser,$memberUserId,$album->id,$notifType);
-                }
+                        $existing->role = $role;
+
+                        // ✅ If previously rejected, move back to pending
+                        if ($existing->approval_status === 'rejected') {
+                            $existing->approval_status = 'pending';
+
+                            if($role === 'collaborator')
+                            {
+                            $message = "$authUser->first_name has requested to add you as a collaborator to an $album->album_name album";
+                            $notifType = 'album_collaborator_request';
+
+                            }else{
+                            $message = "$authUser->first_name has requested to add you as a viewer to an $album->album_name album";
+                            $notifType = 'album_viewer_request';
+
+                            }
+
+                            $this->notifyMessage(
+                                $authUser,
+                                $memberUserId,
+                                $album->id,
+                                $notifType,null, null,null,$message
+                            );
+                        }
+
+                        $existing->save();
+                        $updated[] = $memberUserId;
+
+                    } else {
+
+                        AlbumUser::create([
+                            'album_id' => $album->id,
+                            'user_id'  => $memberUserId,
+                            'role'     => $role,
+                            'approval_status' => 'pending',
+                        ]);
+
+                        $added[] = $memberUserId;
+
+                        // $notifType = $role === 'collaborator'
+                        // ? 'album_collaborator_request'
+                        // : 'album_viewer_request';
+                        if($role === 'collaborator')
+                        {
+                         $message = "$authUser->first_name has requested to add you as a collaborator to an $album->album_name.";
+                         $notifType = 'album_collaborator_request';
+
+                        }else{
+                            $message = "$authUser->first_name has requested to add you as a viewer to an $album->album_name.";
+                            $notifType = 'album_viewer_request';
+
+                        }
+
+
+                        $this->notifyMessage(
+                            $authUser,
+                            $memberUserId,
+                            $album->id,
+                            $notifType,null, null,null,$message
+                        );
+                    }
+
+                // if ($existing) {
+                //     $existing->role = $role;
+                //     $existing->save();
+                //     $updated[] = $memberUserId;
+                // } else {
+                //     AlbumUser::create([
+                //         'album_id' => $album->id,
+                //         'user_id'  => $memberUserId,
+                //         'role'     => $role,
+                //         'approval_status'     => 'pending',
+                //     ]);
+                //     $added[] = $memberUserId;
+
+                //     $notifType = $role === 'collaborator'? 'album_collaborator_request': 'album_viewer_request';
+                //     $this->notifyMessage($authUser,$memberUserId,$album->id,$notifType);
+                // }
             }
 
             return response()->json([
@@ -256,6 +330,16 @@ class AlbumMemberController extends Controller
             $ownerId = $album->user_id;
 
             $notifType = $request->status === 'accepted'? 'album_member_approved':'album_member_rejected';
+
+            $update_notification = Notification::where('item_id',$record->album_id)
+                                                ->where('receiver_id',$record->user_id)
+                                                ->where('has_actioned',0)
+                                                ->first();
+            if($update_notification)
+            {
+                $update_notification->has_actioned =1;
+                $update_notification->save();
+            }
 
             $this->notifyMessage($authUser, $ownerId, $album->id, $notifType);
             DB::commit();
@@ -469,8 +553,10 @@ class AlbumMemberController extends Controller
             }
             $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
             $albumMemberIds = AlbumUser::where('album_id', $request->album_id)
+                                        ->whereNotIn('approval_status',['pending', 'accepted'])
                                         ->pluck('user_id')
                                         ->toArray();
+
             $notgetUserIds = array_unique(array_merge($blockedUserIds,$albumMemberIds));
 
             $get_follower_user_id = $authId;

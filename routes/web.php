@@ -22,6 +22,11 @@ Route::get('chek',function(){
 Route::get('/post-view/{id}', function ($id) {
  return view('post', compact('id'));
 });
+
+Route::get('/tag-view/{tag_id}', function ($id) {
+ return view('post', compact('id'));
+});
+
 Route::get('/', function () {
     // return redirect('login'); 
     return redirect('admin/login');

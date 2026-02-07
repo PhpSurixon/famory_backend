@@ -307,7 +307,8 @@ trait OneSignalTrait
                 break;
             case "album_collaborator_request":
                 $title = "Album Access Requested as a Collaborator";
-                $message = "$senderName has requested to add you as a collaborator to an album.";
+                // $message = "$senderName has requested to add you as a collaborator to an album.";
+                $message = $customMessage;
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
@@ -317,7 +318,8 @@ trait OneSignalTrait
 
             case "album_viewer_request":
                 $title = "Album Access Requested as a Viewer";
-                $message = "$senderName has requested to add you as a viewer to an album.";
+                // $message = "$senderName has requested to add you as a viewer to an album.";
+                $message = $customMessage;
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,

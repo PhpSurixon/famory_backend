@@ -21,6 +21,7 @@ use App\Models\SavedTag;
 use App\Models\Follow;
 use App\Models\Product;
 use App\Models\TagsPurchaseHistory;
+use App\Models\Notification;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -730,6 +731,16 @@ class TagsController extends Controller
             } else {
                 $notifType = 'tag_member_rejected';
                 $message   = "{$authUser->first_name} has rejected your invitation to join the tag {$tag->title}.";
+            }
+
+            $update_notification = Notification::where('item_id',$record->tag_id)
+                                                ->where('receiver_id',$record->user_id)
+                                                ->where('has_actioned',0)
+                                                ->first();
+            if($update_notification)
+            {
+                $update_notification->has_actioned =1;
+                $update_notification->save();
             }
 
             // Send notification

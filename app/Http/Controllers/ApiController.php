@@ -745,11 +745,10 @@ class ApiController extends Controller
                                ->take(5);
                     },
                     'album' => function ($query) {
-                        $query->orderBy('created_at', 'desc')
+                        $query->where('isDefault',0)->orderBy('created_at', 'desc')
                             ->take(5)
                             ->withCount('posts');
-                    },
-                    'album.posts',
+                    }
                 ])
                 ->first();
 
@@ -768,8 +767,17 @@ class ApiController extends Controller
             // $data['image'] = !empty($data['image']) ? $s3BaseUrl . $data['image'] : null;
             $data['image'] = !empty($data['image']) ? $data['image'] : null;
 
+            $get_default_album = Album::where('user_id',$current_user)->where('isDefault',1)->first();
+            $saved_post_count = 0;
+            if($get_default_album)
+            {
+              $saved_post_count = AlbumPost::where('album_id',$get_default_album->id)->count();
+            }
+
+
             // Default values
-            $data['saved_post_count'] = 0;
+            $data['is_saved_album_id'] = $get_default_album->id??null;
+            $data['saved_post_count'] = $saved_post_count;
             $data['saved_album_count'] = 0;
 
             // Last will handling
@@ -777,53 +785,54 @@ class ApiController extends Controller
             $data['last_will_updated_at'] = $user->last_will_url->updated_at ?? null;
             unset($data['last_will_url']);
 
-            // Family Members
-            $familyMembers = FamilyMember::where('user_id', $current_user)
-                                        // ->orWhere('member_id', $current_user)
-                                        ->orderBy('id', 'desc')
-                                        ->limit(5)
-                                        ->get();
+            // // Family Members
+            // $familyMembers = FamilyMember::where('user_id', $current_user)
+            //                             // ->orWhere('member_id', $current_user)
+            //                             ->orderBy('id', 'desc')
+            //                             ->limit(5)
+            //                             ->get();
 
-            // $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
-            $simplifiedData = $familyMembers->map(function ($familyMember) {
-                if ($familyMember->member_id == Auth::id()) {
-                    if (empty($familyMember->member)) return null;
+            // // $simplifiedData = $familyMembers->map(function ($familyMember) use ($s3BaseUrl) {
+            // $simplifiedData = $familyMembers->map(function ($familyMember) {
+            //     if ($familyMember->member_id == Auth::id()) {
+            //         if (empty($familyMember->member)) return null;
 
-                    $user = $familyMember->member;
-                    $userId = $familyMember->member_id;
-                    $memberId = $familyMember->user_id;
-                } else {
-                    if (empty($familyMember->user)) return null;
+            //         $user = $familyMember->member;
+            //         $userId = $familyMember->member_id;
+            //         $memberId = $familyMember->user_id;
+            //     } else {
+            //         if (empty($familyMember->user)) return null;
 
-                    $user = $familyMember->user;
-                    $userId = $familyMember->user_id;
-                    $memberId = $familyMember->member_id;
-                }
+            //         $user = $familyMember->user;
+            //         $userId = $familyMember->user_id;
+            //         $memberId = $familyMember->member_id;
+            //     }
 
-                return [
-                    'id'        => $familyMember->id,
-                    'user_id'   => $userId,
-                    'member_id' => $memberId,
-                    'approval_status'        => $familyMember->approval_status,
-                    'user'      => [
-                        'id'         => $user->id,
-                        'first_name' => $user->first_name,
-                        'last_name'  => $user->last_name,
-                        // 'image'      => $user->image ? $s3BaseUrl . $user->image : null,
-                        'image'      => $user->image ?  $user->image : null,
-                    ],
-                ];
-            })
-            ->whereNotIn('user.id', $blockedUserIds)
-            ->filter()
-            ->values();
+            //     return [
+            //         'id'        => $familyMember->id,
+            //         'user_id'   => $userId,
+            //         'member_id' => $memberId,
+            //         'approval_status'        => $familyMember->approval_status,
+            //         'user'      => [
+            //             'id'         => $user->id,
+            //             'first_name' => $user->first_name,
+            //             'last_name'  => $user->last_name,
+            //             // 'image'      => $user->image ? $s3BaseUrl . $user->image : null,
+            //             'image'      => $user->image ?  $user->image : null,
+            //         ],
+            //     ];
+            // })
+            // ->whereNotIn('user.id', $blockedUserIds)
+            // ->filter()
+            // ->values();
 
             $my_family_count = FamilyMember::where('user_id', $current_user)
                                          ->where('approval_status','accepted')
                                          ->count();
 
             $data['my_family_count'] = $my_family_count;
-            $data['family'] = $simplifiedData;
+            // $data['family'] = $simplifiedData;
+            $data['family'] = [];
 
             
 
@@ -2034,13 +2043,27 @@ class ApiController extends Controller
             $perPage = $request->input('per_page', 10);
 
             $albumPosts = AlbumPost::where('album_id', $album->id)
-                ->with([
-                    'post',
-                    'post.user:id,first_name,last_name',
-                    'post.scheduling_post'
-                ])
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
+                                    ->with([
+                                        'post',
+                                        'post.user:id,first_name,last_name',
+                                        'post.scheduling_post'
+                                    ])
+                                    ->orderBy('created_at', 'desc')
+                                    ->paginate($perPage);
+
+            // $albumPosts = AlbumPost::where('album_id', $album->id)
+            //                         ->whereHas('post', function ($q) {
+            //                             $q->where('post_type', 'album');
+            //                         })
+            //                         ->with([
+            //                             'post' => function ($q) {
+            //                                 $q->where('post_type', 'album');
+            //                             },
+            //                             'post.user:id,first_name,last_name',
+            //                             'post.scheduling_post'
+            //                         ])
+            //                         ->orderBy('created_at', 'desc')
+            //                         ->paginate($perPage);
 
             // ✅ Step 4: Enhance each post data
             foreach ($albumPosts as $albumPost) {
@@ -2129,7 +2152,7 @@ class ApiController extends Controller
         }
     }
 
-    public function addAlbumPost(Request $request)
+    public function addAlbumPostOLD(Request $request)
     {
         try {
             // Validate input
@@ -2228,6 +2251,114 @@ class ApiController extends Controller
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
+
+    public function addAlbumPost(Request $request)
+    {
+        try 
+        {
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'album_id' => 'required|exists:albums,id',
+                'post_id'  => 'required|exists:posts,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $userId = Auth::id();
+
+            // ✅ Fetch default album of user
+            $album = Album::where('id', $request->album_id)
+                ->where('user_id', $userId)
+                ->where('isDefault', 1)
+                ->first();
+
+            if (!$album) {
+                return response()->json([
+                    'message' => 'Album not found or not a default album',
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            // ✅ Check if post already saved
+            $albumPost = AlbumPost::where([
+                'album_id' => $request->album_id,
+                'post_id'  => $request->post_id,
+                'user_id'  => $userId,
+            ])->first();
+
+            /**
+             * ==========================
+             * UNSAVE POST
+             * ==========================
+             */
+            if ($albumPost) {
+                $albumPost->delete();
+
+                return response()->json([
+                    'message' => 'Post removed from album',
+                    'status'  => 'success',
+                    'is_saved'=> false
+                ], 200);
+            }
+
+            /**
+             * ==========================
+             * SAVE POST
+             * ==========================
+             */
+            $albumPost = AlbumPost::create([
+                'album_id' => $request->album_id,
+                'post_id'  => $request->post_id,
+                'user_id'  => $userId,
+            ]);
+
+            // ✅ Update album cover (only on save)
+            $post = Post::find($request->post_id);
+            $thumbnailPath = null;
+
+            $fileExtension = strtolower(pathinfo(
+                $post->video_formats['original'] ?? $post->file,
+                PATHINFO_EXTENSION
+            ));
+
+            $fileType = $this->getFileType($fileExtension);
+
+            if ($fileType === 'videos') {
+                $thumbnailPath = parse_url(
+                    $post->video_formats['thumbnails']['medium'],
+                    PHP_URL_PATH
+                );
+            } elseif ($fileType === 'images') {
+                $thumbnailPath = parse_url($post->file, PHP_URL_PATH);
+            } elseif ($fileType === 'audio') {
+                $thumbnailPath = config('app.url') . '/assets/img/audio_bg.webp';
+            }
+
+            if ($thumbnailPath) {
+                $album->album_cover = $thumbnailPath;
+                $album->save();
+            }
+
+            return response()->json([
+                'message' => 'Post saved to album',
+                'status'  => 'success',
+                'is_saved'=> true,
+                'data'    => $albumPost
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
 
     
     

@@ -91,5 +91,32 @@
     }, 2000);
 </script>
 
+<!-- <script>
+    function redirectToStore() {
+        var userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        console.log(userAgent,'userAgent')
+        // ✅ Android
+        if (/android/i.test(userAgent)) {
+            window.location.href =
+                "https://play.google.com/store/apps/details?id=io.famory.app";
+            return;
+        }
+
+        // ✅ iOS (iPhone, iPad, iPod)
+        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            window.location.href =
+                "https://apps.apple.com/app/idYOUR_APP_ID"; // replace with real App Store ID
+            return;
+        }
+
+        // 🌐 Fallback (desktop / unknown)
+        window.location.href = "https://famoryapp.com";
+    }
+
+    // Redirect after loader animation
+    setTimeout(redirectToStore, 5000);
+</script> -->
+
+
 </body>
 </html>

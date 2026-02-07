@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\Follow;
 use App\Models\FamilyMember;
 use App\Models\BlockUser;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -464,6 +465,19 @@ class FollowController extends Controller
                 return response()->json(['message' => 'Invalid action'], 400);
             }
             $followRequest->save();
+
+            $update_notification = Notification::where('item_id',$followRequest->id)
+                                                ->where('receiver_id',$followRequest->following_id)
+                                                ->where('has_actioned',0)
+                                                ->first();
+            if($update_notification)
+            {
+                $update_notification->has_actioned =1;
+                $update_notification->save();
+            }
+
+
+
             DB::commit();
 
             return response()->json([
