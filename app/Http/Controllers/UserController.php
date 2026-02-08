@@ -279,7 +279,7 @@ class UserController extends Controller
     }
 }
 
-    public function search(Request $request)
+    public function searchOLD122(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -372,6 +372,103 @@ class UserController extends Controller
             ], 500);
         }
     }
+
+    public function search(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'search' => 'nullable|string',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+            $currentUserId  = auth()->id();
+            $searchTerm     = trim($request->search ?? '');
+
+            // 🔎 Base query
+            $query = User::where('id', '!=', $currentUserId)
+                ->where('role_id', 2)
+                ->whereNotIn('id', $blockedUserIds);
+
+            // 🔎 Apply search only if search term exists
+            if (!empty($searchTerm)) {
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('first_name', 'like', "%$searchTerm%")
+                      ->orWhere('last_name', 'like', "%$searchTerm%")
+                      ->orWhere('username', 'like', "%$searchTerm%")
+                      ->orWhere('phone', 'like', "%$searchTerm%")
+                      ->orWhere('email', 'like', "%$searchTerm%");
+                });
+            }
+
+            $users = $query->paginate(10);
+
+            if ($users->isEmpty()) {
+                return response()->json([
+                    "message" => "No users found.",
+                    "status"  => "failed",
+                    "data"    => [],
+                ], 404);
+            }
+
+            // Collect IDs
+            $userIds = $users->pluck('id');
+
+            // 🔎 Follow relationships
+            $relations = Follow::where('follower_id', $currentUserId)
+                ->whereIn('following_id', $userIds)
+                ->pluck('status', 'following_id')
+                ->toArray();
+
+            // Format response
+            $data = $users->map(function ($user) use ($relations) {
+
+                $followStatus = 1; // Not following
+
+                if (isset($relations[$user->id])) {
+                    if ($relations[$user->id] === 'approved') {
+                        $followStatus = 2;
+                    } elseif ($relations[$user->id] === 'pending') {
+                        $followStatus = 3;
+                    }
+                }
+
+                return [
+                    'user_id'       => $user->id,
+                    'first_name'    => $user->first_name,
+                    'last_name'     => $user->last_name,
+                    'username'      => $user->username,
+                    'email'         => $user->email,
+                    'phone'         => $user->phone,
+                    'image'         => $user->image ?? null,
+                    'follow_status' => $followStatus,
+                ];
+            });
+
+            return response()->json([
+                "message"        => "Users retrieved successfully",
+                "status"         => "success",
+                "data"           => $data,
+                "total_records" => $users->total(),
+                "total_pages"   => $users->lastPage(),
+                "current_page"  => $users->currentPage(),
+                "per_page"      => $users->perPage(),
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
 
 
 
