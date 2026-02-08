@@ -27,7 +27,8 @@ class SavedTag extends Model
     }
     public function tagData()
     {
-        return $this->belongsTo(FamilyTagId::class, 'tag_id', 'id')->wher('is_deleted',0);
+        return $this->belongsTo(FamilyTagId::class, 'tag_id', 'id')
+                ->where('is_deleted', 0);
     }
 
     /**
