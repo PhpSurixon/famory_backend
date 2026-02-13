@@ -85,37 +85,52 @@
 
 </div>
 
-<script>
+<!-- <script>
     setTimeout(function () {
         window.location.href = "https://play.google.com/store/apps/details?id=io.famory.app";
     }, 2000);
-</script>
+</script> -->
 
-<!-- <script>
-    function redirectToStore() {
-        var userAgent = navigator.userAgent || navigator.vendor || window.opera;
-        console.log(userAgent,'userAgent')
-        // ✅ Android
-        if (/android/i.test(userAgent)) {
+<script>
+(function () {
+
+    var userAgent = navigator.userAgent || navigator.vendor || window.opera;
+
+    function isIOS() {
+        return /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+    }
+
+    function isAndroid() {
+        return /android/i.test(userAgent);
+    }
+
+    function redirectFallback() {
+
+        // Android fallback
+        if (isAndroid()) {
             window.location.href =
                 "https://play.google.com/store/apps/details?id=io.famory.app";
             return;
         }
 
-        // ✅ iOS (iPhone, iPad, iPod)
-        if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+        // iOS fallback
+        if (isIOS()) {
             window.location.href =
-                "https://apps.apple.com/app/idYOUR_APP_ID"; // replace with real App Store ID
+                "https://apps.apple.com/app/87G8Z5TC3H.io.famory.app";
             return;
         }
 
-        // 🌐 Fallback (desktop / unknown)
+        // Desktop fallback
         window.location.href = "https://famoryapp.com";
     }
 
-    // Redirect after loader animation
-    setTimeout(redirectToStore, 5000);
-</script> -->
+    // iOS Universal Link attempt happens automatically.
+    // If app not installed → fallback after delay
+    setTimeout(redirectFallback, 2500);
+
+})();
+</script>
+
 
 
 </body>
