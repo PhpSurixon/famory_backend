@@ -1667,7 +1667,7 @@ class TagsController extends Controller
             $authUser = Auth::user();
             // $album = FamilyTagId::findOrFail($request->tag_id);
             $album = FamilyTagId::where('id',$request->tag_id)->where('is_deleted',0)->first();
-            if(empty($tag)){
+            if(empty($album)){
                 return response()->json([
                     'message' => 'Tags Details not found',
                     'status' => 'failed'
