@@ -70,7 +70,7 @@ use App\Http\Controllers\StripeSubscriptionController;
         Route::get('/get-family-friends',[UserController::class, 'getFamilyAndFriends']);
         Route::post('/user-group-list',[UserController::class, 'userGroupList']);
         Route::post('/move-user-group',[UserController::class, 'moveUserGroup']);
-        
+          
         
         Route::post('/add-member-group',[UserController::class, 'addMemberToGroup']);
         Route::get('/get-group-member',[UserController::class, 'getGroupMember']);
