@@ -331,7 +331,7 @@ class TrustedUserController extends Controller
                 $this->notifyMessage(
                     $authUser,
                     $targetUser->id,
-                    $authUser->id,
+                    $createFollow->id,
                     "trust_request"
                 );
             }
@@ -390,12 +390,12 @@ class TrustedUserController extends Controller
 
             if ($status === 'accepted') {
                 
-                $this->notifyMessage($authUser,$trusted->user_id,$authUser->id,"trust_accept");
+                $this->notifyMessage($authUser,$trusted->user_id,$trusted->id,"trust_accept");
             }
             
             if ($status === 'rejected') {
                 
-                $this->notifyMessage($authUser,$trusted->user_id,$authUser->id,"trust_reject");
+                $this->notifyMessage($authUser,$trusted->user_id,$trusted->id,"trust_reject");
             }
 
             return response()->json([

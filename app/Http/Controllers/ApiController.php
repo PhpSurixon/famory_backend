@@ -2256,10 +2256,10 @@ class ApiController extends Controller
     {
         try 
         {
+
             // ✅ Validation
             $validator = Validator::make($request->all(), [
-                'album_id' => 'required|exists:albums,id',
-                'post_id'  => 'required|exists:posts,id',
+                'post_id' => 'required|exists:posts,id',
             ]);
 
             if ($validator->fails()) {
@@ -2271,22 +2271,28 @@ class ApiController extends Controller
 
             $userId = Auth::id();
 
-            // ✅ Fetch default album of user
-            $album = Album::where('id', $request->album_id)
-                ->where('user_id', $userId)
-                ->where('isDefault', 1)
-                ->first();
+            /**
+             * ==========================
+             * GET OR CREATE DEFAULT ALBUM
+             * ==========================
+             */
+            $album = Album::firstOrCreate(
+                [
+                    'user_id'   => $userId,
+                    'isDefault' => 1
+                ],
+                [
+                    'album_name' => 'Saved Posts'
+                ]
+            );
 
-            if (!$album) {
-                return response()->json([
-                    'message' => 'Album not found or not a default album',
-                    'status'  => 'failed'
-                ], 400);
-            }
-
-            // ✅ Check if post already saved
+            /**
+             * ==========================
+             * CHECK IF POST ALREADY SAVED
+             * ==========================
+             */
             $albumPost = AlbumPost::where([
-                'album_id' => $request->album_id,
+                'album_id' => $album->id,   // ✅ fixed
                 'post_id'  => $request->post_id,
                 'user_id'  => $userId,
             ])->first();
@@ -2297,12 +2303,13 @@ class ApiController extends Controller
              * ==========================
              */
             if ($albumPost) {
+
                 $albumPost->delete();
 
                 return response()->json([
-                    'message' => 'Post removed from album',
-                    'status'  => 'success',
-                    'is_saved'=> false
+                    'message'  => 'Post removed from album',
+                    'status'   => 'success',
+                    'is_saved' => false
                 ], 200);
             }
 
@@ -2312,52 +2319,68 @@ class ApiController extends Controller
              * ==========================
              */
             $albumPost = AlbumPost::create([
-                'album_id' => $request->album_id,
+                'album_id' => $album->id,  // ✅ fixed
                 'post_id'  => $request->post_id,
                 'user_id'  => $userId,
             ]);
 
-            // ✅ Update album cover (only on save)
+            /**
+             * ==========================
+             * UPDATE ALBUM COVER
+             * ==========================
+             */
             $post = Post::find($request->post_id);
-            $thumbnailPath = null;
 
-            $fileExtension = strtolower(pathinfo(
-                $post->video_formats['original'] ?? $post->file,
-                PATHINFO_EXTENSION
-            ));
+            if ($post) {
 
-            $fileType = $this->getFileType($fileExtension);
+                $thumbnailPath = null;
 
-            if ($fileType === 'videos') {
-                $thumbnailPath = parse_url(
-                    $post->video_formats['thumbnails']['medium'],
-                    PHP_URL_PATH
-                );
-            } elseif ($fileType === 'images') {
-                $thumbnailPath = parse_url($post->file, PHP_URL_PATH);
-            } elseif ($fileType === 'audio') {
-                $thumbnailPath = config('app.url') . '/assets/img/audio_bg.webp';
-            }
+                $filePath = $post->video_formats['original'] ?? $post->file ?? null;
 
-            if ($thumbnailPath) {
-                $album->album_cover = $thumbnailPath;
-                $album->save();
+                if ($filePath) {
+
+                    $fileExtension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+                    $fileType = $this->getFileType($fileExtension);
+
+                    if (
+                        $fileType === 'videos' &&
+                        isset($post->video_formats['thumbnails']['medium'])
+                    ) {
+                        $thumbnailPath = parse_url(
+                            $post->video_formats['thumbnails']['medium'],
+                            PHP_URL_PATH
+                        );
+
+                    } elseif ($fileType === 'images') {
+                        $thumbnailPath = parse_url($post->file, PHP_URL_PATH);
+
+                    } elseif ($fileType === 'audio') {
+                        $thumbnailPath = '/assets/img/audio_bg.webp';
+                    }
+                }
+
+                if ($thumbnailPath) {
+                    $album->album_cover = $thumbnailPath;
+                    $album->save();
+                }
             }
 
             return response()->json([
-                'message' => 'Post saved to album',
-                'status'  => 'success',
-                'is_saved'=> true,
-                'data'    => $albumPost
+                'message'  => 'Post saved to album',
+                'status'   => 'success',
+                'is_saved' => true,
+                'data'     => $albumPost
             ], 200);
 
         } catch (\Exception $e) {
+
             return response()->json([
                 'message' => $e->getMessage(),
                 'status'  => 'failed'
             ], 500);
         }
     }
+
 
 
     
