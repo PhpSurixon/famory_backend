@@ -116,6 +116,7 @@ Route::middleware(['checkBlocked'])->group(function () {
 
   Route::get('family/my-members', [FollowController::class, 'getMyFmailyList']);
   Route::get('family/added-me', [FollowController::class, 'getAddedMeFamilyList']);
+  Route::post('family/other-user-list', [FollowController::class, 'getOtherFamilyList']);
 
 });
 

@@ -805,6 +805,130 @@ class FollowController extends Controller
         }
     }
 
+    public function getOtherFamilyList(Request $request)
+    {
+        try {
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $limit  = max((int) $request->get('limit', 30), 1);
+            $page   = max((int) $request->get('page', 1), 1);
+            $offset = ($page - 1) * $limit;
+
+            $search = $request->get('search');
+            $status = $request->get('status'); // pending | accepted
+
+            $userData = User::where('id', $request->user_id)
+                            ->whereNull('deleted_at')
+                            ->first();
+
+            if (!$userData) {
+                return response()->json([
+                    'message' => 'User not found or deleted',
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            // 🔥 Check once (avoid N+1)
+            $isFamoryMember = FamilyMember::where('user_id', $userData->id)
+                                        ->where('member_id', $authUser->id)
+                                        ->whereIn('approval_status', ['accepted', 'pending'])
+                                        ->exists();
+
+            $query = FamilyMember::where('user_id', $userData->id)
+                                ->whereNotIn('member_id', $blockedUserIds)
+                                ->whereHas('user')
+                                ->with('user:id,first_name,last_name,email,username,image');
+
+            // ✅ STATUS FILTER
+            if ($status) {
+                if ($status === 'pending') {
+                    $query->where('approval_status', 'pending');
+                } elseif (in_array($status, ['accepted', 'approved'])) {
+                    $query->where('approval_status', 'accepted');
+                }
+            } else {
+                $query->whereIn('approval_status', ['pending', 'accepted']);
+            }
+
+            // 🔍 SEARCH FILTER
+            if ($search) {
+                $query->whereHas('user', function ($q) use ($search) {
+                    $q->where(function ($qq) use ($search) {
+                        $qq->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('username', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
+                });
+            }
+
+            $totalUsers = $query->count();
+
+            $users = $query->orderBy('id', 'desc')
+                ->skip($offset)
+                ->take($limit)
+                ->get();
+
+            $users = $users->map(function ($follow) use ($isFamoryMember) {
+
+                if (!$follow->user) {
+                    return null;
+                }
+
+                $follower = $follow->user;
+
+                return [
+                    'id'               => $follow->id,
+                    'member_id'        => $follower->id,
+                    'first_name'       => $follower->first_name,
+                    'last_name'        => $follower->last_name,
+                    'email'            => $follower->email,
+                    'username'         => $follower->username,
+                    'image'            => $follower->image,
+                    'approval_status'  => $follow->approval_status,
+                    'is_famory_member' => $isFamoryMember,
+                ];
+
+            })->filter()->values();
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Get Other Family members fetched successfully',
+                'data'    => [
+                    'count'       => $totalUsers,
+                    'page'        => $page,
+                    'limit'       => $limit,
+                    'total_pages' => ceil($totalUsers / $limit),
+                    'users'       => $users
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            dd($e);
+
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+
     public function getAddedMeFamilyList(Request $request)
     {
         try {
