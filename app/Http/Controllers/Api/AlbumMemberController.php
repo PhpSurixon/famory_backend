@@ -728,7 +728,7 @@ class AlbumMemberController extends Controller
             // =========================================================
             if ($legacy_type == 'shared') {
 
-                $query = LegacyAlbum::select('id','title','conver_image','user_id')
+                $query = LegacyAlbum::select('id','title','conver_image','user_id','shared_with_id')
                     ->where('shared_with_id', $authUser->id)
                     ->where('type','legacy')
                     ->where('is_deleted',0)
@@ -755,6 +755,7 @@ class AlbumMemberController extends Controller
                             'conver_image'  => $album->conver_image ? $album->conver_image : null,
                             'posts_count'   => $album->posts_count,
                             'owner_id'      => $album->owner->id ?? null,
+                            'shared_with_id'      => $album->shared_with_id ?? null,
                             'owner_name'    => $album->owner->first_name ?? '',
                             'is_dead'       => $album->owner->is_dead ? true : false,
                             // 'owner_image'   => !empty($album->owner->image) ? $s3BaseUrl . $album->owner->image : null,
@@ -770,7 +771,7 @@ class AlbumMemberController extends Controller
             // =========================================================
             else {
 
-                $query = LegacyAlbum::select('id','title','conver_image','shared_with_id')
+                $query = LegacyAlbum::select('id','title','conver_image','user_id','shared_with_id')
                     ->where('user_id', $authUser->id)
                     ->where('is_deleted',0)
                     ->where('type','legacy')
@@ -818,7 +819,9 @@ class AlbumMemberController extends Controller
                         return [
                             'album_id'          => $album->id,
                             'title'             => $album->title,
-                            // 'conver_image'      => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
+                            'owner_id'          => $album->user_id ?? null,
+                            'shared_with_id'    => $album->shared_with_id ?? null,
+                            // 'conver_image'   => $album->conver_image ? $s3BaseUrl . $album->conver_image : null,
                             'conver_image'      => $album->conver_image ? $album->conver_image : null,
                             'posts_count'       => $album->posts_count,
                             'is_dead'           => false,  // creator is current user
@@ -883,7 +886,7 @@ class AlbumMemberController extends Controller
             $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$getLegacyAlbum->id)
                                                  ->pluck('post_id')
                                                  ->toArray();
-            $post = Post::withCount('like','comments')->whereIn('id',$get_legacy_postIds)->get();
+            $post = Post::withCount('like','comments')->with('user')->whereIn('id',$get_legacy_postIds)->get();
 
 
             return response()->json([

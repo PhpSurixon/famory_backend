@@ -2542,6 +2542,11 @@ class PostController extends Controller
                     'status' => 'approved'
                 ])->exists();
 
+                $post->is_famory = FamilyMember::where('user_id', $currentUser)
+                                                  ->where('member_id', $post->user_id)
+                                                  ->whereIn('approval_status', ['pending', 'accepted'])
+                                                  ->exists();
+
                 $post->is_save = AlbumPost::where([
                     'user_id' => $currentUser,
                     'post_id'     => $post->id

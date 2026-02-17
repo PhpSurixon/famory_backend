@@ -917,13 +917,13 @@ class ApiController extends Controller
             }
 
             $data['post_data'] = $posts;
-            $my_legacy_album = LegacyAlbum::select('id','title','conver_image')
+            $my_legacy_album = LegacyAlbum::select('id','title','conver_image','shared_with_id')
                                            ->where('user_id',$current_user)
                                            ->where('type','legacy')
                                            ->where('is_deleted',0)
                                            ->take(5)
                                            ->get();
-            $shared_legacy_album = LegacyAlbum::select('id','title','conver_image')
+            $shared_legacy_album = LegacyAlbum::select('id','title','conver_image','shared_with_id')
                                                ->where('shared_with_id',$current_user)
                                                ->where('type','legacy')
                                                ->where('is_deleted',0)
@@ -2069,6 +2069,8 @@ class ApiController extends Controller
             foreach ($albumPosts as $albumPost) {
                 if ($albumPost->post) {
                     $post = $albumPost->post;
+
+                    $post->is_save    = AlbumPost::where('post_id', $post->id)->where('user_id',$user->id)->exists();
 
                     $post->like_count = Like::where('post_id', $post->id)->count() ?? 0;
                     $post->comments_count = Comment::where('post_id', $post->id)->count() ?? 0;
