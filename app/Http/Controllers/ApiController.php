@@ -2369,7 +2369,7 @@ class ApiController extends Controller
                 'message'  => 'Post saved to album',
                 'status'   => 'success',
                 'is_saved' => true,
-                'data'     => $albumPost
+                // 'data'     => $albumPost
             ], 200);
 
         } catch (\Exception $e) {

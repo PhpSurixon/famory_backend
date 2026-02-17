@@ -11,6 +11,7 @@ use App\Models\PostMember;
 use App\Models\FamilyMember;
 use App\Models\MemberGroup;
 use App\Models\Follow;
+use App\Models\Like;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -629,6 +630,11 @@ class PostController extends Controller
                     'following_id' => $getPost->user_id,
                     'status' => 'approved'
                 ])->exists();
+
+                $getPost->is_like = Like::where([
+                                                'user_id' => $currentUser->id,
+                                                'post_id' => $getPost->id,
+                                            ])->exists();
                 
                 return response()->json([
                     'message' => 'Post Details successfully!',
