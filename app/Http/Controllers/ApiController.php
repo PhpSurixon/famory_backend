@@ -1835,7 +1835,7 @@ class ApiController extends Controller
                                 ->where('status', 'approved')
                                 ->exists();
 
-            $my_family_count = FamilyMember::where('user_id', $authUser->id)
+            $my_family_count = FamilyMember::where('user_id', $user->id)
                                          ->where('approval_status','accepted')
                                          ->count();
 
