@@ -242,7 +242,7 @@ class TagsController extends Controller
                                     ->take(8)
                                     ->get();
 
-            $FamoryTags = Product::get();
+            $FamoryTags = Product::take(8)->get();
 
             /** ----------------------------------------------------
              * FINAL RESPONSE
@@ -2015,6 +2015,59 @@ class TagsController extends Controller
             ], 500);
         }
     }
+
+    public function physicalList(Request $request)
+    {
+        try 
+        {
+            $limit  = (int) $request->get('limit', 10);
+            $page   = (int) $request->get('page', 1);
+            $search = $request->get('search');
+            $sort   = $request->get('sort', 'desc'); // asc or desc
+
+            $offset = ($page - 1) * $limit;
+
+            $query = Product::query();
+
+            // ✅ Search Filter (by product name)
+            if (!empty($search)) {
+                $query->where('name', 'LIKE', '%' . $search . '%');
+            }
+
+            // ✅ Sorting (by id)
+            $query->orderBy('price', $sort);
+
+            $total = $query->count();
+
+            $FamoryTags = $query
+                ->offset($offset)
+                ->limit($limit)
+                ->get();
+
+            $data = [
+                'count'       => $total,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($total / $limit),
+                'FamoryTags'  => $FamoryTags,
+            ];
+
+            return response()->json([
+                'message' => 'Physical Tags List successfully',
+                'status'  => 'success',
+                'data'    => $data
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+
 
 
 

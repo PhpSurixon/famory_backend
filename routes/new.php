@@ -175,5 +175,14 @@ Route::post('tag/delete', [TagsController::class, 'deleteTags']);
 Route::post('tag-buy', [TagsController::class, 'buyTag']);
 Route::get('tag-buy-history', [TagsController::class, 'TagBuyHistory']);
 
+Route::get('tag/physical/list',[TagsController::class,'physicalList']);
+
+Route::get('user/address/list',[UserController::class,'addressList']);
+Route::post('user/address/create',[UserController::class,'addressCreate']);
+Route::post('user/address/update',[UserController::class,'addressUpdate']);
+Route::post('user/address/delete',[UserController::class,'addressDelete']);
+Route::post('user/address/set-default',[UserController::class,'setDefaultAddress']);
+
+
 
 });

@@ -33,6 +33,7 @@ use App\Mail\InviteGuestUserMail;
 use App\Models\Notification;
 use App\Models\Follow;
 use App\Models\TrustedUser;
+use App\Models\UserAddress;
 use App\Services\UploadImage;
 
 use Illuminate\Support\Facades\Log;
@@ -2651,6 +2652,278 @@ class UserController extends Controller
                 'data'    => $userList
             ],200);
     }
+
+    public function addressList(Request $request)
+    {
+        try 
+        {
+            $authUser             = Auth::user();
+            $user_address_list    = UserAddress::where('user_id',$authUser->id)->orderBy('id','desc')->get();
+            return response()->json([
+                'message' => 'User Address List successfully',
+                'status'  => 'success',
+                'data'    => $user_address_list
+            ], 200);
+            
+        } catch (Exception $e) {
+             return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+    public function addressCreate(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'name'         => 'required|string',
+                'phone_number' => ['required', 'string', 'regex:/^\+?1?\d{9,15}$/'],
+                'house_number' => 'required|string',
+                'road_name'    => 'required|string',
+                'state'        => 'required|string',
+                'zip_code'     => ['required', 'string', 'regex:/^\d{5}(-\d{4})?$/'],
+                'is_default'   => 'nullable|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            $authUser = Auth::user();
+
+            $isDefault = $request->is_default ? 1 : 0;
+
+            // ✅ If new address is default, remove old default
+            if ($isDefault == 1) {
+                UserAddress::where('user_id', $authUser->id)
+                    ->update(['is_default' => 0]);
+            }
+
+            $insertData = [
+                'user_id'      => $authUser->id,
+                'name'         => $request->name,
+                'phone_number' => $request->phone_number,
+                'house_number' => $request->house_number,
+                'road_name'    => $request->road_name,
+                'state'        => $request->state,
+                'zip_code'     => $request->zip_code,
+                'is_default'   => $isDefault
+            ];
+
+            $createAddress = UserAddress::create($insertData);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'User Address created successfully',
+                'status'  => 'success',
+                'data'    => $createAddress
+            ], 200);
+
+        } catch (Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+    public function addressUpdate(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'id'           => 'required|integer|exists:user_addresses,id',
+                'name'         => 'required|string',
+                'phone_number' => ['required', 'string', 'regex:/^\+?1?\d{9,15}$/'],
+                'house_number' => 'required|string',
+                'road_name'    => 'required|string',
+                'state'        => 'required|string',
+                'zip_code'     => ['required', 'string', 'regex:/^\d{5}(-\d{4})?$/'],
+                // 'is_default'   => 'nullable|boolean',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            $authUser = Auth::user();
+
+            // ✅ Find address and make sure it belongs to logged in user
+            $address = UserAddress::where('id', $request->id)
+                                    ->where('user_id', $authUser->id)
+                                    ->first();
+
+            if (!$address) {
+                return response()->json([
+                    'message' => 'Address not found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+
+            // ✅ Update address
+            $address->update([
+                'name'         => $request->name,
+                'phone_number' => $request->phone_number,
+                'house_number' => $request->house_number,
+                'road_name'    => $request->road_name,
+                'state'        => $request->state,
+                'zip_code'     => $request->zip_code
+            ]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'User Address updated successfully',
+                'status'  => 'success',
+                'data'    => $address
+            ], 200);
+
+        } catch (Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+    public function addressDelete(Request $request)
+    {
+        try 
+        {
+
+            $validator = Validator::make($request->all(), [
+                'id' => 'required|integer|exists:user_addresses,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            $authUser = Auth::user();
+
+            $address = UserAddress::where('id', $request->id)
+                                ->where('user_id', $authUser->id)
+                                ->first();
+
+            if (!$address) {
+                return response()->json([
+                    'message' => 'Address not found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // 🔥 Optional: Prevent deleting default address
+            if ($address->is_default == 1) {
+                return response()->json([
+                    'message' => 'Default address cannot be deleted. Please set another address as default first.',
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $address->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Address deleted successfully',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+    public function setDefaultAddress(Request $request)
+    {
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'id' => 'required|integer|exists:user_addresses,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            DB::beginTransaction();
+
+            $authUser = Auth::user();
+
+            $address = UserAddress::where('id', $request->id)
+                                    ->where('user_id', $authUser->id)
+                                    ->first();
+
+            if (!$address) {
+                return response()->json([
+                    'message' => 'Address not found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // ✅ Reset all addresses
+            UserAddress::where('user_id', $authUser->id)
+                ->update(['is_default' => 0]);
+
+            // ✅ Set selected as default
+            $address->update(['is_default' => 1]);
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Default address updated successfully',
+                'status'  => 'success',
+                'data'    => $address
+            ], 200);
+
+        } catch (Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+
+
+
 
 
 
