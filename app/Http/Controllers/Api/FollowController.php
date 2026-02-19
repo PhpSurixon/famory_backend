@@ -654,17 +654,21 @@ class FollowController extends Controller
             }
             
             // 🔍 Check existing in BOTH directions
-            $existing = FamilyMember::where(function ($q) use ($authUser, $targetUser) {
+            // $existing = FamilyMember::where(function ($q) use ($authUser, $targetUser) {
 
-                $q->where('user_id', $authUser->id)
-                ->where('member_id', $targetUser->id);
+            //     $q->where('user_id', $authUser->id)
+            //     ->where('member_id', $targetUser->id);
 
-            })->orWhere(function ($q) use ($authUser, $targetUser) {
+            // })->orWhere(function ($q) use ($authUser, $targetUser) {
 
-                $q->where('user_id', $targetUser->id)
-                ->where('member_id', $authUser->id);
+            //     $q->where('user_id', $targetUser->id)
+            //     ->where('member_id', $authUser->id);
 
-            })->first();
+            // })->first();
+
+            $existing = FamilyMember::where('user_id', $authUser->id)
+                                    ->where('member_id', $targetUser->id)
+                                    ->first();
 
             if ($existing) 
             {
