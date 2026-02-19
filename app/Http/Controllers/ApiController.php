@@ -1840,10 +1840,10 @@ class ApiController extends Controller
                                          ->count();
 
             $member = FamilyMember::where(function ($query) use ($user_id, $authUser) {
-                            $query->where(['user_id' => $authUser->id, 'member_id' => $user_id])
-                                ->orWhere(function ($q) use ($user_id, $authUser) {
-                                    $q->where(['user_id' => $user_id, 'member_id' => $authUser->id]);
-                                });
+                            $query->where(['user_id' => $authUser->id, 'member_id' => $user_id]);
+                                // ->orWhere(function ($q) use ($user_id, $authUser) {
+                                //     $q->where(['user_id' => $user_id, 'member_id' => $authUser->id]);
+                                // });
                     })->whereIn('approval_status',['accepted','pending'])->first();
 
             // ✅ Counts

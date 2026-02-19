@@ -2543,10 +2543,10 @@ class PostController extends Controller
                 ])->exists();
 
                 $member = FamilyMember::where(function ($query) use ($post, $currentUser) {
-                            $query->where(['user_id' => $currentUser, 'member_id' => $post->user_id])
-                                ->orWhere(function ($q) use ($post, $currentUser) {
-                                    $q->where(['user_id' => $post->user_id, 'member_id' => $currentUser]);
-                                });
+                            $query->where(['user_id' => $currentUser, 'member_id' => $post->user_id]);
+                                // ->orWhere(function ($q) use ($post, $currentUser) {
+                                //     $q->where(['user_id' => $post->user_id, 'member_id' => $currentUser]);
+                                // });
                     })->whereIn('approval_status',['accepted','pending'])->first();
 
                 $post->is_famory = FamilyMember::where('user_id', $currentUser)
