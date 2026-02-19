@@ -1846,6 +1846,11 @@ class ApiController extends Controller
                                 // });
                     })->whereIn('approval_status',['accepted','pending'])->first();
 
+            $otherUserGetRequest = FamilyMember::select('id','approval_status')->where(function ($query) use ($user_id, $authUser) {
+                                      $query->where(['user_id' => $user_id, 'member_id' =>$authUser->id]);
+                        })->whereIn('approval_status',['pending'])->first();
+
+
             // ✅ Counts
             $followerCount  = Follow::where('following_id', $user_id)->where('status', 'approved')->count();
             $followingCount = Follow::where('follower_id', $user_id)->where('status', 'approved')->count();
@@ -1873,6 +1878,8 @@ class ApiController extends Controller
             $userArray['is_following']    = (bool) $isFollowing;
             $userArray['is_family_member']= !empty($member);
             $userArray['is_family_member_status']= isset($member)?$member->approval_status:null;
+            $userArray['respond_to_family_request']= !empty($otherUserGetRequest);
+            $userArray['respond_to_family_request_id']= isset($otherUserGetRequest)?$otherUserGetRequest->id:null;
             $userArray['my_family_count'] = (int) $my_family_count;
             $userArray['follower_count']  = (int) $followerCount;
             $userArray['following_count'] = (int) $followingCount;
