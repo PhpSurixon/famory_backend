@@ -919,7 +919,7 @@ class FollowController extends Controller
 
         } catch (\Exception $e) {
 
-            dd($e);
+            // dd($e);
 
             return response()->json([
                 'message' => 'Something went wrong!',
@@ -1234,12 +1234,71 @@ class FollowController extends Controller
         }
     }
 
+    // public function removeFamily(Request $request)
+    // {
+    //     try {
+
+    //         $validator = Validator::make($request->all(), [
+    //             'user_id' => 'required|exists:users,id', // family member to remove
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status'  => 'failed'
+    //             ], 422);
+    //         }
+
+    //         $authId   = Auth::id();
+    //         $targetId = $request->user_id;
+
+    //         // 🚫 Self protection
+    //         if ($authId == $targetId) {
+    //             return response()->json([
+    //                 'message' => "You can't remove yourself",
+    //                 'status'  => 'failed'
+    //             ], 400);
+    //         }
+
+    //         DB::transaction(function () use ($authId, $targetId) {
+
+    //             // 🗑 Delete family relation BOTH ways
+    //             FamilyMember::where(function ($q) use ($authId, $targetId) {
+
+    //                 $q->where('user_id', $authId)
+    //                   ->where('member_id', $targetId);
+
+    //             })->orWhere(function ($q) use ($authId, $targetId) {
+
+    //                 $q->where('user_id', $targetId)
+    //                   ->where('member_id', $authId);
+
+    //             })->delete();
+
+                
+    //         });
+
+    //         return response()->json([
+    //             'message' => 'Family member removed successfully',
+    //             'status'  => 'success'
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'message' => 'Something went wrong!',
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function removeFamily(Request $request)
     {
-        try {
+        try 
+        {
 
             $validator = Validator::make($request->all(), [
-                'user_id' => 'required|exists:users,id', // family member to remove
+                'user_id' => 'required|exists:users,id',
             ]);
 
             if ($validator->fails()) {
@@ -1275,11 +1334,24 @@ class FollowController extends Controller
 
                 })->delete();
 
-                
+
+                // 🗑 Delete follow relation BOTH ways
+                Follow::where(function ($q) use ($authId, $targetId) {
+
+                    $q->where('follower_id', $authId)
+                      ->where('following_id', $targetId);
+
+                })->orWhere(function ($q) use ($authId, $targetId) {
+
+                    $q->where('follower_id', $targetId)
+                      ->where('following_id', $authId);
+
+                })->delete();
+
             });
 
             return response()->json([
-                'message' => 'Family member removed successfully',
+                'message' => 'Family member and follow relation removed successfully',
                 'status'  => 'success'
             ], 200);
 
@@ -1291,6 +1363,65 @@ class FollowController extends Controller
             ], 400);
         }
     }
+
+    public function cancelFamilyRequest(Request $request)
+    {
+        try 
+        {
+
+            $validator = Validator::make($request->all(), [
+                'user_id' => 'required|exists:users,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 422);
+            }
+
+            $authId   = Auth::id();
+            $targetId = $request->user_id;
+
+            // 🚫 Self check
+            if ($authId == $targetId) {
+                return response()->json([
+                    'message' => "Invalid request",
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            // 🔍 Find my sent & pending request
+            $familyRequest = FamilyMember::where('user_id', $authId)
+                ->where('member_id', $targetId)
+                ->where('approval_status', 'pending')
+                ->first();
+
+            if (!$familyRequest) {
+                return response()->json([
+                    'message' => 'No pending request found',
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            // 🗑 Delete request
+            $familyRequest->delete();
+
+            return response()->json([
+                'message' => 'Family request cancelled successfully',
+                'status'  => 'success'
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'message' => 'Something went wrong!',
+                'status'  => 'failed'
+            ], 400);
+        }
+    }
+
+
 
 
 

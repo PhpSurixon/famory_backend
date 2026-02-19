@@ -8,6 +8,7 @@ use App\Models\UserReport;
 use App\Models\User;
 use App\Models\BlockUser;
 use App\Models\Follow;
+use App\Models\FamilyMember;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
@@ -78,6 +79,93 @@ class UserReportController extends Controller
         }
     }
 
+    // public function blockUser(Request $request)
+    // {
+    //     try {
+    //         $validator = Validator::make($request->all(), [
+    //             'marked_user_id' => 'required|exists:users,id',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status'  => 'failed'
+    //             ], 400);
+    //         }
+
+    //         $authUser = Auth::user();
+    //         $targetId = $request->marked_user_id;
+    //         DB::beginTransaction();
+
+    //         if ($authUser->id == $targetId) {
+    //             return response()->json([
+    //                 'message' => "You cannot block yourself",
+    //                 'status'  => 'failed'
+    //             ], 400);
+    //         }
+
+    //         $block = BlockUser::where('user_id', $authUser->id)
+    //             ->where('marked_user_id', $targetId)
+    //             ->first();
+
+    //         if ($block) {
+    //             // Toggle block/unblock
+    //             if ($block->block == 1) {
+    //                 $block->update(['block' => 0]); // Unblock
+    //                 $msg = "User unblocked successfully";
+    //                 $action = "unblocked";
+    //             } else {
+    //                 $block->update(['block' => 1]); // Block
+    //                 $msg = "User blocked successfully";
+    //                 $action = "blocked";
+
+    //                 Follow::where(function ($q) use ($authUser, $targetId) {
+    //                     $q->where('follower_id', $authUser->id)->where('following_id', $targetId);
+    //                 })->orWhere(function ($q) use ($authUser, $targetId) {
+    //                     $q->where('follower_id', $targetId)->where('following_id', $authUser->id);
+    //                 })->delete();
+    //             }
+    //         } else {
+    //             // First time block
+    //             $block = BlockUser::create([
+    //                 'user_id'       => $authUser->id,
+    //                 'marked_user_id'=> $targetId,
+    //                 'block'         => 1,
+    //                 'is_live'       => 0
+    //             ]);
+
+    //             // remove follow relations
+    //             Follow::where(function ($q) use ($authUser, $targetId) {
+    //                 $q->where('follower_id', $authUser->id)->where('following_id', $targetId);
+    //             })->orWhere(function ($q) use ($authUser, $targetId) {
+    //                 $q->where('follower_id', $targetId)->where('following_id', $authUser->id);
+    //             })->delete();
+
+
+    //             $msg = "User blocked successfully";
+    //             $action = "blocked";
+    //         }
+
+    //         DB::commit();
+
+    //         return response()->json([
+    //             'message' => $msg,
+    //             'status'  => "success",
+    //             'data'    => [
+    //                 'user_id'       => $authUser->id,
+    //                 'marked_user_id'=> $targetId,
+    //                 'action'        => $action
+    //             ]
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something went wrong! " . $e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
+
     public function blockUser(Request $request)
     {
         try {
@@ -94,7 +182,6 @@ class UserReportController extends Controller
 
             $authUser = Auth::user();
             $targetId = $request->marked_user_id;
-            DB::beginTransaction();
 
             if ($authUser->id == $targetId) {
                 return response()->json([
@@ -103,43 +190,40 @@ class UserReportController extends Controller
                 ], 400);
             }
 
+            DB::beginTransaction();
+
             $block = BlockUser::where('user_id', $authUser->id)
                 ->where('marked_user_id', $targetId)
                 ->first();
 
             if ($block) {
-                // Toggle block/unblock
+
                 if ($block->block == 1) {
-                    $block->update(['block' => 0]); // Unblock
+                    // 🔓 UNBLOCK
+                    $block->update(['block' => 0]);
                     $msg = "User unblocked successfully";
                     $action = "unblocked";
+
                 } else {
-                    $block->update(['block' => 1]); // Block
+                    // 🔒 BLOCK
+                    $block->update(['block' => 1]);
                     $msg = "User blocked successfully";
                     $action = "blocked";
 
-                    Follow::where(function ($q) use ($authUser, $targetId) {
-                        $q->where('follower_id', $authUser->id)->where('following_id', $targetId);
-                    })->orWhere(function ($q) use ($authUser, $targetId) {
-                        $q->where('follower_id', $targetId)->where('following_id', $authUser->id);
-                    })->delete();
+                    $this->removeRelations($authUser->id, $targetId);
                 }
+
             } else {
+
                 // First time block
                 $block = BlockUser::create([
-                    'user_id'       => $authUser->id,
-                    'marked_user_id'=> $targetId,
-                    'block'         => 1,
-                    'is_live'       => 0
+                    'user_id'        => $authUser->id,
+                    'marked_user_id' => $targetId,
+                    'block'          => 1,
+                    'is_live'        => 0
                 ]);
 
-                // remove follow relations
-                Follow::where(function ($q) use ($authUser, $targetId) {
-                    $q->where('follower_id', $authUser->id)->where('following_id', $targetId);
-                })->orWhere(function ($q) use ($authUser, $targetId) {
-                    $q->where('follower_id', $targetId)->where('following_id', $authUser->id);
-                })->delete();
-
+                $this->removeRelations($authUser->id, $targetId);
 
                 $msg = "User blocked successfully";
                 $action = "blocked";
@@ -151,19 +235,22 @@ class UserReportController extends Controller
                 'message' => $msg,
                 'status'  => "success",
                 'data'    => [
-                    'user_id'       => $authUser->id,
-                    'marked_user_id'=> $targetId,
-                    'action'        => $action
+                    'user_id'        => $authUser->id,
+                    'marked_user_id' => $targetId,
+                    'action'         => $action
                 ]
             ], 200);
 
         } catch (\Exception $e) {
+            DB::rollBack();
+
             return response()->json([
                 'message' => "Something went wrong! " . $e->getMessage(),
                 'status'  => 'failed'
             ], 400);
         }
     }
+
 
 
     public function blockedUsers(Request $request)
@@ -237,6 +324,30 @@ class UserReportController extends Controller
             ], 400);
         }
     }
+
+
+    private function removeRelations($userA, $userB)
+    {
+        // 🗑 Remove Follow BOTH ways
+        Follow::where(function ($q) use ($userA, $userB) {
+            $q->where('follower_id', $userA)
+              ->where('following_id', $userB);
+        })->orWhere(function ($q) use ($userA, $userB) {
+            $q->where('follower_id', $userB)
+              ->where('following_id', $userA);
+        })->delete();
+
+
+        // 🗑 Remove FamilyMember BOTH ways
+        FamilyMember::where(function ($q) use ($userA, $userB) {
+            $q->where('user_id', $userA)
+              ->where('member_id', $userB);
+        })->orWhere(function ($q) use ($userA, $userB) {
+            $q->where('user_id', $userB)
+              ->where('member_id', $userA);
+        })->delete();
+    }
+
 
 
 }
