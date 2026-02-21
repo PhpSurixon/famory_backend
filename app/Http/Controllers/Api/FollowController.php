@@ -1224,6 +1224,16 @@ class FollowController extends Controller
                 );
             }
 
+            $update_notification = Notification::where('item_id',$requestRow->id)
+                                                ->where('receiver_id',$requestRow->member_id)
+                                                ->where('has_actioned',0)
+                                                ->first();
+            if($update_notification)
+            {
+                $update_notification->has_actioned =1;
+                $update_notification->save();
+            }
+
             return response()->json([
                 'message' => 'Family request accepted successfully',
                 'status'  => 'success'
@@ -1410,6 +1420,8 @@ class FollowController extends Controller
 
             // 🗑 Delete request
             $familyRequest->delete();
+
+            $delete_notification = Notification::where('item_id',$familyRequest->id)->delete();
 
             return response()->json([
                 'message' => 'Family request cancelled successfully',

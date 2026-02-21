@@ -389,7 +389,7 @@ class NotificationController extends Controller
             // Update unseen → seen
             Notification::where('receiver_id', $authId)
                 ->where('isSeen', 0)
-                ->update(['isSeen' => 1]);
+                ->update(['isSeen' => 1,'has_actioned' => 1]);
 
             return response()->json([
                 'message' => "All $unseenCount notifications marked as seen",
@@ -438,6 +438,7 @@ class NotificationController extends Controller
 
             // Update to seen
             $notification->isSeen = 1;
+            $notification->has_actioned = 1;
             $notification->save();
 
             return response()->json([

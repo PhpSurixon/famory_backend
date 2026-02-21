@@ -1342,6 +1342,16 @@ class TagsController extends Controller
 
             $this->notifyMessage($authUser, $request->member_id, $tag->id, $notifType);
 
+            $update_notification = Notification::where('item_id',$tag->id)
+                                                ->where('receiver_id',$record->user_id)
+                                                ->where('has_actioned',0)
+                                                ->first();
+            if($update_notification)
+            {
+                $update_notification->has_actioned = 1;
+                $update_notification->save();
+            }
+
             DB::commit();
 
             return response()->json([

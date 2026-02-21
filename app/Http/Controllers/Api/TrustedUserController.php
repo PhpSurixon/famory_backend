@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\TrustedUser;
 use App\Models\User;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
@@ -396,6 +397,16 @@ class TrustedUserController extends Controller
             if ($status === 'rejected') {
                 
                 $this->notifyMessage($authUser,$trusted->user_id,$trusted->id,"trust_reject");
+            }
+
+            $update_notification = Notification::where('item_id',$trusted->id)
+                                                ->where('receiver_id',$trusted->user_id)
+                                                ->where('has_actioned',0)
+                                                ->first();
+            if($update_notification)
+            {
+                $update_notification->has_actioned =1;
+                $update_notification->save();
             }
 
             return response()->json([
