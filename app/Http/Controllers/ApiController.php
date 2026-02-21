@@ -741,7 +741,8 @@ class ApiController extends Controller
                     'burialinfo',
                     'last_will_url',
                     'post' => function($query1){
-                        $query1->orderBy('updated_at', 'desc')
+                        $query1->whereIn('post_type', ['public','my_famory'])
+                               ->orderBy('updated_at', 'desc')
                                ->take(5);
                     },
                     'album' => function ($query) {

@@ -2507,7 +2507,9 @@ class PostController extends Controller
             if ($request->type == "when-pass" || $request->type == "scheduled") {
                 $query = $getPost->whereHas('scheduling_post', fn($q) => $q->where('is_post', 0));
             } elseif ($request->type == "my-post") {
-                $query = $getPost->where('post_type','!=','private')->whereHas('scheduling_post', fn($q) => $q->whereIn('is_post', [0, 1]));
+                // $query = $getPost->where('post_type','!=','private')->whereHas('scheduling_post', fn($q) => $q->whereIn('is_post', [0, 1]));
+                $query = $getPost->whereIn('post_type', ['public','my_famory'])
+                                 ->whereHas('scheduling_post', fn($q) => $q->whereIn('is_post', [0, 1]));
             } else {
                 $query = $getPost->whereHas('scheduling_post', fn($q) => $q->where('is_post', 1));
             }
