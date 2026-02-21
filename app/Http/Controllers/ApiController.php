@@ -866,7 +866,7 @@ class ApiController extends Controller
             $TrustedAdminCount      = TrustedUser::where('user_id', $current_user)->whereIn('status', ['pending', 'approved'])->count();
             $data['follower_count'] = $followerCount;
             $data['following_count'] = $followingCount;
-            $data['post_count'] = $postCount;
+            
             $data['trusted_admin_count'] = $TrustedAdminCount;
 
             // ✅ Add all posts in same format as my-post
@@ -884,6 +884,7 @@ class ApiController extends Controller
 
             // $postCount      = Post::where('user_id', $current_user)->count();
             $postCount      = $postsQuery->count();
+            $data['post_count'] = $postCount;
             $posts          = $postsQuery->take(5)->get();
 
             foreach ($posts as $post) {
