@@ -872,11 +872,12 @@ class ApiController extends Controller
 
             // ✅ Add all posts in same format as my-post
             $postsQuery = Post::where('user_id', $current_user)
-                ->whereHas('scheduling_post', function ($q) {
-                    $q->whereIn('is_post', [0, 1]);
-                })
-                ->with('user')
-                ->orderBy('updated_at', 'desc');
+                              ->whereIn('post_type', ['public','my_famory'])
+                            ->whereHas('scheduling_post', function ($q) {
+                                $q->whereIn('is_post', [0, 1]);
+                            })
+                            ->with('user')
+                            ->orderBy('updated_at', 'desc');
 
             if (!empty($blockedUserIds)) {
                 $postsQuery->whereNotIn('user_id', $blockedUserIds);
