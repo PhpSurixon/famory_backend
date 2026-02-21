@@ -863,7 +863,6 @@ class ApiController extends Controller
 
             $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
             $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
-            $postCount      = Post::where('user_id', $current_user)->count();
             $TrustedAdminCount      = TrustedUser::where('user_id', $current_user)->whereIn('status', ['pending', 'approved'])->count();
             $data['follower_count'] = $followerCount;
             $data['following_count'] = $followingCount;
@@ -883,7 +882,9 @@ class ApiController extends Controller
                 $postsQuery->whereNotIn('user_id', $blockedUserIds);
             }
 
-            $posts = $postsQuery->take(5)->get();
+            // $postCount      = Post::where('user_id', $current_user)->count();
+            $postCount      = $postsQuery->count();
+            $posts          = $postsQuery->take(5)->get();
 
             foreach ($posts as $post) {
                 $post->like_count = Like::where('post_id', $post->id)->count();
