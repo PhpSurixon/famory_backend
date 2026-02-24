@@ -1227,10 +1227,11 @@ class FollowController extends Controller
             $update_notification = Notification::where('item_id',$requestRow->id)
                                                 ->where('receiver_id',$requestRow->member_id)
                                                 ->where('has_actioned',0)
+                                                ->where('type','invite')
                                                 ->first();
             if($update_notification)
             {
-                $update_notification->has_actioned =1;
+                $update_notification->has_actioned = 1;
                 $update_notification->save();
             }
 

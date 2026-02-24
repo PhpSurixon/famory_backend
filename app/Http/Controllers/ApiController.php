@@ -2635,6 +2635,7 @@ class ApiController extends Controller
 
             $query = Notification::where('receiver_id', $user->id)
                 ->where('has_actioned', 0)
+                ->where('isSeen', 0)
                 ->with('group')
                 ->orderBy('id', 'DESC');
 
@@ -2839,7 +2840,7 @@ class ApiController extends Controller
             $user = Auth::user();
             $count = Notification::where('receiver_id',$user->id)->where('isSeen','0')->count();
             if($request->isSeen){
-                Notification::where('receiver_id', $user->id)->where('isSeen', '0')->update(['isSeen' => '1']);
+                Notification::where('receiver_id', $user->id)->where('isSeen', '0')->update(['isSeen' => '1','has_actioned'=>1]);
                 return $this->successResponse("Get counts notification Successfully.",200,null);
             }
             return $this->successResponse("Get counts notification Successfully.",200,$count);
