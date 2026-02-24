@@ -761,6 +761,7 @@ class PostController extends Controller
             $filePath = null;
             $videoPath = null;
             $folder = null;
+            $thumbnailPath = null;
 
             if ($request->hasFile('media') && $request->file('media')->isValid()) 
             {
@@ -823,6 +824,17 @@ class PostController extends Controller
                 }
                 $schedule->save();
 
+                if($post->media_type == 'picture')
+                {
+                    $thumbnailPath = $post->file;
+                }elseif($post->media_type == 'video')
+                {
+                    $thumbnailPath = isset($videoPath) ?$videoPath['thumbnails']['small']:null;
+                }else{
+                    $thumbnailPath = null;
+
+                }
+
                 // Album post logic
                 if ($request->schedule_type == "now" && $request->album_id) 
                 {
@@ -842,17 +854,17 @@ class PostController extends Controller
 
                     
                     // Create Album Cover
-                    $thumbnailPath = null;
-                    if($post->media_type == 'picture')
-                    {
-                        $thumbnailPath = $post->file;
-                    }elseif($post->media_type == 'video')
-                    {
-                        $thumbnailPath = isset($videoPath) ?$videoPath['thumbnails']['small']:null;
-                    }else{
-                        $thumbnailPath = null;
+                    
+                    // if($post->media_type == 'picture')
+                    // {
+                    //     $thumbnailPath = $post->file;
+                    // }elseif($post->media_type == 'video')
+                    // {
+                    //     $thumbnailPath = isset($videoPath) ?$videoPath['thumbnails']['small']:null;
+                    // }else{
+                    //     $thumbnailPath = null;
                          
-                    }
+                    // }
                             
                     if(!empty($thumbnailPath))
                     {
@@ -973,6 +985,19 @@ class PostController extends Controller
                         $this->notifyMessage($authUser, $sharedUser->id, $album->id, 'legacy_album');
                     }
 
+
+                    if($album->conver_image== null)
+                    {
+                       
+                        if(!empty($thumbnailPath))
+                        {
+
+                          $album->conver_image = $thumbnailPath;
+                          $album->save();
+                        }
+                    }
+                    
+
                     // attach post to legacy album
                     LegacyAlbumPost::create([
                         'legacy_album_id' => $album->id,
@@ -988,6 +1013,7 @@ class PostController extends Controller
 
         } catch (\Exception $exception) {
             DB::rollBack();
+            
             return response()->json(['message' => $exception->getMessage(), 'status' => 'failed'], 500);
         }
     }
@@ -1168,7 +1194,7 @@ class PostController extends Controller
             ], 200);
 
         } catch (\Exception $e) {
-            dd($e);
+            
             DB::rollBack();
             return response()->json([
                 'status'  => 'failed',
