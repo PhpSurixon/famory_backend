@@ -2525,7 +2525,7 @@ class PostController extends Controller
                     if ($following_Ids->isNotEmpty()) 
                     {
                         $getPost = $query->whereIn('user_id', $following_Ids)
-                            ->whereIn('post_type', ['private', 'public'])
+                            ->whereIn('post_type', ['public'])
                             ->whereHas('scheduling_post', function ($q) {
                                 $q->where('is_post', 1);
                             });
