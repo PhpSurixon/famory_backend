@@ -863,7 +863,7 @@ class ApiController extends Controller
 
             $followerCount  = Follow::where('following_id', $current_user)->where('status', 'approved')->count();
             $followingCount = Follow::where('follower_id', $current_user)->where('status', 'approved')->count();
-            $TrustedAdminCount      = TrustedUser::where('user_id', $current_user)->whereIn('status', ['pending', 'approved'])->count();
+            $TrustedAdminCount      = TrustedUser::where('user_id', $current_user)->whereIn('status', ['approved'])->count();
             $data['follower_count'] = $followerCount;
             $data['following_count'] = $followingCount;
             
