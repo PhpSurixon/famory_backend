@@ -2507,21 +2507,31 @@ class PostController extends Controller
 
                     $query = Post::query();
 
-                    if ($following_Ids->isNotEmpty()) {
-                        $query->whereIn('user_id', $following_Ids)
+                    // if ($following_Ids->isNotEmpty()) {
+                    //     $query->whereIn('user_id', $following_Ids)
+                    //         ->whereIn('post_type', ['private', 'public'])
+                    //         ->whereHas('scheduling_post', function ($q) {
+                    //             $q->where('is_post', 1);
+                    //         });
+                    // }
+
+                    // $getPost = $query->orWhere(function ($query) use ($currentUser) {
+                    //     $query->where('user_id', $currentUser)
+                    //         ->where('post_type', 'private')
+                    //         ->whereHas('scheduling_post', function ($q) {
+                    //             $q->where('is_post', 1);
+                    //         });
+                    // });
+                    if ($following_Ids->isNotEmpty()) 
+                    {
+                        $getPost = $query->whereIn('user_id', $following_Ids)
                             ->whereIn('post_type', ['private', 'public'])
                             ->whereHas('scheduling_post', function ($q) {
                                 $q->where('is_post', 1);
                             });
                     }
 
-                    $getPost = $query->orWhere(function ($query) use ($currentUser) {
-                        $query->where('user_id', $currentUser)
-                            ->where('post_type', 'private')
-                            ->whereHas('scheduling_post', function ($q) {
-                                $q->where('is_post', 1);
-                            });
-                    });
+                    
                 }
             }
 

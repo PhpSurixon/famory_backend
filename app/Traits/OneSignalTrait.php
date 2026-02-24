@@ -184,6 +184,15 @@ trait OneSignalTrait
                     "deceased_user" => $item
                 ];
                 break;
+            case "deceased_marked":
+                $title = "$deceasedName deceased";
+                $message = "$senderName has marked you as deceased.Please confirm if this is true or false.";
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "deceased_user" => $item
+                ];
+                break;
             case "self":
                 $title = "$deceasedName deceased";
                 // $message = "$senderName has marked $deceasedName as deceased.";

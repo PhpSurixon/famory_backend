@@ -318,7 +318,9 @@ class TagsController extends Controller
                 ], 403);
             }
 
-            $checkName = FamilyTagId::where('title',$request->title)->where('user_id',$userId)->first();
+            $checkName = FamilyTagId::where('title',$request->title)
+                                    ->where('user_id',$userId)
+                                    ->where('is_deleted',0)->first();
             if($checkName)
             {
                 return response()->json([
