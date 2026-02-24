@@ -166,10 +166,6 @@ class FinalWordController extends Controller
                 ->where('status', 'accepted')
                 ->exists();
 
-            $get_trust_user = TrustedUser::where('user_id', $user->id)
-                ->where('trusted_user_id', $authUserId)
-                ->first();
-
             // 🔹 Check if current user marked the deceased
             $isMarkedByAuth = DeathConfirmation::where('user_id', $user->id)
                 ->where('trusted_user_id', $authUserId)
@@ -224,30 +220,20 @@ class FinalWordController extends Controller
             });
 
             // ✅ Final response
-            if(isset($get_trust_user) && $get_trust_user->status == 'accepted')
-            {
-                return response()->json([
-                    'message' => 'Final Words retrieved successfully',
-                    'status'  => 'success',
-                    'data'    => [
-                        'user'             => $userdata,
-                        'is_trusted_user'  => $isTrustedUser ? 1 : 0,
-                        'manage_user_list' => $manage_user_list,
-                        'videos'           => $videos,
-                        'count'            => $total,
-                        'page'             => $page,
-                        'limit'            => $limit,
-                        'total_pages'      => ceil($total / $limit),
-                    ],
-                ], 200);
-            }else{
-                return response()->json([
-                    'message' => 'Final Words retrieved successfully',
-                    'status'  => 'success',
-                    'data'    => [],
-                ], 200);
-            }
-            
+            return response()->json([
+                'message' => 'Final Words retrieved successfully',
+                'status'  => 'success',
+                'data'    => [
+                    'user'             => $userdata,
+                    'is_trusted_user'  => $isTrustedUser ? 1 : 0,
+                    'manage_user_list' => $manage_user_list,
+                    'videos'           => $videos,
+                    'count'            => $total,
+                    'page'             => $page,
+                    'limit'            => $limit,
+                    'total_pages'      => ceil($total / $limit),
+                ],
+            ], 200);
 
         } catch (\Exception $e) {
             return response()->json([
