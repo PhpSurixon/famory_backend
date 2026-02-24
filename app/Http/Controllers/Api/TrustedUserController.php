@@ -400,7 +400,7 @@ class TrustedUserController extends Controller
             }
 
             $update_notification = Notification::where('item_id',$trusted->id)
-                                                ->where('receiver_id',$trusted->user_id)
+                                                ->where('receiver_id',$trusted->trusted_user_id)
                                                 ->where('has_actioned',0)
                                                 ->where('type','trust_request')
                                                 ->first();
