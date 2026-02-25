@@ -1823,7 +1823,7 @@ class TagsController extends Controller
             $search = $request->get('search');
 
             // Base query
-            $query = TagUser::where('tag_id', $album->id)
+            $query = TagUser::where('tag_id', $album->id)->whereIn('approval_status',['accepted','pending'])
                 ->with('user:id,first_name,last_name,email,username,image');
 
             // Search by user fields
