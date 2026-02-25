@@ -457,6 +457,15 @@ trait OneSignalTrait
                     "album_id" => $item
                 ];
                 break;
+            case "tag_post":
+                $title = "New Post Added in your Tag";
+                $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
 
             default:
                 return 1;

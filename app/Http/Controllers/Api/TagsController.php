@@ -285,7 +285,7 @@ class TagsController extends Controller
                 'title'       => 'required|string|max:250',
                 'description' => 'required|string',
                 'privacy_type'=> 'required|in:Public,Private',
-                'image'       => 'required|file|mimes:jpeg,png,jpg|max:2048',
+                'image'       => 'required|file|mimes:jpeg,png,jpg',
             ]);
 
             if ($validator->fails()) {
@@ -378,7 +378,7 @@ class TagsController extends Controller
                 'title'       => 'required|string|max:250',
                 'description' => 'required|string',
                 'privacy_type'=> 'required|in:Public,Private',
-                'image'       => 'nullable|file|mimes:jpeg,png,jpg|max:2048',
+                'image'       => 'nullable|file|mimes:jpeg,png,jpg',
             ]);
 
             if ($validator->fails()) {

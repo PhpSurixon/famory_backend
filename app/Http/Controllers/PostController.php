@@ -1005,6 +1005,18 @@ class PostController extends Controller
                         'user_id'         => Auth::id()
                     ]);
                 }
+
+                if($request->post_type =='private' && $tag_id)
+                {
+                    $userAuth = Auth::user();
+                    $get_tag_info = FamilyTagId::where('id',$tag_id)->first();
+                    if($get_tag_info->created_user_id != $userAuth->id)
+                    {
+                        $message = "$userAuth->first_name has added a Post in your $get_tag_info->title tag";
+                        $this->notifyMessage($userAuth, $get_tag_info->created_user_id, $get_tag_info->id, 'tag_post', null, null,null,$message);
+                    }
+                }
+
                 DB::commit();
                 return response()->json(['message' => 'You have created a new post!', 'status' => 'success', 'data' => $post], 200);
             }
