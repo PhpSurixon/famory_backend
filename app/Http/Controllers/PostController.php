@@ -2529,6 +2529,12 @@ class PostController extends Controller
                             ->whereHas('scheduling_post', function ($q) {
                                 $q->where('is_post', 1);
                             });
+                    }else{
+                        $getPost = $query->where('user_id', $currentUser)
+                            ->whereIn('post_type', ['public'])
+                            ->whereHas('scheduling_post', function ($q) {
+                                $q->where('is_post', 1);
+                            });
                     }
 
                     
@@ -2656,6 +2662,7 @@ class PostController extends Controller
             ]);
 
         } catch (\Exception $exception) {
+            // dd($exception);
             return response()->json([
                 'message' => $exception->getMessage(),
                 'status' => 'failed'
