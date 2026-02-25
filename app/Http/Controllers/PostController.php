@@ -745,7 +745,6 @@ class PostController extends Controller
                 }
 
                 $hasTagAccess = $this->canAddToTag($request->tag_id, Auth::id());
-
                 if (!$hasTagAccess) {
                     return response()->json([
                         'message' => 'You do not have access to add post in this album',
@@ -1242,7 +1241,7 @@ class PostController extends Controller
         $tag = FamilyTagId::find($tagId);
         if (!$tag) return false;
 
-        if($tag->privacy_type = 'Public')
+        if($tag->privacy_type == 'Public')
         {
             return true;
         }else{
