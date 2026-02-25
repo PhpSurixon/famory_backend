@@ -1419,6 +1419,7 @@ class TagsController extends Controller
 
                 $checkTagUserAccess = TagUser::where('user_id', $authUser->id)
                                             ->where('tag_id', $get_tag_data->id)
+                                            ->whereIn('approval_status',['pending','accepted'])
                                             ->first();
 
                 if (!$checkTagUserAccess) {
