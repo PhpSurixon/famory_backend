@@ -1696,6 +1696,7 @@ class TagsController extends Controller
             }
             $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
             $tagMemberIds = TagUser::where('tag_id', $request->tag_id)
+                                        ->whereIn('approval_status',['accepted','pending'])
                                         ->pluck('user_id')
                                         ->toArray();
             $notgetUserIds = array_unique(array_merge($blockedUserIds,$tagMemberIds));
