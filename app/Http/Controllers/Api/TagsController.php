@@ -1180,84 +1180,211 @@ class TagsController extends Controller
         }
     }
 
+    // public function sendTagRequest(Request $request)
+    // {
+    //     try 
+    //     {
+    //         $validator = Validator::make($request->all(), [
+    //             'family_tag_id'  => 'required|exists:family_tag_ids,family_tag_id',
+    //             'access_type'   => 'required|in:collaborator,viewer',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status' => 'failed'
+    //             ], 400);
+    //         }
+
+    //         $authUser = Auth::user();
+
+    //         $tag = FamilyTagId::where('family_tag_id',$request->family_tag_id)->where('is_deleted',0)->first();
+
+    //         if (!$tag) {
+    //             return response()->json([
+    //                 'message' => 'Tag not found.',
+    //                 'status' => 'failed'
+    //             ], 404);
+    //         }
+
+    //         // Cannot request access for your own tag
+    //         if ($tag->created_user_id == $authUser->id) {
+    //             return response()->json([
+    //                 'message' => 'You cannot request access to your own Tag.',
+    //                 'status' => 'failed'
+    //             ], 403);
+    //         }
+
+    //         // Only private tags can have request flow
+    //         if ($tag->privacy_type === 'Public') 
+    //         {
+    //             return response()->json([
+    //                 'message' => 'This is a public tag. No request required.',
+    //                 'status' => 'failed'
+    //             ], 403);
+    //         }
+
+    //         // Prevent duplicate request (pending/accepted)
+    //         $existing = TagUser::where('tag_id', $tag->id)
+    //                             ->where('user_id', $authUser->id)
+    //                             ->whereIn('approval_status', ['pending', 'accepted'])
+    //                             ->first();
+
+    //         if ($existing) {
+    //             return response()->json([
+    //                 'message' => 'A request or access for this tag already exists.',
+    //                 'status' => 'failed'
+    //             ], 403);
+    //         }
+
+    //         // Create request
+    //         $createRequest = TagUser::create([
+    //             'tag_id'          => $tag->id,
+    //             'user_id'         => $authUser->id,
+    //             'invited_by'      => $authUser->id,  // self-request
+    //             'role'            => $request->access_type,
+    //             'approval_status' => 'pending',
+    //         ]);
+
+    //         // Notification message
+    //         $type = $request->access_type === 'collaborator'
+    //                 ? 'tag_collaborator_request_scan'
+    //                 : 'tag_viewer_request_scan';
+
+    //         $message = "{$authUser->first_name} has requested access as {$request->access_type} for tag {$tag->title}.";
+
+    //         // Notify Tag Owner
+    //         $this->notifyMessage(
+    //             $authUser,
+    //             $tag->created_user_id,
+    //             $createRequest->id,
+    //             $type,
+    //             null,
+    //             null,
+    //             null,
+    //             $message
+    //         );
+
+    //         return response()->json([
+    //             'message' => 'Tag access request sent successfully!',
+    //             'status' => 'success'
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'message' => 'Something went wrong! '.$e->getMessage(),
+    //             'status' => 'failed'
+    //         ], 500);
+    //     }
+    // }
+
     public function sendTagRequest(Request $request)
     {
         try 
         {
+            // ✅ Validation
             $validator = Validator::make($request->all(), [
-                'family_tag_id'  => 'required|exists:family_tag_ids,family_tag_id',
+                'family_tag_id' => 'required|exists:family_tag_ids,family_tag_id',
                 'access_type'   => 'required|in:collaborator,viewer',
             ]);
 
             if ($validator->fails()) {
                 return response()->json([
                     'message' => $validator->errors()->first(),
-                    'status' => 'failed'
+                    'status'  => 'failed'
                 ], 400);
             }
 
             $authUser = Auth::user();
 
-            $tag = FamilyTagId::where('family_tag_id',$request->family_tag_id)->where('is_deleted',0)->first();
+            // ✅ Get Tag
+            $tag = FamilyTagId::where('family_tag_id', $request->family_tag_id)
+                              ->where('is_deleted', 0)
+                              ->first();
 
             if (!$tag) {
                 return response()->json([
                     'message' => 'Tag not found.',
-                    'status' => 'failed'
+                    'status'  => 'failed'
                 ], 404);
             }
 
-            // Cannot request access for your own tag
+            // ❌ Cannot request own tag
             if ($tag->created_user_id == $authUser->id) {
                 return response()->json([
                     'message' => 'You cannot request access to your own Tag.',
-                    'status' => 'failed'
+                    'status'  => 'failed'
                 ], 403);
             }
 
-            // Only private tags can have request flow
-            if ($tag->privacy_type === 'Public') 
-            {
+            // ❌ Public tag doesn't need request
+            if ($tag->privacy_type === 'Public') {
                 return response()->json([
                     'message' => 'This is a public tag. No request required.',
-                    'status' => 'failed'
+                    'status'  => 'failed'
                 ], 403);
             }
 
-            // Prevent duplicate request (pending/accepted)
+            // ✅ Check Existing Record (any status)
             $existing = TagUser::where('tag_id', $tag->id)
                                 ->where('user_id', $authUser->id)
-                                ->whereIn('approval_status', ['pending', 'accepted'])
                                 ->first();
 
-            if ($existing) {
-                return response()->json([
-                    'message' => 'A request or access for this tag already exists.',
-                    'status' => 'failed'
-                ], 403);
+            if ($existing) 
+            {
+                // ❌ Already accepted
+                if ($existing->approval_status === 'accepted') {
+                    return response()->json([
+                        'message' => 'You already have access to this tag.',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                // ❌ Already pending
+                if ($existing->approval_status === 'pending') {
+                    return response()->json([
+                        'message' => 'Your request is already pending.',
+                        'status'  => 'failed'
+                    ], 403);
+                }
+
+                // ✅ If rejected → update to pending
+                if ($existing->approval_status === 'rejected') {
+
+                    $existing->update([
+                        'role'            => $request->access_type,
+                        'approval_status' => 'pending',
+                        'invited_by'      => $authUser->id,
+                    ]);
+
+                    $requestRecord = $existing;
+                }
+            } 
+            else 
+            {
+                // ✅ Create new request
+                $requestRecord = TagUser::create([
+                    'tag_id'          => $tag->id,
+                    'user_id'         => $authUser->id,
+                    'invited_by'      => $authUser->id,
+                    'role'            => $request->access_type,
+                    'approval_status' => 'pending',
+                ]);
             }
 
-            // Create request
-            $createRequest = TagUser::create([
-                'tag_id'          => $tag->id,
-                'user_id'         => $authUser->id,
-                'invited_by'      => $authUser->id,  // self-request
-                'role'            => $request->access_type,
-                'approval_status' => 'pending',
-            ]);
-
-            // Notification message
+            // ✅ Notification Type
             $type = $request->access_type === 'collaborator'
                     ? 'tag_collaborator_request_scan'
                     : 'tag_viewer_request_scan';
 
             $message = "{$authUser->first_name} has requested access as {$request->access_type} for tag {$tag->title}.";
 
-            // Notify Tag Owner
+            // ✅ Send Notification to Tag Owner
             $this->notifyMessage(
                 $authUser,
                 $tag->created_user_id,
-                $createRequest->id,
+                $requestRecord->id,
                 $type,
                 null,
                 null,
@@ -1267,14 +1394,15 @@ class TagsController extends Controller
 
             return response()->json([
                 'message' => 'Tag access request sent successfully!',
-                'status' => 'success'
+                'status'  => 'success'
             ], 200);
 
-        } catch (\Exception $e) {
-
+        } 
+        catch (\Exception $e) 
+        {
             return response()->json([
-                'message' => 'Something went wrong! '.$e->getMessage(),
-                'status' => 'failed'
+                'message' => 'Something went wrong! ' . $e->getMessage(),
+                'status'  => 'failed'
             ], 500);
         }
     }
