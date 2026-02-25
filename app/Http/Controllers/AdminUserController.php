@@ -51,7 +51,7 @@ class AdminUserController extends Controller
             'email'      => 'required',
             'phone'      => 'required',
             'password'   => 'required',
-            'image'      => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image'      => 'nullable|image|mimes:jpeg,png,jpg,gif,svg',
         ]);
     
         if ($validator->fails()) {
@@ -105,7 +105,7 @@ class AdminUserController extends Controller
             'email'      => 'required|email|max:255',
             'phone'      => 'required',
             'password'   => 'nullable|min:6',
-            'image'      => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
+            'image'      => 'nullable|image|mimes:jpeg,png,jpg,gif,svg',
         ]);
 
         if ($validator->fails()) {
