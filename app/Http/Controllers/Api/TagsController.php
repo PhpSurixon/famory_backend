@@ -1504,7 +1504,7 @@ class TagsController extends Controller
         {
             $validator = Validator::make($request->all(), [
                 'family_tag_id' => 'required',
-                'is_scan_send_notify' => 'nullable',
+                'is_scan_send_notify' => 'nullable|in:0,1',
             ]);
 
             if ($validator->fails()) {
@@ -1517,7 +1517,7 @@ class TagsController extends Controller
 
             $authUser = Auth::user();
             $tag_permission_type = "";
-            $scan_time_send = isset($request->is_scan_send_notify) ? $request->is_scan_send_notify :0;
+            $scan_time_send = $request->input('is_scan_send_notify', 0);
 
             // Fetch tag with creator
             $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
@@ -1621,12 +1621,12 @@ class TagsController extends Controller
             $get_tag_data['isSaved'] = $get_save_tag ? 1 : 0;
             $get_tag_data['tag_permission_type'] = $tag_permission_type;
 
-            if ($get_tag_data->created_user_id != $authUser->id) 
+            if ($get_tag_data->created_user_id != $authUser->id && $scan_time_send == 1) 
             {
 
                 $tagOwner = User::find($get_tag_data->created_user_id);
 
-                if ($tagOwner && $scan_time_send == 1) 
+                if ($tagOwner) 
                 {
                     $message = "$authUser->first_name has Scan Your $get_tag_data->title tag";
                     $this->notifyMessage($authUser, $tagOwner->id, $get_tag_data->id, 'tag_scan', null, null,null,$message);
