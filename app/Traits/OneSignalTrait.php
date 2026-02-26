@@ -176,8 +176,8 @@ trait OneSignalTrait
                 ];
                 break;
             case "deceased":
-                $title = "$deceasedName deceased";
-                $message = "$senderName has marked $deceasedName as deceased.Please confirm if this is true or false.";
+                $title   = "$deceasedName Marked as Deceased";
+                $message = "$senderName has marked $deceasedName as deceased. Please confirm whether this is true or false.";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
@@ -185,8 +185,8 @@ trait OneSignalTrait
                 ];
                 break;
             case "deceased_marked":
-                $title = "$deceasedName deceased";
-                $message = "$senderName has marked you as deceased.Please confirm if this is true or false.";
+                $title = "You Have Been Marked as Deceased";
+                $message = "$senderName has marked you as deceased. Please confirm whether this is true or false.";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
@@ -460,6 +460,15 @@ trait OneSignalTrait
             case "tag_post":
                 $title = "New Post Added in your Tag";
                 $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "remove_tag":
+                $title = "Removed from Tag";
+                $message = "You have been removed from the Tag by $senderName";
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,

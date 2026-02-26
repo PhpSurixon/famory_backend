@@ -648,13 +648,15 @@ class TagsController extends Controller
                     ]);
                     $added[] = $memberUserId;
 
-                    $notifType = $role === 'collaborator'? 'tag_collaborator_request': 'tag_viewer_request';
-                    // $this->notifyMessage($authUser,$memberUserId,$tag->id,$notifType);
-                    if($notifType == 'tag_collaborator_request')
+                    $notifType = $role === 'collaborator' 
+                    ? 'tag_collaborator_request' 
+                    : 'tag_viewer_request';
+
+                    if ($notifType == 'tag_collaborator_request') 
                     {
-                     $message = "$authUser->first_name has requested to add you as a collaborator to $tag->title tag";
-                    }else{
-                     $message = "$authUser->first_name has requested to add you as a viewer to $tag->title tag";
+                        $message = "{$authUser->first_name} has requested to add you as a collaborator to the {$tag->title} tag.";
+                    } else {
+                        $message = "{$authUser->first_name} has requested to add you as a viewer to the {$tag->title} tag.";
                     }
                     
                     $this->notifyMessage($authUser, $memberUserId, $tag->id, $notifType, null, null,null,$message);
@@ -1378,7 +1380,7 @@ class TagsController extends Controller
                     ? 'tag_collaborator_request_scan'
                     : 'tag_viewer_request_scan';
 
-            $message = "{$authUser->first_name} has requested access as {$request->access_type} for tag {$tag->title}.";
+            $message = "{$authUser->first_name} requested {$request->access_type} access to {$tag->title}.";
 
             // ✅ Send Notification to Tag Owner
             $this->notifyMessage(
@@ -1628,7 +1630,7 @@ class TagsController extends Controller
 
                 if ($tagOwner) 
                 {
-                    $message = "$authUser->first_name has Scan Your $get_tag_data->title tag";
+                    $message = "{$authUser->first_name} scanned your {$get_tag_data->title} tag.";
                     $this->notifyMessage($authUser, $tagOwner->id, $get_tag_data->id, 'tag_scan', null, null,null,$message);
                 }
             }
