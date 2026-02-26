@@ -353,7 +353,6 @@ class PostCommentController extends Controller
                 // CASE 2: Comment on post
                 if ($post->user_id != $userId) {
                     $preview = Str::limit(strip_tags($request->comment), 20);
-                    dd($preview);
                     $this->notifyMessage($authUser, $post->user_id, $post, 'comment', null, null,null,$preview);
                 }
             }
