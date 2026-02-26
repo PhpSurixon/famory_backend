@@ -298,7 +298,8 @@ trait OneSignalTrait
                 break;
             case "comment":
                 $title = "New Comment On Your Post";
-                $message = "commented {$customMessage} on your post";
+                // $message = "commented {$customMessage} on your post";
+                $message = 'commented "' . $customMessage . '" on your post';
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
