@@ -414,7 +414,8 @@ trait OneSignalTrait
                 break;
             case "tag_member_approved":
                 $title = "Tag Access Requested Approved";
-                $message = "$senderName accepted your Tag invitation.";
+                // $message = "$senderName accepted your Tag invitation.";
+                $message = $customMessage;
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
@@ -432,7 +433,8 @@ trait OneSignalTrait
                 break;
             case "tag_member_rejected":
                 $title = "Tag Access Requested Rejected";
-                $message = "$senderName rejected your Tag invitation.";
+                // $message = "$senderName rejected your Tag invitation.";
+                $message = $customMessage;
                 $data = [
                     "type" => $type,
                     "sender" => $senderDetails,
