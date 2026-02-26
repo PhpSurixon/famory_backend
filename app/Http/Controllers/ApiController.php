@@ -534,7 +534,7 @@ class ApiController extends Controller
     }
 
     // Login 
-    public function login(Request $request)
+    public function loginOLD26Feb(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required',
@@ -587,6 +587,110 @@ class ApiController extends Controller
             return response()->json(["message" => "Login Successful, welcome to the Famory", "status" => "success", "data" => $user, 'isEmailVerfied' => null], 200);
         } catch (JWTException $exception) {
             return response()->json(['message' => $e->getMessage(), 'status' => 'failed', "data" => [], 'isEmailVerfied' => null], 500);
+        }
+    }
+    public function login(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required',
+            'password' => 'required',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'status' => 'failed',
+                'isEmailVerfied' => null
+            ], 400);
+        }
+
+        try {
+
+            $data = $request->only('email', 'password');
+
+            // 🔹 1️⃣ Check Delete Request
+            $deleteRequest = DeleteAccountRequest::where('email', $data['email'])->first();
+            if ($deleteRequest) {
+                return response()->json([
+                    'message' => 'Your account deletion request is currently being processed. An admin will contact you shortly.',
+                    'status' => 'failed',
+                    'isEmailVerfied' => null
+                ], 400);
+            }
+
+            // 🔹 2️⃣ Get User First
+            $user = User::where('email', $data['email'])->first();
+
+            if (!$user) {
+                return response()->json([
+                    "message" => "Invalid Credentials!",
+                    "status" => "failed",
+                    "data" => null,
+                    'isEmailVerfied' => null
+                ], 400);
+            }
+
+            // 🔹 3️⃣ Role Check FIRST
+            if ($user->role_id != 2) {
+                return response()->json([
+                    'message' => 'Your account is not authorized.',
+                    "status" => "failed",
+                    "data" => null,
+                    'isEmailVerfied' => null
+                ], 403);
+            }
+
+            // 🔹 4️⃣ Ban Check
+            if ($user->ban_user == 1) {
+                return response()->json([
+                    'message' => 'Your account has been banned.',
+                    "status" => "failed",
+                    "data" => null,
+                    'isEmailVerfied' => null
+                ], 403);
+            }
+
+            // 🔹 5️⃣ Password Check + Token Generate
+            if (!$token = JWTAuth::attempt($data)) {
+                return response()->json([
+                    "message" => "Invalid Credentials!",
+                    "status" => "failed",
+                    "data" => null,
+                    'isEmailVerfied' => null
+                ], 400);
+            }
+
+            // 🔹 6️⃣ OTP Check
+            $oldOTP = DB::table('password_resets')
+                        ->where('email', $request->email)
+                        ->first();
+
+            if (!$oldOTP || is_null($oldOTP->verified_at)) {
+                return $this->generateAndSendOTP($request->email);
+            }
+
+            // 🔹 7️⃣ Prepare Response
+            $user = Auth::user();
+            $user['token'] = $token;
+
+            $is_exist = DeviceDetail::where('user_id', $user->id)->first();
+            $user['is_first_login'] = $is_exist ? false : true;
+            $user['is_verified'] = true;
+
+            return response()->json([
+                "message" => "Login Successful, welcome to the Famory",
+                "status" => "success",
+                "data" => $user,
+                'isEmailVerfied' => true
+            ], 200);
+
+        } catch (JWTException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'status' => 'failed',
+                "data" => [],
+                'isEmailVerfied' => null
+            ], 500);
         }
     }
     

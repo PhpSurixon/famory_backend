@@ -17,7 +17,10 @@ use App\Models\User;
 use App\Models\FamilyTagId;
 use App\Models\TagUser;
 use App\Models\Post;
+use App\Models\SchedulingPost;
 use App\Models\SavedTag;
+use App\Models\AlbumPost;
+use App\Models\Like;
 use App\Models\Follow;
 use App\Models\Product;
 use App\Models\TagsPurchaseHistory;
@@ -1500,6 +1503,163 @@ class TagsController extends Controller
         
     }
 
+    // public function tagscanView(Request $request)
+    // {
+    //     try 
+    //     {
+    //         $validator = Validator::make($request->all(), [
+    //             'family_tag_id' => 'required',
+    //             'is_scan_send_notify' => 'nullable|in:0,1',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'message' => $validator->errors()->first(),
+    //                 'status' => 'failed',
+    //                 'is_request_sent' => 3
+    //             ], 400);
+    //         }
+
+    //         $authUser = Auth::user();
+    //         $tag_permission_type = "";
+    //         $scan_time_send = $request->input('is_scan_send_notify', 0);
+
+    //         // Fetch tag with creator
+    //         $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
+    //                                     ->where('family_tag_id', $request->family_tag_id)
+    //                                     ->where('is_deleted',0)
+    //                                     ->first();
+
+    //         if (!$get_tag_data) {
+    //             return response()->json([
+    //                 'message' => 'Tags Details not found',
+    //                 'status'  => 'failed',
+    //                 'is_request_sent' => 3
+    //             ], 404);
+    //         }
+    //         $get_tag_data['isTagOwner'] = ($get_tag_data->created_user_id == $authUser->id) ? 1 : 0;
+
+    //         if($get_tag_data->created_user_id == $authUser->id)
+    //         {
+    //             $tag_permission_type= 'owner';
+    //         }
+
+    //         /**
+    //          * ==========================
+    //          * PRIVATE TAG ACCESS CHECK
+    //          * ==========================
+    //          */
+    //         if ($get_tag_data->privacy_type !== 'Public' && $get_tag_data->created_user_id != $authUser->id) 
+    //         {
+
+    //             $checkTagUserAccess = TagUser::where('user_id', $authUser->id)
+    //                                         ->where('tag_id', $get_tag_data->id)
+    //                                         ->whereIn('approval_status',['pending','accepted'])
+    //                                         ->first();
+
+    //             if (!$checkTagUserAccess) {
+    //                 return response()->json([
+    //                     'message' => 'You cannot access this tag without access So Please send viewer or collaborator role request',
+    //                     'status'  => 'failed',
+    //                     'is_request_sent' => 0,
+    //                     'data'    => $get_tag_data
+    //                 ], 200);
+    //             }
+
+    //             if ($checkTagUserAccess->approval_status === 'pending') {
+    //                 return response()->json([
+    //                     'message' => 'Your Tag request is approval is pending When request is approved the you can access',
+    //                     'status'  => 'failed',
+    //                     'is_request_sent' => 1,
+    //                     'data'    => $get_tag_data
+    //                 ], 200);
+    //             }
+    //             $tag_permission_type = $checkTagUserAccess->role;
+    //         }else{
+
+    //             $tag_permission_type = 'owner';
+    //         }
+
+    //         /**
+    //          * ==========================
+    //          * FETCH TAG USERS
+    //          * ==========================
+    //          */
+    //         $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
+    //             ->where('tag_id', $get_tag_data->id)
+    //             ->where('approval_status', 'accepted')
+    //             ->orderBy('id', 'DESC')
+    //             ->get();
+
+    //         $tag_users = $tag_user_list->map(function ($member) {
+    //             $user = $member->user;
+
+    //             return [
+    //                 'id'              => $member->id,
+    //                 'user_id'         => $user->id,
+    //                 'first_name'      => $user->first_name,
+    //                 'last_name'       => $user->last_name,
+    //                 'email'           => $user->email,
+    //                 'username'        => $user->username,
+    //                 'image'           => $user->image ? $user->image : null,
+    //                 'role'            => $member->role,
+    //                 'approval_status' => $member->approval_status,
+    //             ];
+    //         });
+
+    //         /**
+    //          * ==========================
+    //          * FETCH POSTS
+    //          * ==========================
+    //          */
+    //         $posts = Post::with('user')
+    //                      ->withCount('like', 'comments')
+    //                      ->where('tag_id', $get_tag_data->id)
+    //                      ->orderBy('id', 'DESC')
+    //                      ->get();
+
+
+    //         $get_save_tag = SavedTag::where('tag_id',$get_tag_data->id)->where('user_id',$authUser->id)->first();
+
+    //         $get_tag_data['tag_user'] = $tag_users;
+    //         $get_tag_data['tag_post'] = $posts;
+    //         $get_tag_data['isSaved'] = $get_save_tag ? 1 : 0;
+    //         $get_tag_data['tag_permission_type'] = $tag_permission_type;
+
+    //         if ($get_tag_data->created_user_id != $authUser->id && $scan_time_send == 1) 
+    //         {
+
+    //             $tagOwner = User::find($get_tag_data->created_user_id);
+
+    //             if ($tagOwner) 
+    //             {
+    //                 $message = "{$authUser->first_name} scanned your {$get_tag_data->title} tag.";
+    //                 $this->notifyMessage($authUser, $tagOwner->id, $get_tag_data->id, 'tag_scan', null, null,null,$message);
+    //             }
+    //         }
+            
+
+    //         /**
+    //          * ==========================
+    //          * SUCCESS RESPONSE
+    //          * ==========================
+    //          */
+    //         return response()->json([
+    //             'message' => 'Tags fetched successfully',
+    //             'status'  => 'success',
+    //             'data'    => $get_tag_data,
+    //             'is_request_sent' => $get_tag_data->privacy_type === 'Public' ? 3 : 2
+    //         ], 200);
+
+    //     } catch (\Exception $exception) {
+    //         return response()->json([
+    //             'message' => $exception->getMessage(),
+    //             'status'  => 'failed',
+    //             'is_request_sent' => 3
+    //         ], 500);
+    //     }
+    // }
+
     public function tagscanView(Request $request)
     {
         try 
@@ -1507,6 +1667,9 @@ class TagsController extends Controller
             $validator = Validator::make($request->all(), [
                 'family_tag_id' => 'required',
                 'is_scan_send_notify' => 'nullable|in:0,1',
+                'per_page' => 'nullable|integer',
+                'page' => 'nullable|integer',
+                'timezone' => 'nullable|string'
             ]);
 
             if ($validator->fails()) {
@@ -1521,11 +1684,33 @@ class TagsController extends Controller
             $tag_permission_type = "";
             $scan_time_send = $request->input('is_scan_send_notify', 0);
 
-            // Fetch tag with creator
+            /**
+             * ==============================
+             * USER TIMEZONE DETECTION
+             * ==============================
+             */
+            $apacheHeaders = function_exists('apache_request_headers') ? apache_request_headers() : [];
+            $headers = array_change_key_case($apacheHeaders, CASE_LOWER);
+
+            $userTimezone = $request->timezone
+                ?? $headers['time_zone']
+                ?? $headers['timezone']
+                ?? $headers['time-zone']
+                ?? 'UTC';
+
+            if (!in_array($userTimezone, timezone_identifiers_list())) {
+                $userTimezone = 'UTC';
+            }
+
+            /**
+             * ==============================
+             * FETCH TAG
+             * ==============================
+             */
             $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
-                                        ->where('family_tag_id', $request->family_tag_id)
-                                        ->where('is_deleted',0)
-                                        ->first();
+                ->where('family_tag_id', $request->family_tag_id)
+                ->where('is_deleted', 0)
+                ->first();
 
             if (!$get_tag_data) {
                 return response()->json([
@@ -1534,25 +1719,20 @@ class TagsController extends Controller
                     'is_request_sent' => 3
                 ], 404);
             }
+
             $get_tag_data['isTagOwner'] = ($get_tag_data->created_user_id == $authUser->id) ? 1 : 0;
 
-            if($get_tag_data->created_user_id == $authUser->id)
-            {
-                $tag_permission_type= 'owner';
-            }
-
             /**
-             * ==========================
+             * ==============================
              * PRIVATE TAG ACCESS CHECK
-             * ==========================
+             * ==============================
              */
-            if ($get_tag_data->privacy_type !== 'Public' && $get_tag_data->created_user_id != $authUser->id) 
-            {
+            if ($get_tag_data->privacy_type !== 'Public' && $get_tag_data->created_user_id != $authUser->id) {
 
                 $checkTagUserAccess = TagUser::where('user_id', $authUser->id)
-                                            ->where('tag_id', $get_tag_data->id)
-                                            ->whereIn('approval_status',['pending','accepted'])
-                                            ->first();
+                    ->where('tag_id', $get_tag_data->id)
+                    ->whereIn('approval_status', ['pending', 'accepted'])
+                    ->first();
 
                 if (!$checkTagUserAccess) {
                     return response()->json([
@@ -1565,22 +1745,23 @@ class TagsController extends Controller
 
                 if ($checkTagUserAccess->approval_status === 'pending') {
                     return response()->json([
-                        'message' => 'Your Tag request is approval is pending When request is approved the you can access',
+                        'message' => 'Your Tag request approval is pending. When request is approved then you can access.',
                         'status'  => 'failed',
                         'is_request_sent' => 1,
                         'data'    => $get_tag_data
                     ], 200);
                 }
-                $tag_permission_type = $checkTagUserAccess->role;
-            }else{
 
+                $tag_permission_type = $checkTagUserAccess->role;
+
+            } else {
                 $tag_permission_type = 'owner';
             }
 
             /**
-             * ==========================
+             * ==============================
              * FETCH TAG USERS
-             * ==========================
+             * ==============================
              */
             $tag_user_list = TagUser::with('user:id,first_name,last_name,email,username,image')
                 ->where('tag_id', $get_tag_data->id)
@@ -1598,48 +1779,136 @@ class TagsController extends Controller
                     'last_name'       => $user->last_name,
                     'email'           => $user->email,
                     'username'        => $user->username,
-                    'image'           => $user->image ? $user->image : null,
+                    'image'           => $user->image ?: null,
                     'role'            => $member->role,
                     'approval_status' => $member->approval_status,
                 ];
             });
 
             /**
-             * ==========================
-             * FETCH POSTS
-             * ==========================
+             * ==============================
+             * FETCH TAG POSTS
+             * ==============================
              */
-            $posts = Post::with('user')
-                         ->withCount('like', 'comments')
-                         ->where('tag_id', $get_tag_data->id)
-                         ->orderBy('id', 'DESC')
-                         ->get();
+            $query = Post::with([
+                        'user' => fn($q) => $q->withTrashed()
+                            ->select('id','first_name','last_name','image','deleted_at')
+                    ])
+                    ->with('scheduling_post')
+                    ->withCount(['like','comments'])
+                    ->where('tag_id', $get_tag_data->id)
+                    ->orderBy('updated_at','desc');
 
+            $posts = $query->get();
 
-            $get_save_tag = SavedTag::where('tag_id',$get_tag_data->id)->where('user_id',$authUser->id)->first();
+            foreach ($posts as $post) {
+
+                $post->is_like = Like::where([
+                    'post_id' => $post->id,
+                    'user_id' => $authUser->id
+                ])->exists();
+
+                $post->is_following = Follow::where([
+                    'follower_id' => $authUser->id,
+                    'following_id' => $post->user_id,
+                    'status' => 'approved'
+                ])->exists();
+
+                $post->is_save = AlbumPost::where([
+                    'user_id' => $authUser->id,
+                    'post_id' => $post->id
+                ])->exists();
+
+                if ($post->scheduling_post) {
+
+                    $createdAtUserTZ = $post->scheduling_post->created_at
+                        ->copy()
+                        ->timezone($userTimezone);
+
+                    $post->created_date = $createdAtUserTZ->format('m/d/y');
+
+                    if ($post->scheduling_post->schedule_type === 'now') {
+                        $postedDateTime = $createdAtUserTZ;
+                    } else {
+                        $postedDateTime = \Carbon\Carbon::createFromFormat(
+                            'Y-m-d H:i:s',
+                            $post->scheduling_post->schedule_date . ' ' . $post->scheduling_post->schedule_time,
+                            'UTC'
+                        )->setTimezone($userTimezone);
+                    }
+
+                    $post->posted_date = $postedDateTime->format('m/d/y');
+                    $post->scheduling_post->schedule_date = $postedDateTime->format('m/d/y');
+                    $post->scheduling_post->schedule_time = $postedDateTime->format('h:i A');
+
+                    $post->scheduling_post->makeHidden(['id','post_id']);
+                }
+            }
+
+            /**
+             * ==============================
+             * PAGINATION
+             * ==============================
+             */
+            $perPage = (int) $request->input('per_page', 10);
+            $perPage = $perPage > 0 ? $perPage : 10;
+
+            $page = (int) $request->input('page', 1);
+            $page = $page > 0 ? $page : 1;
+
+            $paginated = new \Illuminate\Pagination\LengthAwarePaginator(
+                $posts->slice(($page - 1) * $perPage, $perPage)->values(),
+                $posts->count(),
+                $perPage,
+                $page
+            );
+
+            /**
+             * ==============================
+             * SAVE STATUS
+             * ==============================
+             */
+            $get_save_tag = SavedTag::where('tag_id',$get_tag_data->id)
+                ->where('user_id',$authUser->id)
+                ->first();
 
             $get_tag_data['tag_user'] = $tag_users;
-            $get_tag_data['tag_post'] = $posts;
+            $get_tag_data['tag_post'] = $paginated->items();
+            $get_tag_data['total_records'] = $paginated->total();
+            $get_tag_data['total_pages'] = $paginated->lastPage();
+            $get_tag_data['current_page'] = $paginated->currentPage();
+            $get_tag_data['per_page'] = $paginated->perPage();
             $get_tag_data['isSaved'] = $get_save_tag ? 1 : 0;
             $get_tag_data['tag_permission_type'] = $tag_permission_type;
 
-            if ($get_tag_data->created_user_id != $authUser->id && $scan_time_send == 1) 
-            {
+            /**
+             * ==============================
+             * SCAN NOTIFICATION
+             * ==============================
+             */
+            if ($get_tag_data->created_user_id != $authUser->id && $scan_time_send == 1) {
 
                 $tagOwner = User::find($get_tag_data->created_user_id);
 
-                if ($tagOwner) 
-                {
+                if ($tagOwner) {
                     $message = "{$authUser->first_name} scanned your {$get_tag_data->title} tag.";
-                    $this->notifyMessage($authUser, $tagOwner->id, $get_tag_data->id, 'tag_scan', null, null,null,$message);
+                    $this->notifyMessage(
+                        $authUser,
+                        $tagOwner->id,
+                        $get_tag_data->id,
+                        'tag_scan',
+                        null,
+                        null,
+                        null,
+                        $message
+                    );
                 }
             }
-            
 
             /**
-             * ==========================
-             * SUCCESS RESPONSE
-             * ==========================
+             * ==============================
+             * SUCCESS RESPONSE (UNCHANGED)
+             * ==============================
              */
             return response()->json([
                 'message' => 'Tags fetched successfully',
@@ -1649,6 +1918,7 @@ class TagsController extends Controller
             ], 200);
 
         } catch (\Exception $exception) {
+
             return response()->json([
                 'message' => $exception->getMessage(),
                 'status'  => 'failed',
@@ -2147,6 +2417,65 @@ class TagsController extends Controller
 
             return response()->json([
                 'message' => "Tag deleted successfully",
+                'status'  => 'success',
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            return response()->json([
+                'message' => "Something went wrong! " . $e->getMessage(),
+                'status'  => 'failed'
+            ], 500);
+        }
+    }
+
+    public function posttagdelete(Request $request)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            // ✅ Validation
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|integer|exists:family_tag_ids,id',
+                'post_id' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $authUser = Auth::user();
+
+            // ✅ Fetch tag (owned by user & not deleted)
+            $tag = FamilyTagId::where('id', $request->tag_id)
+                        // ->where('created_user_id', $authUser->id)
+                        ->where('is_deleted', 0)
+                        ->first();
+
+            if (!$tag) {
+                return response()->json([
+                    'message' => "Tag not found or already deleted",
+                    'status'  => 'failed'
+                ], 404);
+            }
+
+            $post = Post::where('id',$request->post_id)->where('tag_id',$tag->id)->first();
+            if($post)
+            {
+                SchedulingPost::where('post_id', $post->id)->delete();
+                $post->delete();
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => "Tag Post Deleted successfully",
                 'status'  => 'success',
             ], 200);
 

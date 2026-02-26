@@ -173,6 +173,7 @@ Route::post('tag/member/list', [TagsController::class, 'listMembers']);
 Route::post('famory-tags/buy',[TagsController::class,'FamoryTagsBuy']);
 
 Route::post('tag/delete', [TagsController::class, 'deleteTags']);
+Route::post('tag/post-delete', [TagsController::class, 'posttagdelete']);
 Route::post('tag-buy', [TagsController::class, 'buyTag']);
 Route::get('tag-buy-history', [TagsController::class, 'TagBuyHistory']);
 
