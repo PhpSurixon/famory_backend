@@ -654,9 +654,9 @@ class TagsController extends Controller
 
                     if ($notifType == 'tag_collaborator_request') 
                     {
-                        $message = "{$authUser->first_name} requested to add you as a collaborator to the {$tag->title} tag.";
+                        $message = "{$authUser->first_name} requested you to be collaborator to the {$tag->title} tag.";
                     } else {
-                        $message = "{$authUser->first_name} requested to add you as a viewer to the {$tag->title} tag.";
+                        $message = "{$authUser->first_name} requested you to be viewer to the {$tag->title} tag.";
                     }
                     
                     $this->notifyMessage($authUser, $memberUserId, $tag->id, $notifType, null, null,null,$message);

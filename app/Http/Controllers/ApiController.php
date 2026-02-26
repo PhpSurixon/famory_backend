@@ -559,7 +559,7 @@ class ApiController extends Controller
                 return response()->json(["message" => "Invalid Credentials !", "status" => "failed", "data" => NULL, 'isEmailVerfied' => null], 400);
             }
 
-//            $oldOTP = DB::table('password_resets')->where('email', $request->email)->where('type', 'signup')->first();
+            // $oldOTP = DB::table('password_resets')->where('email', $request->email)->where('type', 'signup')->first();
             $oldOTP = DB::table('password_resets')->where('email', $request->email)->first();
             
             if(is_null($oldOTP)) {
@@ -573,6 +573,10 @@ class ApiController extends Controller
             
             if ($user->ban_user == 1) {
                 return response()->json(['message' => 'Your account has been banned.', "status" => "failed", "data" => NULL, 'isEmailVerfied' => null], 400);
+            }
+            if ($user->role_id != 2) 
+            {
+                return response()->json(['message' => 'Your account not ', "status" => "failed", "data" => NULL, 'isEmailVerfied' => null], 400);
             }
 
             
