@@ -534,7 +534,7 @@ class ApiController extends Controller
     }
 
     // Login 
-    public function loginOLD26Feb(Request $request)
+    public function login(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required',
@@ -589,7 +589,7 @@ class ApiController extends Controller
             return response()->json(['message' => $e->getMessage(), 'status' => 'failed', "data" => [], 'isEmailVerfied' => null], 500);
         }
     }
-    public function login(Request $request)
+    public function loginOLD26Feb(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'email' => 'required',
