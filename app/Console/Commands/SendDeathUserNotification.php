@@ -5,29 +5,105 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\User;
 use App\Models\TrustedUser;
-use Illuminate\Support\Facades\Log;
+use App\Models\FinalWord;
+use App\Models\LegacyAlbum;
+use Carbon\Carbon;
+use App\Traits\OneSignalTrait;
 
 class SendDeathUserNotification extends Command
 {
-    /**
-     * The name and signature of the console command.
-     *
-     * @var string
-     */
-    protected $signature = 'app:send-death-user-notification';
+    use OneSignalTrait;
 
-    /**
-     * The console command description.
-     *
-     * @var string
-     */
-    protected $description = 'Command description';
+    protected $signature = 'send:user-notification';
+    protected $description = 'Send notification for recently passed users (last 5 days)';
 
-    /**
-     * Execute the console command.
-     */
     public function handle()
     {
-        //
+        $today = Carbon::today();
+        $fiveDaysAgo = Carbon::today()->subDays(5);
+
+        $deadUsers = User::where('is_dead', 1)
+            ->whereBetween('passed_date', [$fiveDaysAgo, $today])
+            ->whereNull('deleted_at')
+            ->get();
+
+        foreach ($deadUsers as $user) {
+
+            /*
+            |--------------------------------------------------------------------------
+            | FINAL WORD NOTIFICATION
+            |--------------------------------------------------------------------------
+            */
+
+            if (FinalWord::where('user_id', $user->id)->exists()) {
+
+                $trustedUsers = TrustedUser::where('user_id', $user->id)
+                    ->where('is_send_notify', 0)
+                    ->where('status', 'accepted')
+                    ->get();
+
+                foreach ($trustedUsers as $trusted) {
+
+                    $receiver = User::where('id', $trusted->trusted_user_id)
+                        ->where('is_dead', 0)
+                        ->whereNull('deleted_at')
+                        ->first();
+
+                    if ($receiver) {
+
+                        $this->notifyMessage(
+                            $user,
+                            $receiver->id,
+                            $user->id,
+                            "final_word_released",
+                            null,
+                            null,
+                            "Final words released",
+                            "User has passed away. Final words video released."
+                        );
+
+                        // mark sent
+                        $trusted->update(['is_send_notify' => 1]);
+                    }
+                }
+            }
+
+            /*
+            |--------------------------------------------------------------------------
+            | LEGACY ALBUM NOTIFICATION
+            |--------------------------------------------------------------------------
+            */
+
+            $legacyAlbums = LegacyAlbum::where('user_id', $user->id)
+                ->where('is_send_notify', 0)
+                ->get();
+
+            foreach ($legacyAlbums as $album) {
+
+                $receiver = User::where('id', $album->shared_with_id)
+                    ->where('is_dead', 0)
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if ($receiver) {
+
+                    $this->notifyMessage(
+                        $user,
+                        $receiver->id,
+                        $user->id,
+                        "legacy_album_released",
+                        null,
+                        null,
+                        "Legacy Album Released",
+                        "User has passed away. Legacy album released."
+                    );
+
+                    // mark sent
+                    $album->update(['is_send_notify' => 1]);
+                }
+            }
+        }
+
+        return Command::SUCCESS;
     }
 }

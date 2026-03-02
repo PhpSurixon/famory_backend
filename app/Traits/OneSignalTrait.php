@@ -478,6 +478,24 @@ trait OneSignalTrait
                     "album_id" => $item
                 ];
                 break;
+            case "final_word_released":
+                $title = $customTitle;
+                $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
+            case "legacy_album_released":
+                $title = $customTitle;
+                $message = $customMessage;
+                $data = [
+                    "type" => $type,
+                    "sender" => $senderDetails,
+                    "album_id" => $item
+                ];
+                break;
 
             default:
                 return 1;
