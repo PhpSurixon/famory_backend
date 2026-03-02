@@ -64,45 +64,67 @@ class BotCommentService
     private function generateComment(): string
     {
         $generic = [
-            "Nice post!",
-            "Well said 👍",
-            "Interesting 🤔",
-            "Thanks for sharing!",
-            "Agreed 💯",
-            "Love this!",
-            "Exactly my thoughts!",
-            "Couldn’t agree more!",
-            "Amazing content!",
-            "So true!",
+            "🙂",
+            "😊",
+            "👍",
+            "👌",
+            "🤔",
+            "👀",
+            "😌",
+            "✨",
+            "🌟",
+            "💫",
+            "🤝",
+            "🫶",
+            "❤️",
+            "💙",
+            "💚",
+            "💛",
+            "💜",
+            "🧡",
+            "🖤",
+            "🤍",
+            "🔥",
+            "💯",
+            "👏",
+            "🙌"
         ];
 
         $contextual = [
-            "I can really relate to this.",
-            "Didn’t think about it this way.",
-            "That’s an interesting point.",
-            "This actually makes sense.",
-            "I’ve had a similar experience.",
-            "This resonates with me.",
-            "Thanks for pointing this out.",
-            "Very insightful!",
-            "Makes perfect sense!",
-            "I totally see where you’re coming from.",
+            "🙂👍",
+            "👍🙂",
+            "🤔🙂",
+            "👀🙂",
+            "✨🙂",
+            "❤️🙂",
+            "💙🙂",
+            "👌🙂",
+            "💯🔥",
+            "👏🙂",
+            "🙌✨",
+            "😊👍",
+            "🌟🙂",
+            "💫🙂",
+            "🤝🙂"
         ];
 
         $questions = [
-            "What made you think about this?",
-            "Would love to hear more about this.",
-            "Have you experienced this yourself?",
-            "Can you elaborate on this?",
-            "How did you come to this conclusion?",
-            "What’s your opinion on this?",
-            "Why do you think this happens?",
-            "Could you explain more?",
-            "Is there more to this story?",
-            "What do others think?",
+            "Nice",
+            "Nice 🙂",
+            "Yo",
+            "Yo 🤔",
+            "Valid",
+            "Valid 👌",
+            "Great",
+            "Great ✨",
+            "Excellent",
+            "Excellent 🙂",
+            "Solid",
+            "Solid 💯",
+            "Cool",
+            "Cool 🙂"
         ];
-
-
+        
         $genericArr = array_rand(array_flip($generic), 2);
         $contextualArr = array_rand(array_flip($contextual), 2);
         $questionsArr = (array) array_rand(array_flip($questions), 1); // cast to array
