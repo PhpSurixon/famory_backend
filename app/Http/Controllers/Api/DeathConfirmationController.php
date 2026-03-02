@@ -178,8 +178,12 @@ class DeathConfirmationController extends Controller
                                             ->where('status', 'not_confirmed')
                                             ->exists();
 
-            if ($confirmedCount >= $requiredConfirmations && !$notConfirmed) {
-                User::where('id', $request->user_id)->update(['is_dead' => 1]);
+            if ($confirmedCount >= $requiredConfirmations && !$notConfirmed) 
+            {
+                User::where('id', $request->user_id)->update([
+                    'is_dead'     => 1,
+                    'passed_date' => date('Y-m-d')
+                ]);
             }
 
             return response()->json([
@@ -213,6 +217,10 @@ class DeathConfirmationController extends Controller
 
             // Step 3: Delete all confirmations related to this user
             DeathConfirmation::where('user_id', $authUser->id)->delete();
+            
+            TrustedUser::where('user_id', $authUser->id)
+                        ->where('is_send_notify', 1)
+                        ->update(['is_send_notify' => 0]);
 
             return response()->json([
                 'message' => 'Your death status has been revoked. You are now marked alive.',

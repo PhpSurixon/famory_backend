@@ -9,7 +9,7 @@ class TrustedUser extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'trusted_user_id', 'status'];
+    protected $fillable = ['user_id', 'trusted_user_id', 'status','is_send_notify'];
 
     public function owner()
     {

@@ -1780,128 +1780,128 @@ class ApiController extends Controller
     //     }
     // }
     
-    public function getUserByIdOLD(Request $request, $user_id)
-    {
-        // $user = User::find($user_id);
-        $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
-                    ->find($user_id);
+    // public function getUserByIdOLD(Request $request, $user_id)
+    // {
+    //     // $user = User::find($user_id);
+    //     $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
+    //                 ->find($user_id);
                     
-        if($user) {
-            $user->is_live = true;
-            $user->passed_date = null;
-            $isExist = UserLiveStatus::where('user_id',$user_id)->orderBy('id','DESC')->first();
-            if($isExist){
-                if($isExist->is_alive == 0){
-                    // $update_time = $isExist->created_at->addMinutes(2)->toDateTimeString();
-                    $update_time = $isExist->created_at->addHours(72)->toDateTimeString();
-                    $current_time = Carbon::now()->toDateTimeString();
-                    if($current_time >= $update_time){
-                        $user->is_live = false;
-                        $user->passed_date = $isExist->created_at->format('m/d/y');
-                    }else{
-                        $user->is_live = true;
-                    }
-                }else{
-                    $user->is_live = true;
-                }
-            }else{
-                $user->is_live = null;
-            }
+    //     if($user) {
+    //         $user->is_live = true;
+    //         $user->passed_date = null;
+    //         $isExist = UserLiveStatus::where('user_id',$user_id)->orderBy('id','DESC')->first();
+    //         if($isExist){
+    //             if($isExist->is_alive == 0){
+    //                 // $update_time = $isExist->created_at->addMinutes(2)->toDateTimeString();
+    //                 $update_time = $isExist->created_at->addHours(72)->toDateTimeString();
+    //                 $current_time = Carbon::now()->toDateTimeString();
+    //                 if($current_time >= $update_time){
+    //                     $user->is_live = false;
+    //                     $user->passed_date = $isExist->created_at->format('m/d/y');
+    //                 }else{
+    //                     $user->is_live = true;
+    //                 }
+    //             }else{
+    //                 $user->is_live = true;
+    //             }
+    //         }else{
+    //             $user->is_live = null;
+    //         }
             
             
-            $isFollowing = FollowerUnfollwer::where(['user_id' => Auth::id(), 'following_id' => $user_id])->exists();
-            $user->is_following = $isFollowing;
-            unset($user->userLiveStatus);
-            $member = FamilyMember::where(function ($query) use ($user_id) {
-                $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
-                      ->orWhere(function ($query) use ($user_id) {
-                          $query->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
-                      });
-            })->first();
+    //         $isFollowing = FollowerUnfollwer::where(['user_id' => Auth::id(), 'following_id' => $user_id])->exists();
+    //         $user->is_following = $isFollowing;
+    //         unset($user->userLiveStatus);
+    //         $member = FamilyMember::where(function ($query) use ($user_id) {
+    //             $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
+    //                   ->orWhere(function ($query) use ($user_id) {
+    //                       $query->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
+    //                   });
+    //         })->first();
 
-            $user->is_family_member = (!empty($member)) ? true : false;
+    //         $user->is_family_member = (!empty($member)) ? true : false;
             
-            return response()->json(['message' => 'Successfully retrieved user data', 'status' => 'success','data' => $user], 200);
-        } else {
-            return response()->json(['message' => 'User not found','status' => 'error','data' => null], 404);
-        }
-    }
+    //         return response()->json(['message' => 'Successfully retrieved user data', 'status' => 'success','data' => $user], 200);
+    //     } else {
+    //         return response()->json(['message' => 'User not found','status' => 'error','data' => null], 404);
+    //     }
+    // }
 
-    public function getUserByIdOLD2(Request $request, $user_id)
-    {
-        $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
-                    ->find($user_id);
+    // public function getUserByIdOLD2(Request $request, $user_id)
+    // {
+    //     $user = User::with(['burialinfo', 'last_will_url', 'userLiveStatus'])
+    //                 ->find($user_id);
                     
-        if($user) {
-            $user->is_live = true;
-            $user->passed_date = null;
+    //     if($user) {
+    //         $user->is_live = true;
+    //         $user->passed_date = null;
 
-            // ✅ Live status check
-            $isExist = UserLiveStatus::where('user_id',$user_id)->orderBy('id','DESC')->first();
-            if($isExist){
-                if($isExist->is_alive == 0){
-                    $update_time = $isExist->created_at->addHours(72)->toDateTimeString();
-                    $current_time = Carbon::now()->toDateTimeString();
-                    if($current_time >= $update_time){
-                        $user->is_live = false;
-                        $user->passed_date = $isExist->created_at->format('m/d/y');
-                    }else{
-                        $user->is_live = true;
-                    }
-                }else{
-                    $user->is_live = true;
-                }
-            }else{
-                $user->is_live = null;
-            }
+    //         // ✅ Live status check
+    //         $isExist = UserLiveStatus::where('user_id',$user_id)->orderBy('id','DESC')->first();
+    //         if($isExist){
+    //             if($isExist->is_alive == 0){
+    //                 $update_time = $isExist->created_at->addHours(72)->toDateTimeString();
+    //                 $current_time = Carbon::now()->toDateTimeString();
+    //                 if($current_time >= $update_time){
+    //                     $user->is_live = false;
+    //                     $user->passed_date = $isExist->created_at->format('m/d/y');
+    //                 }else{
+    //                     $user->is_live = true;
+    //                 }
+    //             }else{
+    //                 $user->is_live = true;
+    //             }
+    //         }else{
+    //             $user->is_live = null;
+    //         }
             
-            // Is Following check
-            $isFollowing = Follow::where('follower_id', Auth::id())
-                                 ->where('following_id', $user_id)
-                                 ->where('status', 'approved') // only approved requests
-                                 ->exists();
-            $user->is_following = $isFollowing;
+    //         // Is Following check
+    //         $isFollowing = Follow::where('follower_id', Auth::id())
+    //                              ->where('following_id', $user_id)
+    //                              ->where('status', 'approved') // only approved requests
+    //                              ->exists();
+    //         $user->is_following = $isFollowing;
 
-            // Is Family Member check
-            $member = FamilyMember::where(function ($query) use ($user_id) {
-                $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
-                      ->orWhere(function ($query) use ($user_id) {
-                          $query->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
-                      });
-            })->first();
-            $user->is_family_member = (!empty($member)) ? true : false;
+    //         // Is Family Member check
+    //         $member = FamilyMember::where(function ($query) use ($user_id) {
+    //             $query->where(['user_id' => Auth::id(), 'member_id' => $user_id])
+    //                   ->orWhere(function ($query) use ($user_id) {
+    //                       $query->where(['user_id' => $user_id, 'member_id' => Auth::id()]);
+    //                   });
+    //         })->first();
+    //         $user->is_family_member = (!empty($member)) ? true : false;
 
-            // Add Counts
-            $followerCount  = Follow::where('following_id', $user_id)
-                                    ->where('status', 'approved')
-                                    ->count();
+    //         // Add Counts
+    //         $followerCount  = Follow::where('following_id', $user_id)
+    //                                 ->where('status', 'approved')
+    //                                 ->count();
 
-            $followingCount = Follow::where('follower_id', $user_id)
-                                    ->where('status', 'approved')
-                                    ->count();
+    //         $followingCount = Follow::where('follower_id', $user_id)
+    //                                 ->where('status', 'approved')
+    //                                 ->count();
 
-            $postCount      = Post::where('user_id', $user_id)->count(); // assuming you have Post model
+    //         $postCount      = Post::where('user_id', $user_id)->count(); // assuming you have Post model
 
-            $user->follower_count  = $followerCount;
-            $user->following_count = $followingCount;
-            $user->post_count      = $postCount;
+    //         $user->follower_count  = $followerCount;
+    //         $user->following_count = $followingCount;
+    //         $user->post_count      = $postCount;
 
-            unset($user->userLiveStatus);
+    //         unset($user->userLiveStatus);
 
-            return response()->json([
-                'message' => 'Successfully retrieved user data',
-                'status'  => 'success',
-                'data'    => $user
-            ], 200);
+    //         return response()->json([
+    //             'message' => 'Successfully retrieved user data',
+    //             'status'  => 'success',
+    //             'data'    => $user
+    //         ], 200);
 
-        } else {
-            return response()->json([
-                'message' => 'User not found',
-                'status'  => 'error',
-                'data'    => null
-            ], 404);
-        }
-    }
+    //     } else {
+    //         return response()->json([
+    //             'message' => 'User not found',
+    //             'status'  => 'error',
+    //             'data'    => null
+    //         ], 404);
+    //     }
+    // }
 
     
 
@@ -1984,7 +1984,8 @@ class ApiController extends Controller
             // ✅ Live/Dead logic from DB column
             $userArray['is_live']  = $user->is_dead ? false : true;
             $userArray['is_dead']  = $user->is_dead ? true  : false;
-            $userArray['passed_date'] = $user->is_dead ? optional($user->updated_at)->format('d-m-Y') : null;
+            // $userArray['passed_date'] = $user->is_dead ? optional($user->updated_at)->format('d-m-Y') : null;
+            $userArray['passed_date'] = $user->passed_date;
 
             // ✅ Extra info
             $userArray['is_following']    = (bool) $isFollowing;
@@ -2016,7 +2017,7 @@ class ApiController extends Controller
                     'is_family_member'=> false,
                     'is_live'        => $user->is_dead ? false : true,
                     'is_dead'        => $user->is_dead ? true  : false,
-                    'passed_date'    => null,
+                    'passed_date'    => $user->passed_date,
                     'is_block'       => true,
                 ];
             } else {

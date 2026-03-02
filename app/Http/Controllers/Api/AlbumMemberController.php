@@ -863,42 +863,129 @@ class AlbumMemberController extends Controller
 
 
 
+    // public function getLegacyAlbumPostlist(Request $request)
+    // {
+    //     $validator = Validator::make($request->all(), [
+    //         'legacy_album_id' => 'required',
+    //     ]);
+
+    //     if ($validator->fails()) 
+    //     {
+    //         return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+    //     }
+
+    //     try 
+    //     {
+    //         $authUser = Auth::user();
+    //         $getLegacyAlbum = LegacyAlbum::where('id',$request->legacy_album_id)->where('is_deleted',0)->first();
+    //         if(empty($getLegacyAlbum))
+    //         {
+    //              return response()->json(['message' =>"Legacy Album not found", 'status' => 'failed'], 400);
+    //         }
+
+    //         $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$getLegacyAlbum->id)
+    //                                              ->pluck('post_id')
+    //                                              ->toArray();
+    //         $post = Post::withCount('like','comments')->with('user')->whereIn('id',$get_legacy_postIds)->orderBy('updated_at','desc')->get();
+
+
+    //         return response()->json([
+    //             "message" => "Legacy Album Post List",
+    //             "status"  => "success",
+    //             "data"    => $post
+    //         ], 200);
+            
+    //     } 
+    //     catch (Exception $e) 
+    //     {
+    //         return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+    //     }
+    // }
+
     public function getLegacyAlbumPostlist(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'legacy_album_id' => 'required',
+            'per_page' => 'nullable|integer',
+            'page' => 'nullable|integer',
         ]);
 
         if ($validator->fails()) 
         {
-            return response()->json(['message' => $validator->errors()->first(), 'status' => 'failed'], 400);
+            return response()->json([
+                'message' => $validator->errors()->first(),
+                'status' => 'failed'
+            ], 400);
         }
 
         try 
         {
-            $authUser = Auth::user();
-            $getLegacyAlbum = LegacyAlbum::where('id',$request->legacy_album_id)->where('is_deleted',0)->first();
-            if(empty($getLegacyAlbum))
+            $getLegacyAlbum = LegacyAlbum::where('id',$request->legacy_album_id)
+                                         ->where('is_deleted',0)
+                                         ->first();
+
+            if (empty($getLegacyAlbum))
             {
-                 return response()->json(['message' =>"Legacy Album not found", 'status' => 'failed'], 400);
+                return response()->json([
+                    'message' => "Legacy Album not found",
+                    'status' => 'failed'
+                ], 400);
             }
 
-            $get_legacy_postIds = LegacyAlbumPost::where('legacy_album_id',$getLegacyAlbum->id)
-                                                 ->pluck('post_id')
-                                                 ->toArray();
-            $post = Post::withCount('like','comments')->with('user')->whereIn('id',$get_legacy_postIds)->orderBy('updated_at','desc')->get();
+            /**
+             * ==========================
+             * PAGINATION VALUES
+             * ==========================
+             */
+            $perPage = (int) $request->input('per_page', 10);
+            $perPage = $perPage > 0 ? $perPage : 10;
 
+            $page = (int) $request->input('page', 1);
+            $page = $page > 0 ? $page : 1;
+
+            /**
+             * ==========================
+             * GET POST IDS
+             * ==========================
+             */
+            $postIdsQuery = LegacyAlbumPost::where('legacy_album_id',$getLegacyAlbum->id);
+
+            $totalRecords = $postIdsQuery->count();
+
+            $postIds = $postIdsQuery->pluck('post_id')->toArray();
+
+            /**
+             * ==========================
+             * FETCH PAGINATED POSTS
+             * ==========================
+             */
+            $posts = Post::withCount('like','comments')
+                         ->with('user')
+                         ->whereIn('id',$postIds)
+                         ->orderBy('updated_at','desc')
+                         ->skip(($page - 1) * $perPage)
+                         ->take($perPage)
+                         ->get();
+
+            $totalPages = ceil($totalRecords / $perPage);
 
             return response()->json([
                 "message" => "Legacy Album Post List",
                 "status"  => "success",
-                "data"    => $post
+                "data"    => $posts,
+                "total_records" => $totalRecords,
+                "total_pages" => $totalPages,
+                "current_page" => $page,
+                "per_page" => $perPage
             ], 200);
             
         } 
         catch (Exception $e) 
         {
-            return response()->json(['message' => "Something Went Wrong!", 'status' => 'failed'], 400);
+            return response()->json([
+                'message' => "Something Went Wrong!",
+                'status' => 'failed'
+            ], 400);
         }
     }
 

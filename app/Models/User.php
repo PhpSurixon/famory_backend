@@ -33,6 +33,7 @@ class User extends Authenticatable implements JWTSubject
         'is_bot', 
         'remaining_lagecy_count', 
         'remaining_tag_count', 
+        'passed_date', 
     ];
 
     /**
