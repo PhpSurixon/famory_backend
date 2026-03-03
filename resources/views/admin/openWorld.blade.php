@@ -82,8 +82,9 @@
             
                 @foreach ($posts as $key => $post)
                     @if($post->user)
+
                     <div class="box post-cards col-xl-4 col-lg-4 col-md-6 col-12 mb-4 h-85">
-                        <div class="card" onclick="window.location.href='{{ route('postDetails',$post['post_id']) }}'" style="cursor: pointer;">
+                        <div class="card" onclick="window.location.href='{{ route('postDetails',$post->id) }}'" style="cursor: pointer;">
                             @php
                                 $file = $post['file'] ?? null;
                                 $extension = $file ? pathinfo($file, PATHINFO_EXTENSION) : null;
@@ -124,7 +125,7 @@
                             @endif
                             <div class="card-body">
                                 @php
-                                    $postCount = DB::table('likes')->where('post_id',$post['post_id'])->count();
+                                    $postCount = DB::table('likes')->where('post_id',$post->id)->count();
                                 @endphp
                                 <h5 class="card-title mb-3">{{ ucfirst($post['title']) }}</h5>
                                 <div class="d-flex justify-content-between align-items-center mb-3">
