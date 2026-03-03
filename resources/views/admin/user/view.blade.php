@@ -186,7 +186,7 @@
                             
                             <!-- Tab links -->
                             <div class="tab px-3 py-2">
-                               <button class="tablinks active" onclick="openCity(event, 'Block-User-Info')">Block User Info</button> 
+                               <button class="tablinks active" onclick="openCity(event, 'Block-User-Info')">Blocked User Info</button> 
                                <a href="{{ route('allPosts', $user->id) }}" class="btn grp-btnn">User All Post</a>
                             </div>
                             

@@ -22,7 +22,8 @@
 								<th>Post Title</th>
 								<th>Reported User</th>
 								<th>Reported Email</th>
-								<th>Reported Mobile</th>
+								<!-- <th>Reported Mobile</th> -->
+								<th>Reported Reason</th>
 								<th>Action</th>
 							</tr>
 						</thead>
@@ -35,10 +36,13 @@
 							  @endphp
 							<tr>
 								<td>{{ $key+1 }}</td>
-								<td>{{ $post->title ? $post->title: $post->post_type }}</td>
+								<td>
+									<a href="{{ route('postDetails',[$post->id])}}">{{ $post->title ? $post->title: $post->post_type }}</a>
+								</td>
 								<td>{{ $user->full_name??'' }}</td>
 								<td>{{ $user->email??"N/A"}}</td>
-								<td>{{ $user->phone??"N/A"}}</td>
+								<!-- <td>{{ $user->phone??"N/A"}}</td> -->
+								<td>{{ $reported_post->message??"N/A"}}</td>
 								<td>
 									<div class="dropdown">
 										<button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" aria-expanded="false">
@@ -46,6 +50,7 @@
 										</button>
 										<div class="dropdown-menu" style="">
 											@if($user)
+
 											<button class="dropdown-item deletPostBtn" data-id="{{ $post->id  }}">
 											<i class="bx bx-trash me-1"></i>Delete Post
 											</button>
@@ -120,7 +125,7 @@ $('.deletPostBtn').on('click', function() {
 								confirmButtonText: 'OK'
 							}).then((result) => {
 								if (result.isConfirmed) {
-									window.location.href = '/reported-post/list'; 
+									window.location.href = "{{ route('reported_post') }}"; 
 								}
 							});
 						} else {

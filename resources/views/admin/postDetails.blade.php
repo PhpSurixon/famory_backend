@@ -316,7 +316,7 @@ $(document).ready(function() {
                                     confirmButtonText: 'OK'
                                 }).then((result) => {
                                     if (result.isConfirmed) {
-                                         window.location.href = '/openworld';
+                                         window.location.href = '{{ route("openworld") }}';
                                     }
                                 });
                             } else {

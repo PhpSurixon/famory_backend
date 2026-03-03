@@ -3025,7 +3025,7 @@ class PostController extends Controller
             $post->update(['is_post' => 1]);
             $getAlbum = Post::where('id',$post->post_id)->first();
             $type = "post"; 
-            $this->notifyMessage(null, $getAlbum->user_id, $getAlbum, $type);
+            // $this->notifyMessage(null, $getAlbum->user_id, $getAlbum, $type);
             if($getAlbum->album_id){
                 $albumPost = new AlbumPost();
                 $albumPost->album_id = $getAlbum->album_id;

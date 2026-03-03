@@ -109,7 +109,7 @@
         </li> -->
         
         
-        <li class="menu-item {{request()->is('ads-price', 'ads-price','edit-ads-price/*') || request()->is('featured-company-payment', 
+        <!-- <li class="menu-item {{request()->is('ads-price', 'ads-price','edit-ads-price/*') || request()->is('featured-company-payment', 
         'featured-company-payment','edit-featured-company-price/*','create-featured-company-price') || 
         request()->is('subscription-setting', 'subscription-setting','create-subscription-setting','edit-subscription-setting/*') || request()->is('settings') ? 'active open' : '' }}">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
@@ -117,21 +117,21 @@
                 <div>Setting</div>
             </a>
             <ul class="menu-sub">
-                <!-- <li class="menu-item {{ request()->is('ads-price', 'ads-price','edit-ads-price/*') ? 'active' : '' }}">
+                 <li class="menu-item {{ request()->is('ads-price', 'ads-price','edit-ads-price/*') ? 'active' : '' }}">
                     <a href="{{ route('ads-price') }}" class="menu-link">
                         
                         <i class='menu-icon tf-icons bx bxs-report' ></i>
                         <div data-i18n="Layouts">Ads Price</div>
                     </a>
-                </li> -->
+                </li> 
                 
-                <!-- <li class="menu-item {{ request()->is('featured-company-payment', 'featured-company-payment','edit-featured-company-price/*','create-featured-company-price') ? 'active' : '' }}">
+                 <li class="menu-item {{ request()->is('featured-company-payment', 'featured-company-payment','edit-featured-company-price/*','create-featured-company-price') ? 'active' : '' }}">
                     <a href="{{ route('featured-company-payment') }}" class="menu-link">
                         
                         <i class='menu-icon tf-icons bx bxs-report' ></i>
                         <div data-i18n="Layouts">Featured Partner Price</div>
                     </a>
-                </li> -->
+                </li> 
                 
                  <li class="menu-item {{ request()->is('subscription-setting', 'subscription-setting','create-subscription-setting','edit-subscription-setting/*') ? 'active' : '' }}">
                     <a href="{{ route('subscription-setting') }}" class="menu-link">
@@ -147,6 +147,12 @@
                 </li>
                 
             </ul>
+        </li> -->
+        <li class="menu-item {{ request()->is('settings') ? 'active' : '' }}">
+            <a href="{{ route('bot_setting') }}" class="menu-link">
+                <i class='menu-icon tf-icons bx bxs-cog'></i>
+                <div data-i18n="Layouts">Bot Setting</div>
+            </a>
         </li>
         
         
@@ -195,8 +201,6 @@
                 </li>
             </ul>
         </li>
-        
-        
         
         <li class="menu-item {{ request()->is('custom-notification') ? 'active' : '' }}">
             <a href="{{ route('customNotification') }}" class="menu-link">

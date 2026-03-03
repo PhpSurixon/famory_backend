@@ -110,26 +110,7 @@
                </a>
             </div>
             <!-- Card 3 -->
-            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
-               <a href="{{ route('contacts') }}">
-                  <div class="card">
-                     <div class="card-body d-flex gap-3">
-                        <div class="card-title d-flex align-items-start justify-content-between mb-0">
-                           <div class="avatar flex-shrink-0">
-                              <i class='bx bxs-contact' ></i>
-                           </div>
-                        </div>
-                        <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Contact us</span>
-                           @php
-                           $contactCount = DB::table('contacts')->count();
-                           @endphp
-                           <h3 class="card-title mb-0">{{ $contactCount }}</h3>
-                        </div>
-                     </div>
-                  </div>
-               </a>
-            </div>
+            
             <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
                <a href="{{ route('famory-tags') }}">
                   <div class="card">
@@ -162,34 +143,74 @@
                         <div>
                            <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Sold Digital Tags</span>
                            @php
-                           $tagCount = DB::table('buy_new_tags')->count();
+                           $tag_count = DB::table('tags_purchase_histories')->sum('tag_count');
                            @endphp
-                           <h3 class="card-title mb-0">{{ $tagCount }}</h3>
+                           <h3 class="card-title mb-0">{{ $tag_count }}</h3>
                         </div>
                      </div>
                   </div>
                </a>
             </div>
             <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
-               <a href="{{ route('get-delete-user-request') }}">
-                  <div class="card">
+               <a href="{{ route('product') }}">
+                  <div class="card" >
                      <div class="card-body d-flex gap-3">
                         <div class="card-title d-flex align-items-start justify-content-between mb-0">
                            <div class="avatar flex-shrink-0">
-                              <i class='bx bxs-user-minus'></i>
+                              <i class='bx bxs-sticker'></i>
                            </div>
                         </div>
                         <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Suspended User</span>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Total Physical Tags</span>
                            @php
-                           $susCount = DB::table('delete_account_request')->where('status',0)->count();
+                           $dataCount = DB::table('products')->count();
                            @endphp
-                           <h3 class="card-title mb-0">{{ $susCount }}</h3>
+                           <h3 class="card-title mb-0" >{{ $dataCount }}</h3>
                         </div>
                      </div>
                   </div>
                </a>
             </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
+               <a href="javascript:void(0)">
+                  <div class="card" >
+                     <div class="card-body d-flex gap-3">
+                        <div class="card-title d-flex align-items-start justify-content-between mb-0">
+                           <div class="avatar flex-shrink-0">
+                              <i class='bx bxs-sticker'></i>
+                           </div>
+                        </div>
+                        <div>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Sold Physical Tags</span>
+                           
+                           <h3 class="card-title mb-0" >0</h3>
+                        </div>
+                     </div>
+                  </div>
+               </a>
+            </div>
+
+            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
+               <a href="javascript:void(0)">
+                  <div class="card" >
+                     <div class="card-body d-flex gap-3">
+                        <div class="card-title d-flex align-items-start justify-content-between mb-0">
+                           <div class="avatar flex-shrink-0">
+                              <i class='bx bxs-sticker'></i>
+                           </div>
+                        </div>
+                        <div>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Sold Legacy Albums</span>
+                           @php
+                           $album_count = DB::table('legacy_album_purchase_histories')->sum('album_count');
+                           @endphp
+                           <h3 class="card-title mb-0" >{{ $album_count }}</h3>
+                        </div>
+                     </div>
+                  </div>
+               </a>
+            </div>
+            
             <!-- Card 4 -->
             <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
                <a href="{{ route('info-pages.index') }}">
@@ -291,21 +312,62 @@
                </div>
                </a>
                </div> -->
+            
             <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
-               <a href="{{ route('product') }}">
-                  <div class="card" >
+               <a href="{{ route('contacts') }}">
+                  <div class="card">
                      <div class="card-body d-flex gap-3">
                         <div class="card-title d-flex align-items-start justify-content-between mb-0">
                            <div class="avatar flex-shrink-0">
-                              <i class='bx bxs-sticker'></i>
+                              <i class='bx bxs-contact' ></i>
                            </div>
                         </div>
                         <div>
-                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Physical Tag</span>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Contact us</span>
                            @php
-                           $dataCount = DB::table('products')->count();
+                           $contactCount = DB::table('contacts')->count();
                            @endphp
-                           <h3 class="card-title mb-0" >{{ $dataCount }}</h3>
+                           <h3 class="card-title mb-0">{{ $contactCount }}</h3>
+                        </div>
+                     </div>
+                  </div>
+               </a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
+               <a href="{{ route('reported_post') }}">
+                  <div class="card">
+                     <div class="card-body d-flex gap-3">
+                        <div class="card-title d-flex align-items-start justify-content-between mb-0">
+                           <div class="avatar flex-shrink-0">
+                              <i class='bx bxs-contact' ></i>
+                           </div>
+                        </div>
+                        <div>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Reported Posts</span>
+                           @php
+                           $post_reported_count = DB::table('post_reports')->count();
+                           @endphp
+                           <h3 class="card-title mb-0">{{ $post_reported_count }}</h3>
+                        </div>
+                     </div>
+                  </div>
+               </a>
+            </div>
+            <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
+               <a href="{{ route('get-delete-user-request') }}">
+                  <div class="card">
+                     <div class="card-body d-flex gap-3">
+                        <div class="card-title d-flex align-items-start justify-content-between mb-0">
+                           <div class="avatar flex-shrink-0">
+                              <i class='bx bxs-user-minus'></i>
+                           </div>
+                        </div>
+                        <div>
+                           <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Delete Account Requests</span>
+                           @php
+                           $susCount = DB::table('delete_account_request')->where('status',0)->count();
+                           @endphp
+                           <h3 class="card-title mb-0">{{ $susCount }}</h3>
                         </div>
                      </div>
                   </div>

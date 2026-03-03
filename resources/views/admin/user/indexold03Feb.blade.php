@@ -99,8 +99,8 @@
                            <th>S.No.</th>
                            <th>Name</th>
                            <th>Email</th>
-                           <!-- <th>Subscriptions</th>
-                           <th>Subscriptions Expiry Date</th> -->
+                           <th>Subscriptions</th>
+                           <th>Subscriptions Expiry Date</th>
                            <th>User Type</th>
                            <th>Action</th>
                         </tr>
@@ -227,7 +227,21 @@
                                        userActions += `<a class="dropdown-item" href="{{ route('viewUserDeatils', '') }}/${user.id}">
                                                            <i class="bx bx-detail me-1"></i> View
                                                        </a>`;
-                                       
+                                       if (user.subscription === null) {
+                                           userActions += `<a class="dropdown-item" href="javascript:void(0)"
+                                                               data-user-id="${user.id}" data-toggle="modal"
+                                                               data-target="#subscribeModel"
+                                                               onclick="opensubscribeModel('${user.id}')">
+                                                               <i class="bx bx-crown me-1"></i> Free Subscribe
+                                                           </a>`;
+                                       } else if (user.subscription.platform == 'web') {
+                                           userActions += `<a class="dropdown-item" href="javascript:void(0)"
+                                                               data-user-id="${user.id}" data-toggle="modal"
+                                                               data-target="#subscribeModel"
+                                                               onclick="cancelsubscribeModel('${user.subscription.id}')">
+                                                               <i class="bx bx-x me-1"></i> Cancel Subscribe
+                                                           </a>`;
+                                       }
                                    }
                                    userActions += `<a class="dropdown-item" href="${editUrl}">
                                    <i class="bx bx-edit-alt me-1"></i> Edit
@@ -259,7 +273,10 @@
                                         ${(user.first_name || user.last_name) ? `${user.first_name || ''} ${user.last_name || ''}`.trim() : 'N/A'}
                                    </td>
                                    <td>${user.email ?? 'N/A'}</td>
-                                   
+                                   <td>${user.subscription ? 
+                                       `<a href="javascript:void(0)" class="view-subscriptions" data-user-id="${user.id}" onclick='openModal(${JSON.stringify(user.subscription)})'>View Subscriptions</a>` 
+                                       : 'No subscriptions'}</td>
+                                   <td>${user.subscription && user.subscription.expiry_date ? new Date(user.subscription.expiry_date).toLocaleDateString() : '-'}</td>
                                     <td>${isBot}</td>
                                    <td>
                                        <div class="dropdown">
