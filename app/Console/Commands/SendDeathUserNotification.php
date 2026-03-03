@@ -50,7 +50,7 @@ class SendDeathUserNotification extends Command
                         ->first();
 
                     if ($receiver) {
-
+                        $name = $user->first_name ?? 'User';
                         $this->notifyMessage(
                             $user,
                             $receiver->id,
@@ -59,7 +59,7 @@ class SendDeathUserNotification extends Command
                             null,
                             null,
                             "Final words released",
-                            "User has passed away. Final words video released."
+                            "$name has passed away. Final words video released."
                         );
 
                         // mark sent
@@ -86,6 +86,7 @@ class SendDeathUserNotification extends Command
                     ->first();
 
                 if ($receiver) {
+                    $name = $user->first_name ?? 'User';
 
                     $this->notifyMessage(
                         $user,
@@ -95,7 +96,7 @@ class SendDeathUserNotification extends Command
                         null,
                         null,
                         "Legacy Album Released",
-                        "User has passed away. Legacy album released."
+                        "$name has passed away. Legacy album released."
                     );
 
                     // mark sent
