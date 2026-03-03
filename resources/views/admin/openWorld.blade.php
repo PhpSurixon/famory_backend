@@ -69,13 +69,13 @@
         
         <div class="row mb-3">
             <div class="col-md-12">
-                <form method="GET" action="{{ route('openworld') }}">
+                <!-- <form method="GET" action="{{ route('openworld') }}">
                     <label for="sort-select" class="mb-1">Sort by Schedule Date:</label>
                     <select id="sort-select" name="sort_by" class="form-select" onchange="this.form.submit();">
                         <option value="desc" {{ request('sort_by') == 'desc' ? 'selected' : '' }}>Newest</option>
                         <option value="asc" {{ request('sort_by') == 'asc' ? 'selected' : '' }}>Oldest</option>
                     </select>
-                </form>
+                </form> -->
             </div>
         </div>
         <div class="row">
