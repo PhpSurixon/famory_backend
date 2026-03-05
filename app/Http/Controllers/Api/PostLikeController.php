@@ -186,6 +186,8 @@ class PostLikeController extends Controller
 
             $comment = $this->postComment::find($request->comment_id);
 
+            $postdata = Post::where('id',$comment->post_id)->first();
+
             if (!$comment) {
                 return response()->json([
                     'status'  => 'failed',
@@ -224,7 +226,7 @@ class PostLikeController extends Controller
                     $this->notifyMessage(
                         $authUser,              // sender
                         $comment->user_id,      // receiver (comment owner)
-                        $comment->post_id,      // post id
+                        $postdata,      // post id
                         'comment_like',         // type
                     );
                 }
