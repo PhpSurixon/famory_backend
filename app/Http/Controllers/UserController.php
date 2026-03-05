@@ -2389,7 +2389,7 @@ class UserController extends Controller
                         ->whereNotNull('first_name')
                         ->where('first_name', '!=', '')
                         ->whereRaw("TRIM(first_name) != ''")
-                        ->where('role_id', 2);
+                        ->where('role_id', 2)
                         ->where('is_bot', 0);
 
             //  Apply search filter if provided
