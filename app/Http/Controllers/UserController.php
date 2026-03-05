@@ -395,7 +395,7 @@ class UserController extends Controller
             // 🔎 Base query
             $query = User::where('id', '!=', $currentUserId)
                 ->where('role_id', 2)
-                ->where('is_bot', 1)
+                ->where('is_bot', 0)
                 ->whereNotIn('id', $blockedUserIds);
 
             // 🔎 Apply search only if search term exists
