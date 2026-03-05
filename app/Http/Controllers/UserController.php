@@ -396,6 +396,9 @@ class UserController extends Controller
             $query = User::where('id', '!=', $currentUserId)
                 ->where('role_id', 2)
                 ->where('is_bot', 0)
+                ->whereNotNull('first_name')
+                ->where('first_name', '!=', '')
+                ->whereRaw("TRIM(first_name) != ''")
                 ->whereNotIn('id', $blockedUserIds);
 
             // 🔎 Apply search only if search term exists
@@ -443,8 +446,8 @@ class UserController extends Controller
 
                 return [
                     'user_id'       => $user->id,
-                    'first_name'    => $user->first_name,
-                    'last_name'     => $user->last_name,
+                    'first_name'    => $user->first_name ?? "",
+                    'last_name'     => $user->last_name  ?? "",
                     'username'      => $user->username,
                     'email'         => $user->email,
                     'phone'         => $user->phone,
@@ -2387,6 +2390,7 @@ class UserController extends Controller
                         ->where('first_name', '!=', '')
                         ->whereRaw("TRIM(first_name) != ''")
                         ->where('role_id', 2);
+                        ->where('is_bot', 0);
 
             //  Apply search filter if provided
             if (!empty($search)) {
