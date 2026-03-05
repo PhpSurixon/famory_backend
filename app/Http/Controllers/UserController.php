@@ -409,7 +409,7 @@ class UserController extends Controller
                 });
             }
 
-            $users = $query->paginate(10);
+            $users = $query->orderBy('first_name','asc')->paginate(10);
 
             if ($users->isEmpty()) {
                 return response()->json([
