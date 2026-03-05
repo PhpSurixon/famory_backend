@@ -103,6 +103,9 @@ Route::resource('info-pages', PageInfoController::class);
         Route::get('/user/details/{id}', [AdminController::class, "viewUserDeatils"])->name('viewUserDeatils');
         Route::get('/user/all/post/{id}', [AdminController::class, "viewAllPosts"])->name('allPosts');
         Route::post('/approveAdvertiser', [AdminController::class, "approveAdvertiser"])->name("approveAdvertiser");
+        
+        Route::post('/admin/add-legacy-album', [AdminController::class,'addLegacyAlbumByAdmin'])->name('admin.addLegacyAlbum');
+        Route::post('/admin/add-tags', [AdminController::class,'addTagsByAdmin'])->name('admin.addTags');
 
         Route::post('/delete-user', [AdminController::class, "softDeleteUser"])->name('softDeleteUser');
         Route::post('/reject-delete-acount-request', [AdminController::class, "rejectDeleteAccountRequest"])->name('rejectDeleteAccountRequest');
