@@ -1928,7 +1928,7 @@ class TagsController extends Controller
     }
 
 
-    public function followersUserList(Request $request)
+    public function followersUserListOLD05March(Request $request)
     {
         try 
         {
@@ -2049,6 +2049,122 @@ class TagsController extends Controller
                 'data'    => $data
             ]);
         } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status' => 'failed'
+            ], 400);
+        }
+    }
+
+    public function followersUserList(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'tag_id' => 'required|exists:family_tag_ids,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $limit = (int) $request->get('limit', 30);
+            $page = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $search = $request->get('search');
+
+            $authId = Auth::id();
+            $authUser = Auth::user();
+
+            $tag = FamilyTagId::where('id',$request->tag_id)
+                    ->where('is_deleted',0)
+                    ->first();
+
+            if(empty($tag)){
+                return response()->json([
+                    'message' => 'Tags Details not found',
+                    'status' => 'failed'
+                ], 403);
+            }
+
+            if ($tag->created_user_id != $authUser->id) {
+                return response()->json([
+                    'message' => 'You are not the Tag Owner, so you cannot view members.',
+                    'status'  => 'failed'
+                ], 403);
+            }
+
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            $tagMemberIds = TagUser::where('tag_id', $request->tag_id)
+                            ->whereIn('approval_status',['accepted','pending'])
+                            ->pluck('user_id')
+                            ->toArray();
+
+            $notgetUserIds = array_unique(array_merge($blockedUserIds,$tagMemberIds));
+
+            /*
+            |--------------------------------------------------------------------------
+            | FOLLOWING LIST (Users Auth User is Following)
+            |--------------------------------------------------------------------------
+            */
+
+            $query = Follow::where('follower_id', $authId)
+                        ->where('status', 'approved')
+                        ->whereNotIn('following_id', $notgetUserIds)
+                        ->with('following:id,first_name,last_name,email,username,image');
+
+            if (!empty($search)) {
+                $query->whereHas('following', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            $totalUsers = $query->count();
+
+            $followings = $query->orderBy('id', 'desc')
+                                ->skip($offset)
+                                ->take($limit)
+                                ->get();
+
+            $users = $followings->map(function ($follow) {
+
+                $user = $follow->following;
+
+                return [
+                    'follow_id'     => $follow->id,
+                    'user_id'       => $user->id,
+                    'first_name'    => $user->first_name,
+                    'last_name'     => $user->last_name,
+                    'email'         => $user->email,
+                    'username'      => $user->username,
+                    'image'         => $user->image ? $user->image : null,
+                ];
+            });
+
+            $data = [
+                'user_id'     => (int) $authId,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $users
+            ];
+
+            return response()->json([
+                'message' => 'Following users fetched successfully',
+                'status'  => "success",
+                'data'    => $data
+            ]);
+
+        } 
+        catch (\Exception $e) {
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
                 'status' => 'failed'

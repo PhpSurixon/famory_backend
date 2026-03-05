@@ -519,7 +519,7 @@ class AlbumMemberController extends Controller
         }
     }
 
-    public function followersUserList(Request $request)
+    public function followersUserListOLD05March(Request $request)
     {
         try 
         {
@@ -636,6 +636,135 @@ class AlbumMemberController extends Controller
                 'data'    => $data
             ]);
         } catch (\Exception $e) {
+            return response()->json([
+                'message' => "Something Went Wrong! " . $e->getMessage(),
+                'status' => 'failed'
+            ], 400);
+        }
+    }
+
+    public function followersUserList(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'album_id' => 'required|exists:albums,id',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'message' => $validator->errors()->first(),
+                    'status'  => 'failed'
+                ], 400);
+            }
+
+            $limit = (int) $request->get('limit', 30);
+            $page = (int) $request->get('page', 1);
+            $offset = ($page - 1) * $limit;
+            $search = $request->get('search');
+
+            $authId = Auth::id();
+            $authUser = Auth::user();
+
+            $album = Album::findOrFail($request->album_id);
+
+            // Only owner can see member list
+            if ($album->user_id != $authUser->id) {
+                return response()->json([
+                    'message' => 'You are not the Album Owner, so you cannot view members.',
+                    'status'  => 'failed'
+                ], 403);
+            }
+
+            $blockedUserIds = $request->attributes->get('blocked_user_ids', []);
+
+            $albumMemberIds = AlbumUser::where('album_id', $request->album_id)
+                ->whereNotIn('approval_status', ['pending', 'accepted'])
+                ->pluck('user_id')
+                ->toArray();
+
+            $notgetUserIds = array_unique(array_merge($blockedUserIds, $albumMemberIds));
+
+            /*
+            |--------------------------------------------------------------------------
+            | FOLLOWING LIST
+            |--------------------------------------------------------------------------
+            */
+
+            $query = Follow::where('follower_id', $authId)
+                ->where('status', 'approved')
+                ->whereNotIn('following_id', $notgetUserIds)
+                ->with('following:id,first_name,last_name,email,username,image');
+
+            if (!empty($search)) {
+                $query->whereHas('following', function ($q) use ($search) {
+                    $q->where('first_name', 'like', "%{$search}%")
+                        ->orWhere('last_name', 'like', "%{$search}%")
+                        ->orWhere('username', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%");
+                });
+            }
+
+            $totalUsers = $query->count();
+
+            $followings = $query->orderBy('id', 'desc')
+                ->skip($offset)
+                ->take($limit)
+                ->get();
+
+            // Collect following user IDs
+            $followingIds = $followings->pluck('following.id')->filter()->all();
+
+            // Fetch relations in one query
+            $relations = Follow::where('follower_id', $authId)
+                ->whereIn('following_id', $followingIds)
+                ->pluck('status', 'following_id');
+
+            $users = $followings->map(function ($follow) use ($relations) {
+
+                $user = $follow->following;
+
+                $status = $relations[$user->id] ?? null;
+
+                if ($status === 'approved') {
+                    $action = "Following";
+                    $isFollowing = true;
+                } elseif ($status === 'pending') {
+                    $action = "Requested";
+                    $isFollowing = false;
+                } else {
+                    $action = "Follow";
+                    $isFollowing = false;
+                }
+
+                return [
+                    'follow_id'     => $follow->id,
+                    'user_id'       => $user->id,
+                    'first_name'    => $user->first_name,
+                    'last_name'     => $user->last_name,
+                    'email'         => $user->email,
+                    'username'      => $user->username,
+                    'image'         => $user->image ? $user->image : null,
+                ];
+            });
+
+            $data = [
+                'user_id'     => (int) $authId,
+                'count'       => $totalUsers,
+                'page'        => $page,
+                'limit'       => $limit,
+                'total_pages' => ceil($totalUsers / $limit),
+                'users'       => $users
+            ];
+
+            return response()->json([
+                'message' => 'Following users fetched successfully',
+                'status'  => "success",
+                'data'    => $data
+            ]);
+
+        } 
+        catch (\Exception $e) {
             return response()->json([
                 'message' => "Something Went Wrong! " . $e->getMessage(),
                 'status' => 'failed'

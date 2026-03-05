@@ -395,6 +395,7 @@ class UserController extends Controller
             // 🔎 Base query
             $query = User::where('id', '!=', $currentUserId)
                 ->where('role_id', 2)
+                ->where('is_bot', 1)
                 ->whereNotIn('id', $blockedUserIds);
 
             // 🔎 Apply search only if search term exists
@@ -413,9 +414,9 @@ class UserController extends Controller
             if ($users->isEmpty()) {
                 return response()->json([
                     "message" => "No users found.",
-                    "status"  => "failed",
+                    "status"  => "success",
                     "data"    => [],
-                ], 404);
+                ], 200);
             }
 
             // Collect IDs
