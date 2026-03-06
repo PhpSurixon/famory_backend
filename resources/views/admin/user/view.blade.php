@@ -123,7 +123,7 @@
                         <button class="btn btn-sm btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#legacyAlbumModal">
-                        Add Albums
+                        Free Add Albums
                         </button>
                         
                      </div>
@@ -136,7 +136,7 @@
                         <button class="btn btn-sm btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#tagModal">
-                        Add Tags
+                        Free Add Tags
                         </button>
                         
                     </div>
