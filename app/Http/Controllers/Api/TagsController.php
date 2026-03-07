@@ -2657,6 +2657,46 @@ class TagsController extends Controller
         }
     }
 
+    public function physicalDetails(Request $request)
+    {
+        try 
+        {
+            $validator = Validator::make($request->all(), [
+                'id' => 'required',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first(),
+                ], 400);
+            }
+
+            $get_physical_tag = Product::where('id',$request->id)->first();
+            if(empty($get_physical_tag))
+            {
+                 return response()->json([
+                    'status'  => 'failed',
+                    'message' => "Physical Tags Details not found",
+                ], 400);
+            }
+
+            return response()->json([
+                'message' => 'Physical Tags Details successfully',
+                'status'  => 'success',
+                'data'    => $get_physical_tag
+            ], 200);
+
+            
+        } catch (Exception $e) {
+            return response()->json([
+                'status'  => 'failed',
+                'message' => $e->getMessage(),
+            ], 500);
+            
+        }
+    }
+
 
 
 

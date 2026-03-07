@@ -17,6 +17,7 @@ class Product extends Model
         'image',
         'description',
         'total_purchased',
+        'reseller_price',
     ];
 
     protected $hidden = [

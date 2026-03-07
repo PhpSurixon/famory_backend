@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\PostCommentController;
 use App\Http\Controllers\Api\PostLikeController;
 use App\Http\Controllers\Api\AlbumMemberController;
 use App\Http\Controllers\Api\TagsController;
+use App\Http\Controllers\Api\CartController;
 
 
 
@@ -178,12 +179,20 @@ Route::post('tag-buy', [TagsController::class, 'buyTag']);
 Route::get('tag-buy-history', [TagsController::class, 'TagBuyHistory']);
 
 Route::get('tag/physical/list',[TagsController::class,'physicalList']);
+Route::post('tag/physical/details',[TagsController::class,'physicalDetails']);
 
 Route::get('user/address/list',[UserController::class,'addressList']);
 Route::post('user/address/create',[UserController::class,'addressCreate']);
 Route::post('user/address/update',[UserController::class,'addressUpdate']);
 Route::post('user/address/delete',[UserController::class,'addressDelete']);
 Route::post('user/address/set-default',[UserController::class,'setDefaultAddress']);
+
+Route::post('add-cart', [CartController::class,'addToCart']);
+Route::post('cart-list', [CartController::class,'cartList']);
+Route::post('update-cart', [CartController::class,'updateCart']);
+Route::post('remove-cart', [CartController::class,'removeCart']);
+Route::post('checkout', [CartController::class,'checkout']);
+
 
 
 
