@@ -34,6 +34,7 @@ class User extends Authenticatable implements JWTSubject
         'remaining_lagecy_count', 
         'remaining_tag_count', 
         'passed_date', 
+        'stripe_customer_id', 
     ];
 
     /**

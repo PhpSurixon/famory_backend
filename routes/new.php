@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\PostLikeController;
 use App\Http\Controllers\Api\AlbumMemberController;
 use App\Http\Controllers\Api\TagsController;
 use App\Http\Controllers\Api\CartController;
+use App\Http\Controllers\Api\OrderController;
 
 
 
@@ -25,6 +26,8 @@ Route::post('/verify-otp-email', [ApiController::class, 'verifyEmailOTP']);
 Route::post('/resend-otp', [ApiController::class, 'resendOTP']);
 Route::post('/send-notification', [NotificationController::class, 'sendToUser']);
 Route::get('default-album-create-for-all-user',[UserController::class,'createDefaultAlbum']);
+
+Route::post('stripe/webhook', [OrderController::class,'stripeWebhook']);
 
 Route::post('post-generate-deeplink',[NewPostController::class,'createDeepLink']);
 
@@ -192,6 +195,10 @@ Route::post('cart-list', [CartController::class,'cartList']);
 Route::post('update-cart', [CartController::class,'updateCart']);
 Route::post('remove-cart', [CartController::class,'removeCart']);
 Route::post('checkout', [CartController::class,'checkout']);
+
+Route::post('create-order-intent',[OrderController::class,'createOrderStripeIntent']);
+Route::post('confirm-payment',[OrderController::class,'confirmPayment']);
+
 
 
 

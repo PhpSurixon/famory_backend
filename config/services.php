@@ -45,5 +45,10 @@ return [
     's3' => [
         'cdn_url' => env('S3_CDN_URL'),
     ],
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
 
 ];
