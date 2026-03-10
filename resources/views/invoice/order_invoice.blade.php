@@ -108,6 +108,7 @@ body{
     <p>
         <strong>Invoice No:</strong> {{ $order->invoice_no }} <br>
         <strong>Order ID:</strong> {{ $order->unique_order_id }} <br>
+        <strong>Payment Mode:</strong> @if($order->payment_mode == 2) Online Payment @else Cash on Delivery @endif <br>
         <strong>Date:</strong> {{ $order->order_datetime }}
     </p>
 </div>
@@ -120,34 +121,37 @@ body{
 
 <!-- BILLING ADDRESS -->
 
+<!-- BILLING & SHIPPING ADDRESS -->
+
 <div class="section">
 
-<table width="100%">
+<table width="100%" style="margin-top:20px;">
 <tr>
 
-<td width="50%">
+<td width="50%" valign="top" style="padding-right:20px;">
 <strong>Billing Address</strong>
 
 <p>
-{{ $order->address_data['name'] ?? '' }} <br>
-{{ $order->address_data['house_number'] ?? '' }} <br>
-{{ $order->address_data['road_name'] ?? '' }} <br>
-{{ $order->address_data['state'] ?? '' }} <br>
-{{ $order->address_data['zip_code'] ?? '' }} <br>
+{{ $order->address_data['name'] ?? '' }}<br>
+{{ $order->address_data['house_number'] ?? '' }}<br>
+{{ $order->address_data['road_name'] ?? '' }}<br>
+{{ $order->address_data['state'] ?? '' }}<br>
+{{ $order->address_data['zip_code'] ?? '' }}<br>
 Phone: {{ $order->address_data['phone_number'] ?? '' }}
 </p>
 
 </td>
 
-<td width="50%">
-<strong>Payment Method</strong>
+<td width="50%" valign="top" style="text-align:right;">
+<strong>Shipping Address</strong>
 
 <p>
-@if($order->payment_mode == 2)
-Online Payment
-@else
-Cash on Delivery
-@endif
+{{ $order->address_data['name'] ?? '' }}<br>
+{{ $order->address_data['house_number'] ?? '' }}<br>
+{{ $order->address_data['road_name'] ?? '' }}<br>
+{{ $order->address_data['state'] ?? '' }}<br>
+{{ $order->address_data['zip_code'] ?? '' }}<br>
+Phone: {{ $order->address_data['phone_number'] ?? '' }}
 </p>
 
 </td>

@@ -29,7 +29,7 @@ class OrderConfirmationMail extends Mailable implements ShouldQueue
         return $this->subject(subject: 'Order Confirmation - '.$this->order->unique_order_id)
             ->view('Email.order_confirmation')
             ->attach($this->invoiceFile, [
-                'as' => 'invoice.pdf',
+                'as' => 'invoice_'.$order->unique_order_id.'.pdf',
                 'mime' => 'application/pdf',
             ]);
     }

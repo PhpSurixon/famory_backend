@@ -28,7 +28,7 @@ Route::post('/send-notification', [NotificationController::class, 'sendToUser'])
 Route::get('default-album-create-for-all-user',[UserController::class,'createDefaultAlbum']);
 
 Route::post('stripe/webhook', [OrderController::class,'stripeWebhook']);
-Route::get('download-invoice',[OrderController::class,'downloadInvoice']);
+Route::get('download-invoice-new',[OrderController::class,'downloadInvoiceNew']);
 
 Route::post('post-generate-deeplink',[NewPostController::class,'createDeepLink']);
 
@@ -202,6 +202,7 @@ Route::post('confirm-payment',[OrderController::class,'confirmPayment']);
 
 Route::get('order-list',[OrderController::class,'orderList']);
 Route::post('order-detail',[OrderController::class,'orderDetail']);
+Route::post('download-invoice',[OrderController::class,'downloadInvoice']);
 
 
 

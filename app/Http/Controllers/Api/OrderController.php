@@ -193,7 +193,7 @@ class OrderController extends Controller
      * Optional: manual confirm (for testing). In production prefer webhook handler.
      * This will finalize the order (stock decrement + remove cart rows).
      */
-    public function confirmPayment(Request $request)
+    public function confirmPaymentOLD(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
@@ -220,6 +220,104 @@ class OrderController extends Controller
         } catch (\Exception $e) {
             Log::error('confirmPayment error: '.$e->getMessage());
             return response()->json(['status'=>'failed','message'=>$e->getMessage()], 500);
+        }
+    }
+
+    public function confirmPayment(Request $request)
+    {
+        try 
+        {
+
+            $validator = Validator::make($request->all(), [
+                'payment_intent_id' => 'required'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => $validator->errors()->first()
+                ], 400);
+            }
+
+            $timezone = $request->header('timezone', 'UTC');
+
+            // find payment
+            $payment = OrderPayment::where('payment_intent_id', $request->payment_intent_id)->first();
+
+            if (!$payment) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Payment not found'
+                ], 404);
+            }
+
+            /*
+            |-------------------------------------------
+            | If payment not confirmed finalize order
+            |-------------------------------------------
+            */
+
+            if ($payment->payment_status != 1) {
+                $this->finalizeOrder($payment->order_id, $request->payment_intent_id);
+            }
+
+            /*
+            |-------------------------------------------
+            | Fetch Order
+            |-------------------------------------------
+            */
+
+            $order = Order::with(['orderDetail.product'])
+                        ->where('id', $payment->order_id)
+                        ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            /*
+            |-------------------------------------------
+            | Convert Order DateTime
+            |-------------------------------------------
+            */
+
+            $orderDateTime = Carbon::parse($order->order_datetime, 'UTC')
+                                ->setTimezone($timezone)
+                                ->format('Y-m-d H:i:s');
+
+            /*
+            |-------------------------------------------
+            | Order Response Data
+            |-------------------------------------------
+            */
+
+            $order_data = [
+                'id'              => $order->id,
+                'unique_order_id' => $order->unique_order_id,
+                // 'invoice_no'      => $order->invoice_no,
+                'order_datetime'  => $orderDateTime,
+                'payable_amount'  => $order->payable_amount,
+                'payment_mode'    => $order->payment_mode == 2 ? 'Online' : 'COD',
+                'order_status'    => $order->order_status
+            ];
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Your order placed successfully',
+                'data'    => $order_data
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            Log::error('confirmPayment error: '.$e->getMessage());
+
+            return response()->json([
+                'status' => 'failed',
+                'message' => 'Something went wrong'
+            ], 500);
         }
     }
 
@@ -680,7 +778,8 @@ class OrderController extends Controller
             ], 500);
         }
     }
-    public function downloadInvoice(Request $request)
+
+    public function downloadInvoiceNew(Request $request)
     {
         try {
 
@@ -702,6 +801,77 @@ class OrderController extends Controller
             $order = Order::with(['orderDetail.product'])
                         ->where('id', $request->order_id)
                         // ->where('user_id', $authUser->id)
+                        ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            /*
+            |---------------------------------------
+            | Convert Order DateTime
+            |---------------------------------------
+            */
+
+            $order->order_datetime = Carbon::parse($order->order_datetime, 'UTC')
+                                    ->setTimezone($timezone)
+                                    ->format('Y-m-d H:i:s');
+
+            $order->address_data = json_decode($order->address_data, true);
+
+            /*
+            |---------------------------------------
+            | Generate PDF
+            |---------------------------------------
+            */
+
+            $pdf = Pdf::loadView('invoice.order_invoice', [
+                'order' => $order
+            ]);
+
+            /*
+            |---------------------------------------
+            | Return Download
+            |---------------------------------------
+            */
+
+            return $pdf->download('invoice_'.$order->unique_order_id.'.pdf');
+
+        } catch (\Exception $e) {
+            
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function downloadInvoice(Request $request)
+    {
+        try {
+
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'order_id' => 'required|exists:orders,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first()
+                ], 400);
+            }
+
+            $timezone = $request->header('timezone', 'UTC');
+
+            $order = Order::with(['orderDetail.product'])
+                        ->where('id', $request->order_id)
+                        ->where('user_id', $authUser->id)
                         ->first();
 
             if (!$order) {
