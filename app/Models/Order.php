@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Http\Interfaces\OrderStatusInterface;
 
 class Order extends Model
 {
@@ -31,6 +32,36 @@ class Order extends Model
     public function orderDetail()
     {
        return $this->hasMany(OrderDetails::class, 'order_id', 'id');
-    } 
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
+
+    public function getOrderStatusAttribute(){
+        $statusId = $this->last_status_id; 
+        $status = '';
+        if($statusId == OrderStatusInterface::Pending) {
+            $status = 'Pending';
+        } elseif ($statusId == OrderStatusInterface::Confirmed) {
+            $status = 'Confirmed';
+        } elseif ($statusId == OrderStatusInterface::Shipped) {
+            $status = 'Shipped';
+        } elseif ($statusId == OrderStatusInterface::Delivered) {
+            $status = 'Delivered';
+        } elseif ($statusId == OrderStatusInterface::Not_Delivered) {
+            $status = 'Not Delivered';
+        } elseif ($statusId == OrderStatusInterface::Cancelled) {
+            $status = 'Cancelled';
+        } elseif ($statusId == OrderStatusInterface::Delivered) {
+            $status = 'Delivered';
+        } elseif ($statusId == OrderStatusInterface::Cancelled) {
+            $status = 'Cancelled';
+        }
+        return $status;
+    }
+    
+    
 
 }

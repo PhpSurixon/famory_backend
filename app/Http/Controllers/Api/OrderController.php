@@ -19,6 +19,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use App\Http\Interfaces\OrderStatusInterface;
 use Illuminate\Support\Facades\Log;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Mail;
+use App\Mail\OrderConfirmationMail;
+
 
 class OrderController extends Controller
 {
@@ -270,7 +274,7 @@ class OrderController extends Controller
      * Finalize order: mark payment, change order status, decrement stock, remove cart rows.
      * Idempotent and transactional.
      */
-    protected function finalizeOrder(int $orderId, string $paymentIntentId = null)
+    protected function finalizeOrderOLD(int $orderId, string $paymentIntentId = null)
     {
         DB::beginTransaction();
         try {
@@ -351,4 +355,401 @@ class OrderController extends Controller
             throw $e;
         }
     }
+
+    protected function finalizeOrder(int $orderId, string $paymentIntentId = null)
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $order = Order::with(['orderDetail.product','user'])->findOrFail($orderId);
+
+            /*
+            |---------------------------------------
+            | Check Payment Record
+            |---------------------------------------
+            */
+
+            $payment = OrderPayment::where('order_id', $orderId)
+                        ->when($paymentIntentId, fn($q) => $q->where('payment_intent_id', $paymentIntentId))
+                        ->first();
+
+            if (!$payment) {
+
+                $payment = OrderPayment::create([
+                    'order_id' => $orderId,
+                    'payment_intent_id' => $paymentIntentId,
+                    'amount' => $order->payable_amount,
+                    'payment_status' => 1
+                ]);
+
+            } else {
+
+                if ($payment->payment_status == 1) {
+                    DB::commit();
+                    return;
+                }
+
+                $payment->update([
+                    'payment_status' => 1
+                ]);
+            }
+
+            /*
+            |---------------------------------------
+            | Update Order Status
+            |---------------------------------------
+            */
+
+            $order->update([
+                'last_status_id' => OrderStatusInterface::Confirmed
+            ]);
+
+            /*
+            |---------------------------------------
+            | Reduce Product Stock
+            |---------------------------------------
+            */
+
+            $orderDetails = OrderDetails::where('order_id', $orderId)->get();
+
+            foreach ($orderDetails as $od) {
+
+                $product = Product::lockForUpdate()->find($od->product_id);
+
+                if (!$product) {
+                    Log::warning("Product {$od->product_id} missing for order {$orderId}");
+                    continue;
+                }
+
+                if ($product->count < $od->buy_quantity) {
+                    throw new \Exception("Insufficient stock for product {$product->id}");
+                }
+
+                $product->decrement('count', $od->buy_quantity);
+            }
+
+            /*
+            |---------------------------------------
+            | Remove Cart Items
+            |---------------------------------------
+            */
+
+            $cartIds = OrderDetails::where('order_id', $orderId)
+                        ->pluck('cart_id')
+                        ->filter()
+                        ->toArray();
+
+            if (!empty($cartIds)) {
+
+                Carts::whereIn('id', $cartIds)->delete();
+
+            } else {
+
+                $productIds = $orderDetails->pluck('product_id')->toArray();
+
+                Carts::where('user_id', $order->user_id)
+                    ->whereIn('product_id', $productIds)
+                    ->delete();
+            }
+
+            DB::commit();
+
+            /*
+            |---------------------------------------
+            | Generate Invoice PDF
+            |---------------------------------------
+            */
+
+            $invoiceDir = storage_path('app/invoices');
+
+            if (!file_exists($invoiceDir)) {
+                mkdir($invoiceDir, 0777, true);
+            }
+
+            $order->address_data = json_decode($order->address_data, true);
+
+            $invoiceFile = $invoiceDir.'/invoice_'.$order->unique_order_id.'.pdf';
+
+            $pdf = Pdf::loadView('invoice.order_invoice', [
+                'order' => $order
+            ]);
+
+            $pdf->save($invoiceFile);
+
+            /*
+            |---------------------------------------
+            | Send Order Email with Invoice
+            |---------------------------------------
+            */
+
+            Mail::to($order->user->email)
+                ->queue(new OrderConfirmationMail($order, $invoiceFile));
+
+            return;
+
+        } catch (\Exception $e) {
+
+            DB::rollBack();
+
+            Log::error("finalizeOrder error for order {$orderId}: ".$e->getMessage());
+
+            throw $e;
+        }
+    }
+
+    public function orderList(Request $request)
+    {
+        try {
+
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'status' => 'nullable|integer',
+                'limit'  => 'nullable|integer|min:1|max:50'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first()
+                ], 400);
+            }
+
+            $limit  = $request->limit ?? 10;
+            $status = $request->status;
+
+            $query = Order::with(['orderDetail.product'])
+                        ->where('user_id', $authUser->id);
+
+            /*
+            |---------------------------------------
+            | Filter by order status
+            |---------------------------------------
+            */
+
+            if (!empty($status)) {
+                $query->where('last_status_id', $status);
+            }
+
+            /*
+            |---------------------------------------
+            | Pagination
+            |---------------------------------------
+            */
+
+            $orders = $query->orderBy('order_datetime', 'desc')
+                            ->paginate($limit);
+
+            $order_data = $orders->map(function ($order) use ($request) {
+
+                $timezone = $request->header('time_zone')
+                    ?? $request->header('timezone')
+                    ?? $request->header('time-zone')
+                    ?? 'UTC';
+                
+
+                $orderDateTime = Carbon::parse($order->order_datetime, 'UTC')
+                                        ->setTimezone($timezone)
+                                        ->format('Y-m-d H:i:s');
+
+                return [
+                    'id' => $order->id,
+                    'unique_order_id' => $order->unique_order_id,
+                    'invoice_no' => $order->invoice_no,
+                    'order_datetime' => $orderDateTime,
+                    'payable_amount' => $order->payable_amount,
+                    'payment_mode' => $order->payment_mode == 2 ? 'Online' : 'COD',
+                    'last_status_id' => $order->last_status_id,
+                    'order_status' => $order->order_status,
+                    'address_data' => json_decode($order->address_data, true),
+
+                    'order_items' => $order->orderDetail->map(function ($od) {
+                        return [
+                            'product_id' => $od->product_id,
+                            'buy_quantity' => $od->buy_quantity,
+                            'product_unit_price' => $od->product_unit_price,
+                            'product_json' => json_decode($od->product_json, true)
+                        ];
+                    })
+                ];
+            });
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Orders list fetched successfully',
+                // 'data'    => $orders->items(),
+                'data'    => $order_data,
+                'pagination' => [
+                    'current_page' => $orders->currentPage(),
+                    'last_page'    => $orders->lastPage(),
+                    'per_page'     => $orders->perPage(),
+                    'total'        => $orders->total()
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function orderDetail(Request $request)
+    {
+        try {
+
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'order_id' => 'required|exists:orders,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first()
+                ], 400);
+            }
+
+            $timezone = $request->header('timezone', 'UTC');
+
+            $order = Order::with(['orderDetail.product'])
+                        ->where('id', $request->order_id)
+                        ->where('user_id', $authUser->id)
+                        ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            /*
+            |---------------------------------------
+            | Convert Order DateTime to User TZ
+            |---------------------------------------
+            */
+
+            $orderDateTime = Carbon::parse($order->order_datetime, 'UTC')
+                                ->setTimezone($timezone)
+                                ->format('Y-m-d H:i:s');
+
+            /*
+            |---------------------------------------
+            | Transform Order Data
+            |---------------------------------------
+            */
+
+            $order_data = [
+                'id' => $order->id,
+                'unique_order_id' => $order->unique_order_id,
+                'invoice_no' => $order->invoice_no,
+                'order_datetime' => $orderDateTime,
+                'payable_amount' => $order->payable_amount,
+                'payment_mode' => $order->payment_mode == 2 ? 'Online' : 'COD',
+                'last_status_id' => $order->last_status_id,
+                'order_status' => $order->order_status,
+                'address_data' => json_decode($order->address_data, true),
+                'order_items' => $order->orderDetail->map(function($od){
+                    return [
+                        'product_id' => $od->product_id,
+                        'buy_quantity' => $od->buy_quantity,
+                        'product_unit_price' => $od->product_unit_price,
+                        'product_json' => json_decode($od->product_json, true)
+                    ];
+                })
+            ];
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Order detail fetched successfully',
+                'data'    => $order_data
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+    public function downloadInvoice(Request $request)
+    {
+        try {
+
+            // $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'order_id' => 'required|exists:orders,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first()
+                ], 400);
+            }
+
+            $timezone = $request->header('timezone', 'UTC');
+
+            $order = Order::with(['orderDetail.product'])
+                        ->where('id', $request->order_id)
+                        // ->where('user_id', $authUser->id)
+                        ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            /*
+            |---------------------------------------
+            | Convert Order DateTime
+            |---------------------------------------
+            */
+
+            $order->order_datetime = Carbon::parse($order->order_datetime, 'UTC')
+                                    ->setTimezone($timezone)
+                                    ->format('Y-m-d H:i:s');
+
+            $order->address_data = json_decode($order->address_data, true);
+
+            /*
+            |---------------------------------------
+            | Generate PDF
+            |---------------------------------------
+            */
+
+            $pdf = Pdf::loadView('invoice.order_invoice', [
+                'order' => $order
+            ]);
+
+            /*
+            |---------------------------------------
+            | Return Download
+            |---------------------------------------
+            */
+
+            return $pdf->download('invoice_'.$order->unique_order_id.'.pdf');
+
+        } catch (\Exception $e) {
+            
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
 }
