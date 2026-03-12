@@ -130,6 +130,9 @@
                                                         <a class="dropdown-item" href="{{ route('editFamoryTag', $tag->id) }}">
                                                             <i class="bx bx-edit-alt me-1"></i> Edit
                                                         </a>
+                                                        <a class="dropdown-item" href="javascript:void(0);" onclick="downloadQRCode('{{ $tag->family_tag_id }}')">
+                                                            <i class="bx bx-qr-scan me-1"></i> Download QR
+                                                        </a>
                                                         <a class="dropdown-item" href="javascript:void(0);" onclick="deleteTag('{{ $tag->id }}')">
                                                             <i class="bx bx-trash me-1"></i> Delete
                                                         </a>
@@ -195,8 +198,30 @@
 
 
 
+<!-- QR Code Modal -->
+<div class="modal fade" id="qrCodeModal" tabindex="-1" aria-labelledby="qrCodeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="qrCodeModalLabel">QR Code - <span id="qrTagId"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body text-center">
+        <div id="qrCodeContainer" style="display:inline-block; padding:16px; background:#fff; border-radius:8px;"></div>
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-primary" onclick="triggerQRDownload()">
+          <i class="bx bx-download me-1"></i> Download PNG
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-bootpag/1.0.7/jquery.bootpag.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script type="text/javascript">
     $(document).ready(function() {
         const csrfToken = $('meta[name="csrf-token"]').attr('content');
@@ -336,6 +361,35 @@
         
         // Ensure the deleteTag function is accessible
         window.deleteTag = deleteTag;  // Make it globally accessible
+
+        // QR Code download
+        window.downloadQRCode = function(tagId) {
+            document.getElementById('qrTagId').textContent = tagId;
+            var container = document.getElementById('qrCodeContainer');
+            container.innerHTML = '';
+            var qrUrl = '{{ config("app.url") }}/tag-view/' + tagId;
+            new QRCode(container, {
+                text: qrUrl,
+                width: 200,
+                height: 200,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            var modal = new bootstrap.Modal(document.getElementById('qrCodeModal'));
+            modal.show();
+        };
+
+        window.triggerQRDownload = function() {
+            var tagId = document.getElementById('qrTagId').textContent;
+            var canvas = document.querySelector('#qrCodeContainer canvas');
+            if (canvas) {
+                var link = document.createElement('a');
+                link.download = 'QR_' + tagId + '.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            }
+        };
         
          // Initialize DataTable if not already initialized
         // var table = $('#data-table').DataTable();
