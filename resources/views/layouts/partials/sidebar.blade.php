@@ -90,7 +90,13 @@
                 <div data-i18n="Layouts">Famory Tags</div>
             </a>
         </li>
-        
+         <li class="menu-item {{ request()->is('order-list') ? 'active' : '' }}">
+            <a href="{{ route('admin.order.list') }}" class="menu-link">
+                
+                <i class='menu-icon tf-icons bx bxs-contact' ></i>
+                <div data-i18n="Layouts">Tags Orders</div>
+            </a>
+        </li>
 
         
         <!-- <li class="menu-item {{ request()->is('ads') ? 'active' : '' }}">

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Carts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
@@ -2608,61 +2609,67 @@ class TagsController extends Controller
 
     public function physicalList(Request $request)
     {
-        try 
-        {
+        try {
+
             $limit  = (int) $request->get('limit', 10);
             $page   = (int) $request->get('page', 1);
             $search = $request->get('search');
-            $sort   = $request->get('sort', 'desc'); // asc or desc
+            $sort   = in_array($request->get('sort'), ['asc', 'desc']) ? $request->get('sort') : 'desc';
 
-            $offset = ($page - 1) * $limit;
+            $authUser = Auth::user();
+            $offset   = ($page - 1) * $limit;
 
             $query = Product::query();
 
-            // ✅ Search Filter (by product name)
             if (!empty($search)) {
                 $query->where('name', 'LIKE', '%' . $search . '%');
             }
 
-            // ✅ Sorting (by id)
             $query->orderBy('price', $sort);
 
             $total = $query->count();
 
-            $FamoryTags = $query
-                ->offset($offset)
-                ->limit($limit)
-                ->get();
+            $products = $query->offset($offset)->limit($limit)->get();
 
-            $data = [
-                'count'       => $total,
-                'page'        => $page,
-                'limit'       => $limit,
-                'total_pages' => ceil($total / $limit),
-                'FamoryTags'  => $FamoryTags,
-            ];
+            // Get all product IDs the user already has in cart — single query
+            $cartProductIds = Carts::where('user_id', $authUser->id)
+                                ->whereIn('product_id', $products->pluck('id'))
+                                ->pluck('product_id')
+                                ->toArray();
+
+            $productList = $products->map(function ($product) use ($cartProductIds) {
+                return array_merge($product->toArray(), [
+                    'is_cart_exist' => in_array($product->id, $cartProductIds),
+                ]);
+            });
 
             return response()->json([
-                'message' => 'Physical Tags List successfully',
                 'status'  => 'success',
-                'data'    => $data
+                'message' => 'Physical tags list fetched successfully',
+                'data'    => [
+                    'count'       => $total,
+                    'page'        => $page,
+                    'limit'       => $limit,
+                    'total_pages' => ceil($total / $limit),
+                    'products'    => $productList,
+                ],
             ], 200);
 
         } catch (\Exception $e) {
 
             return response()->json([
-                'message' => "Something Went Wrong! " . $e->getMessage(),
-                'status'  => 'failed'
+                'status'  => 'failed',
+                'message' => $e->getMessage(),
             ], 500);
         }
     }
 
     public function physicalDetails(Request $request)
     {
-        try 
-        {
+        try {
+
             $validator = Validator::make($request->all(), [
-                'id' => 'required',
+                'id' => 'required|exists:products,id',
             ]);
 
             if ($validator->fails()) {
@@ -2672,28 +2679,27 @@ class TagsController extends Controller
                 ], 400);
             }
 
-            $get_physical_tag = Product::where('id',$request->id)->first();
-            if(empty($get_physical_tag))
-            {
-                 return response()->json([
-                    'status'  => 'failed',
-                    'message' => "Physical Tags Details not found",
-                ], 400);
-            }
+            $authUser = Auth::user();
+
+            $product = Product::find($request->id);
+
+            $is_cart_exist = Carts::where('user_id', $authUser->id)
+                                ->where('product_id', $product->id)
+                                ->exists();
 
             return response()->json([
-                'message' => 'Physical Tags Details successfully',
                 'status'  => 'success',
-                'data'    => $get_physical_tag
+                'message' => 'Physical tag details fetched successfully',
+                'data'    => array_merge($product->toArray(), [
+                    'is_cart_exist' => $is_cart_exist,
+                ]),
             ], 200);
 
-            
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'status'  => 'failed',
                 'message' => $e->getMessage(),
             ], 500);
-            
         }
     }
 

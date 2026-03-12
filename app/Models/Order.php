@@ -54,10 +54,8 @@ class Order extends Model
             $status = 'Not Delivered';
         } elseif ($statusId == OrderStatusInterface::Cancelled) {
             $status = 'Cancelled';
-        } elseif ($statusId == OrderStatusInterface::Delivered) {
-            $status = 'Delivered';
-        } elseif ($statusId == OrderStatusInterface::Cancelled) {
-            $status = 'Cancelled';
+        } elseif ($statusId == OrderStatusInterface::Failed) {
+            $status = 'Payment Failed';
         }
         return $status;
     }

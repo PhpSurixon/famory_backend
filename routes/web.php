@@ -9,6 +9,7 @@ use App\Http\Controllers\PageInfoController;
 use App\Http\Controllers\AdvertiserController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\Admin\AdminOrderController;
 use Illuminate\Http\Request;
 
 Route::get('/test-ffmpeg', function () {
@@ -208,6 +209,11 @@ Route::resource('info-pages', PageInfoController::class);
 
         Route::post('/open-world-post-hidden', [AdminController::class, 'openWorldPostHidden'])->name('openWorldPostHidden');
         Route::post('/delete-reported-post', [AdminController::class, 'deletePost'])->name('delete_post');
+
+        // Order Management
+        Route::get('/order-list', [AdminOrderController::class, 'orderList'])->name('admin.order.list');
+        Route::get('/order/{id}/view', [AdminOrderController::class, 'viewOrder'])->name('admin.order.view');
+        Route::post('/order/update-shipping', [AdminOrderController::class, 'updateShipping'])->name('admin.order.updateShipping');
 
     });
 

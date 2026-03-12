@@ -14,6 +14,7 @@ class Kernel extends ConsoleKernel
         \App\Console\Commands\RunReoccurringPost::class,
         \App\Console\Commands\BotEngagementCron::class,
         \App\Console\Commands\SendDeathUserNotification::class,
+        \App\Console\Commands\CancelExpiredOrders::class,
     ];
 
     /**
@@ -25,6 +26,7 @@ class Kernel extends ConsoleKernel
         $schedule->command('cron:reoccurring-post')->everyMinute();
         $schedule->command('bots:engage')->everyMinute()->withoutOverlapping();
         $schedule->command('send:user-notification')->everyMinute();
+        $schedule->command('orders:cancel-expired')->hourly();
     }
 
     /**

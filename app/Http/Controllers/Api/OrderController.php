@@ -225,8 +225,7 @@ class OrderController extends Controller
 
     public function confirmPayment(Request $request)
     {
-        try 
-        {
+        try {
 
             $validator = Validator::make($request->all(), [
                 'payment_intent_id' => 'required'
@@ -234,36 +233,88 @@ class OrderController extends Controller
 
             if ($validator->fails()) {
                 return response()->json([
-                    'status' => 'failed',
+                    'status'  => 'failed',
                     'message' => $validator->errors()->first()
                 ], 400);
             }
 
-            $timezone = $request->header('timezone', 'UTC');
+            $timezone        = $request->header('timezone', 'UTC');
+            $paymentIntentId = $request->payment_intent_id;
 
-            // find payment
-            $payment = OrderPayment::where('payment_intent_id', $request->payment_intent_id)->first();
+            /*
+            |-------------------------------------------
+            | 1. Verify PaymentIntent status with Stripe
+            |    Never trust the client — always confirm
+            |    directly from Stripe's servers.
+            |-------------------------------------------
+            */
+
+            Stripe::setApiKey(config('services.stripe.secret'));
+
+            try {
+                $pi = PaymentIntent::retrieve($paymentIntentId);
+            } catch (\Exception $e) {
+                Log::error("confirmPayment: Stripe retrieve failed [{$paymentIntentId}]: ".$e->getMessage());
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Unable to verify payment. Please try again.'
+                ], 502);
+            }
+
+            /*
+            |-------------------------------------------
+            | 2. Handle each Stripe PI status
+            |-------------------------------------------
+            */
+
+            if ($pi->status === 'processing') {
+                // Payment is being processed (e.g. bank transfer) — ask app to poll
+                return response()->json([
+                    'status'  => 'processing',
+                    'message' => 'Payment is being processed. Please wait.'
+                ], 202);
+            }
+
+            if (in_array($pi->status, ['requires_payment_method', 'requires_confirmation', 'requires_action', 'canceled'])) {
+                // Payment failed or was abandoned — cancel the order
+                $payment = OrderPayment::where('payment_intent_id', $paymentIntentId)->first();
+                if ($payment && $payment->payment_status != 1) {
+                    $this->cancelOrder($payment->order_id, $paymentIntentId, "PI status: {$pi->status}");
+                }
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Payment was not completed. Please place a new order.'
+                ], 402);
+            }
+
+            if ($pi->status !== 'succeeded') {
+                // Unknown / unexpected status
+                Log::warning("confirmPayment: unexpected PI status [{$pi->status}] for [{$paymentIntentId}]");
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Unexpected payment status. Please contact support.'
+                ], 400);
+            }
+
+            /*
+            |-------------------------------------------
+            | 3. PI succeeded — find local payment record
+            |-------------------------------------------
+            */
+
+            $payment = OrderPayment::where('payment_intent_id', $paymentIntentId)->first();
 
             if (!$payment) {
                 return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Payment not found'
+                    'status'  => 'failed',
+                    'message' => 'Payment record not found.'
                 ], 404);
             }
 
             /*
             |-------------------------------------------
-            | If payment not confirmed finalize order
-            |-------------------------------------------
-            */
-
-            if ($payment->payment_status != 1) {
-                $this->finalizeOrder($payment->order_id, $request->payment_intent_id);
-            }
-
-            /*
-            |-------------------------------------------
-            | Fetch Order
+            | 4. Check order is not already failed/cancelled
+            |    (webhook may have processed a failure first)
             |-------------------------------------------
             */
 
@@ -273,14 +324,38 @@ class OrderController extends Controller
 
             if (!$order) {
                 return response()->json([
-                    'status' => 'failed',
-                    'message' => 'Order not found'
+                    'status'  => 'failed',
+                    'message' => 'Order not found.'
                 ], 404);
+            }
+
+            if (in_array($order->last_status_id, [OrderStatusInterface::Cancelled, OrderStatusInterface::Failed])) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'This order was already cancelled. Please place a new order.'
+                ], 409);
             }
 
             /*
             |-------------------------------------------
-            | Convert Order DateTime
+            | 5. Finalize order if not already confirmed
+            |    Race condition is handled inside
+            |    finalizeOrder via DB pessimistic lock.
+            |-------------------------------------------
+            */
+
+            if ($payment->payment_status != 1) {
+                $this->finalizeOrder($payment->order_id, $paymentIntentId);
+
+                // Re-fetch order after finalization to get updated status
+                $order = Order::with(['orderDetail.product'])
+                            ->where('id', $payment->order_id)
+                            ->first();
+            }
+
+            /*
+            |-------------------------------------------
+            | 6. Return order data
             |-------------------------------------------
             */
 
@@ -288,16 +363,9 @@ class OrderController extends Controller
                                 ->setTimezone($timezone)
                                 ->format('Y-m-d H:i:s');
 
-            /*
-            |-------------------------------------------
-            | Order Response Data
-            |-------------------------------------------
-            */
-
             $order_data = [
                 'id'              => $order->id,
                 'unique_order_id' => $order->unique_order_id,
-                // 'invoice_no'      => $order->invoice_no,
                 'order_datetime'  => $orderDateTime,
                 'payable_amount'  => $order->payable_amount,
                 'payment_mode'    => $order->payment_mode == 2 ? 'Online' : 'COD',
@@ -315,7 +383,7 @@ class OrderController extends Controller
             Log::error('confirmPayment error: '.$e->getMessage());
 
             return response()->json([
-                'status' => 'failed',
+                'status'  => 'failed',
                 'message' => 'Something went wrong'
             ], 500);
         }
@@ -345,22 +413,60 @@ class OrderController extends Controller
 
         // handle event types
         switch ($event->type) {
+
             case 'payment_intent.succeeded':
                 $pi = $event->data->object;
-                $paymentIntentId = $pi->id;
-                // look up payment record
-                $payment = OrderPayment::where('payment_intent_id', $paymentIntentId)->first();
+                $payment = OrderPayment::where('payment_intent_id', $pi->id)->first();
                 if ($payment && $payment->payment_status != 1) {
                     try {
-                        $this->finalizeOrder($payment->order_id, $paymentIntentId);
+                        $this->finalizeOrder($payment->order_id, $pi->id);
                     } catch (\Exception $e) {
                         Log::error('webhook finalizeOrder error: '.$e->getMessage());
-                        // don't throw - respond 200 to webhook; consider retrying or alerting
                     }
                 }
                 break;
 
-            // optionally handle other events (payment_intent.payment_failed, charge.refunded, etc.)
+            /*
+            |------------------------------------------------------------------
+            | Payment Failed — card declined, insufficient funds, etc.
+            |------------------------------------------------------------------
+            */
+            case 'payment_intent.payment_failed':
+                $pi = $event->data->object;
+                $failReason = $pi->last_payment_error->message ?? 'Payment failed';
+                Log::info("payment_intent.payment_failed [{$pi->id}]: {$failReason}");
+
+                $payment = OrderPayment::where('payment_intent_id', $pi->id)->first();
+                if ($payment && $payment->payment_status != 1) {
+                    try {
+                        $this->cancelOrder($payment->order_id, $pi->id, $failReason);
+                    } catch (\Exception $e) {
+                        Log::error('webhook cancelOrder (payment_failed) error: '.$e->getMessage());
+                    }
+                }
+                break;
+
+            /*
+            |------------------------------------------------------------------
+            | Payment Intent Canceled — Stripe auto-cancels expired intents
+            | or user abandoned checkout and intent was explicitly canceled
+            |------------------------------------------------------------------
+            */
+            case 'payment_intent.canceled':
+                $pi = $event->data->object;
+                $cancelReason = $pi->cancellation_reason ?? 'canceled';
+                Log::info("payment_intent.canceled [{$pi->id}]: {$cancelReason}");
+
+                $payment = OrderPayment::where('payment_intent_id', $pi->id)->first();
+                if ($payment && $payment->payment_status != 1) {
+                    try {
+                        $this->cancelOrder($payment->order_id, $pi->id, "Intent canceled: {$cancelReason}");
+                    } catch (\Exception $e) {
+                        Log::error('webhook cancelOrder (intent_canceled) error: '.$e->getMessage());
+                    }
+                }
+                break;
+
             default:
                 Log::info("Unhandled stripe event: ".$event->type);
         }
@@ -468,29 +574,31 @@ class OrderController extends Controller
             |---------------------------------------
             */
 
+            // lockForUpdate prevents webhook + confirmPayment from
+            // both passing the payment_status check simultaneously
             $payment = OrderPayment::where('order_id', $orderId)
                         ->when($paymentIntentId, fn($q) => $q->where('payment_intent_id', $paymentIntentId))
+                        ->lockForUpdate()
                         ->first();
 
             if (!$payment) {
 
                 $payment = OrderPayment::create([
-                    'order_id' => $orderId,
+                    'order_id'          => $orderId,
                     'payment_intent_id' => $paymentIntentId,
-                    'amount' => $order->payable_amount,
-                    'payment_status' => 1
+                    'amount'            => $order->payable_amount,
+                    'payment_status'    => 1
                 ]);
 
             } else {
 
+                // Already finalized (other process won the race) — exit cleanly
                 if ($payment->payment_status == 1) {
                     DB::commit();
                     return;
                 }
 
-                $payment->update([
-                    'payment_status' => 1
-                ]);
+                $payment->update(['payment_status' => 1]);
             }
 
             /*
@@ -592,6 +700,61 @@ class OrderController extends Controller
 
             Log::error("finalizeOrder error for order {$orderId}: ".$e->getMessage());
 
+            throw $e;
+        }
+    }
+
+    /**
+     * Cancel an order that failed payment or was never paid.
+     * Stock is NOT restored because Pending orders never had stock decremented.
+     */
+    protected function cancelOrder(int $orderId, string $paymentIntentId = null, string $reason = 'Payment failed')
+    {
+        DB::beginTransaction();
+
+        try {
+
+            $order = Order::findOrFail($orderId);
+
+            // Already finalized — do nothing
+            if ($order->last_status_id === OrderStatusInterface::Confirmed) {
+                DB::commit();
+                return;
+            }
+
+            // Already cancelled/failed — idempotent
+            if (in_array($order->last_status_id, [OrderStatusInterface::Cancelled, OrderStatusInterface::Failed])) {
+                DB::commit();
+                return;
+            }
+
+            /*
+            |---------------------------------------
+            | Mark payment as failed
+            |---------------------------------------
+            */
+
+            if ($paymentIntentId) {
+                OrderPayment::where('order_id', $orderId)
+                    ->where('payment_intent_id', $paymentIntentId)
+                    ->update(['payment_status' => 2]); // 2 = failed
+            }
+
+            /*
+            |---------------------------------------
+            | Update order status to Failed
+            |---------------------------------------
+            */
+
+            $order->update(['last_status_id' => OrderStatusInterface::Failed]);
+
+            DB::commit();
+
+            Log::info("Order {$orderId} marked as Failed. Reason: {$reason}");
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("cancelOrder error for order {$orderId}: ".$e->getMessage());
             throw $e;
         }
     }

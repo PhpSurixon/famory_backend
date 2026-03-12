@@ -10,7 +10,8 @@ interface OrderStatusInterface
 	const Delivered 		= 4;
 	const Not_Delivered 	= 5;
 	const Cancelled 		= 6;
-	
+	const Failed 		    = 7; // payment failed / expired unpaid
+
 
 
 }
