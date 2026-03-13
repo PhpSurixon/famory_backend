@@ -13,11 +13,13 @@ class OrderShippedMail extends Mailable implements ShouldQueue
 
     public $order;
     public $waybill;
+    public $trackingUrl;
 
-    public function __construct($order, string $waybill)
+    public function __construct($order, string $waybill, ?string $trackingUrl = null)
     {
-        $this->order   = $order;
-        $this->waybill = $waybill;
+        $this->order       = $order;
+        $this->waybill     = $waybill;
+        $this->trackingUrl = $trackingUrl;
     }
 
     public function build()
@@ -25,8 +27,9 @@ class OrderShippedMail extends Mailable implements ShouldQueue
         return $this->subject('Your Order Has Been Shipped - ' . $this->order->unique_order_id)
             ->view('Email.OrderShippedMail')
             ->with([
-                'order'   => $this->order,
-                'waybill' => $this->waybill,
+                'order'       => $this->order,
+                'waybill'     => $this->waybill,
+                'trackingUrl' => $this->trackingUrl,
             ]);
     }
 }

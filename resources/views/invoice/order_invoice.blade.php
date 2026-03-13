@@ -172,6 +172,7 @@ Phone: {{ $order->address_data['phone_number'] ?? '' }}
 <tr>
 <th>#</th>
 <th>Product</th>
+<th>Tag Code</th>
 <th>Price</th>
 <th>Qty</th>
 <th>Total</th>
@@ -199,6 +200,10 @@ $subtotal = 0;
 
 <td>
 {{ $product['name'] ?? 'Product' }}
+</td>
+
+<td style="font-size:11px;letter-spacing:0.5px;">
+{{ $item->tag_code ?? '—' }}
 </td>
 
 <td>

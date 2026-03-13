@@ -46,6 +46,7 @@
                             <option value="4" {{ request('status') == '4' ? 'selected' : '' }}>Delivered</option>
                             <option value="5" {{ request('status') == '5' ? 'selected' : '' }}>Not Delivered</option>
                             <option value="6" {{ request('status') == '6' ? 'selected' : '' }}>Cancelled</option>
+                            <option value="8" {{ request('status') == '8' ? 'selected' : '' }}>Refunded</option>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -136,17 +137,7 @@
                                    class="btn btn-sm btn-outline-primary" title="View Order">
                                     <i class="bx bx-show"></i>
                                 </a>
-                                @if(in_array($order->last_status_id, [2]))
-                                    <button class="btn btn-sm btn-success btn-ship"
-                                            data-order-id="{{ $order->id }}"
-                                            data-order-ref="{{ $order->unique_order_id }}"
-                                            data-waybill="{{ $order->waybill }}"
-                                            data-bs-toggle="modal"
-                                            data-bs-target="#shipModal"
-                                            title="{{ $order->last_status_id == 3 ? 'Update Waybill' : 'Mark as Shipped' }}">
-                                        <i class="bx bx-car"></i>
-                                    </button>
-                                @endif
+                                
                             </div>
                         </td>
                     </tr>

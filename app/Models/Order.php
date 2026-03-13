@@ -26,7 +26,10 @@ class Order extends Model
         'shipping_amount',
         'payable_amount',
         'payment_intent_id',
-        'waybill'
+        'waybill',
+        'tracking_url',
+        'stripe_refund_id',
+        'cancel_reason',
     ];
 
     public function orderDetail()
@@ -56,8 +59,33 @@ class Order extends Model
             $status = 'Cancelled';
         } elseif ($statusId == OrderStatusInterface::Failed) {
             $status = 'Payment Failed';
+        } elseif ($statusId == OrderStatusInterface::Refunded) {
+            $status = 'Refunded';
         }
         return $status;
+    }
+
+    public function getOrderStatusMessageAttribute(){
+        $statusId = $this->last_status_id; 
+        $status_message = '';
+        if($statusId == OrderStatusInterface::Pending) {
+            $status_message = 'We are processing your payment.';
+        } elseif ($statusId == OrderStatusInterface::Confirmed) {
+            $status_message = 'Payment confirmed, Order Processing.';
+        } elseif ($statusId == OrderStatusInterface::Shipped) {
+            $status_message = 'Your order is shipped, Please check Tracking number.';
+        } elseif ($statusId == OrderStatusInterface::Delivered) {
+            $status_message = 'Your order is Delivered.';
+        } elseif ($statusId == OrderStatusInterface::Not_Delivered) {
+            $status_message = 'Could Not be Delivered, Contact Supports.';
+        } elseif ($statusId == OrderStatusInterface::Cancelled) {
+            $status_message = 'Order Cancelled. Your refund will be processed in 7 working days';
+        } elseif ($statusId == OrderStatusInterface::Failed) {
+            $status_message = 'Payment Failed,that why order not processed';
+        } elseif ($statusId == OrderStatusInterface::Refunded) {
+            $status_message = 'Order cancelled and refund has been processed to your original payment method.';
+        }
+        return $status_message;
     }
     
     

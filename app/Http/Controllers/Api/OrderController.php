@@ -55,6 +55,14 @@ class OrderController extends Controller
                 return response()->json(['status'=>'failed','message'=>'Address not found'], 400);
             }
 
+            // validate US zip code (5 digits or ZIP+4 format)
+            if (!preg_match('/^\d{5}(-\d{4})?$/', $user_address->zip_code)) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Orders can only be placed for US addresses. Please select a valid US zip code.'
+                ], 400);
+            }
+
             // get cart items
             if ($request->filled('cart_id')) {
                 $cartItems = Carts::with('product')
@@ -633,6 +641,9 @@ class OrderController extends Controller
                 }
 
                 $product->decrement('count', $od->buy_quantity);
+
+                // Assign a unique Physical Tag code per order detail item
+                $od->update(['tag_code' => $this->generatePhysicalTagCode()]);
             }
 
             /*
@@ -823,6 +834,7 @@ class OrderController extends Controller
                     'payment_mode' => $order->payment_mode == 2 ? 'Online' : 'COD',
                     'last_status_id' => $order->last_status_id,
                     'order_status' => $order->order_status,
+                    'order_status_message' => $order->order_status_message,
                     'address_data' => json_decode($order->address_data, true),
 
                     'order_items' => $order->orderDetail->map(function ($od) {
@@ -1011,6 +1023,20 @@ class OrderController extends Controller
                 'error'   => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Generate a unique Physical Tag code with PT prefix.
+     * Format: PT + [0-9] + 6 digits  e.g. PT3045821
+     * Retries until a code not already used in order_details is found.
+     */
+    protected function generatePhysicalTagCode(): string
+    {
+        do {
+            $code = 'PT' . rand(0, 9) . str_pad(rand(0, 999999), 6, '0', STR_PAD_LEFT);
+        } while (OrderDetails::where('tag_code', $code)->exists());
+
+        return $code;
     }
 
     public function downloadInvoice(Request $request)

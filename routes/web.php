@@ -214,6 +214,10 @@ Route::resource('info-pages', PageInfoController::class);
         Route::get('/order-list', [AdminOrderController::class, 'orderList'])->name('admin.order.list');
         Route::get('/order/{id}/view', [AdminOrderController::class, 'viewOrder'])->name('admin.order.view');
         Route::post('/order/update-shipping', [AdminOrderController::class, 'updateShipping'])->name('admin.order.updateShipping');
+        Route::post('/order/cancel', [AdminOrderController::class, 'cancelOrder'])->name('admin.order.cancel');
+        Route::post('/order/update-delivery', [AdminOrderController::class, 'updateDelivery'])->name('admin.order.updateDelivery');
+        Route::post('/order/generate-tag-codes', [AdminOrderController::class, 'generateTagCodes'])->name('admin.order.generateTagCodes');
+        Route::get('/order/{id}/invoice', [AdminOrderController::class, 'downloadInvoice'])->name('admin.order.invoice');
 
     });
 

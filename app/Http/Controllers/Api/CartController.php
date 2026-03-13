@@ -394,6 +394,13 @@ class CartController extends Controller
                 ],400);
             }
 
+            if (!preg_match('/^\d{5}(-\d{4})?$/', $user_address->zip_code)) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Orders can only be placed for US addresses. Please select a valid US zip code.'
+                ], 400);
+            }
+
             /*
             |----------------------------------------
             | Get Cart Items

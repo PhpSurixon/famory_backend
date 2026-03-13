@@ -118,6 +118,14 @@ body {
     <div class="waybill-box">
         <div class="label">Waybill / Tracking Number</div>
         <div class="waybill-number">{{ $waybill }}</div>
+        @if(!empty($trackingUrl))
+        <div style="margin-top:12px;">
+            <a href="{{ $trackingUrl }}" target="_blank"
+               style="display:inline-block;background:#0d397f;color:#fff;padding:8px 20px;border-radius:4px;font-size:14px;text-decoration:none;">
+                Track My Order
+            </a>
+        </div>
+        @endif
     </div>
 
     <!-- ORDER INFO -->

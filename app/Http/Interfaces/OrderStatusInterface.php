@@ -11,6 +11,7 @@ interface OrderStatusInterface
 	const Not_Delivered 	= 5;
 	const Cancelled 		= 6;
 	const Failed 		    = 7; // payment failed / expired unpaid
+	const Refunded          = 8; // cancelled + stripe refund processed
 
 
 

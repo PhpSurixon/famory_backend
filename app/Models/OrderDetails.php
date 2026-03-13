@@ -16,7 +16,8 @@ class OrderDetails extends Model
         'cart_id',
         'buy_quantity',
         'product_unit_price',
-        'product_json'
+        'product_json',
+        'tag_code'
     ];
 
     /**
