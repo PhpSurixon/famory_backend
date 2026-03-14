@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Carts;
+use App\Models\OrderDetails;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use App\Traits\OneSignalTrait;
@@ -290,6 +291,7 @@ class TagsController extends Controller
                 'description' => 'required|string',
                 'privacy_type'=> 'required|in:Public,Private',
                 'image'       => 'required|file|mimes:jpeg,png,jpg',
+                'tag_code'    => 'nullable|string|max:200',
             ]);
 
             if ($validator->fails()) {
@@ -314,7 +316,7 @@ class TagsController extends Controller
                 ], 400);
             }
 
-            if($remaining_tag_count <= 0)
+            if($remaining_tag_count == 0)
             {
                 return response()->json([
                     'status' => 'failed',
@@ -322,13 +324,56 @@ class TagsController extends Controller
                 ], 403);
             }
 
-            $checkName = FamilyTagId::where('title',$request->title)
-                                    ->where('user_id',$userId)
-                                    ->where('is_deleted',0)->first();
-            if($checkName)
+            // Check PhysicalTag
+            $checkInOrder = null;
+            if ($request->filled('tag_code'))
             {
+                // Verify the PT code belongs to THIS user's order
+                $get_data = OrderDetails::with('order')
+                    ->where('tag_code', $request->tag_code)
+                    ->whereHas('order', function ($q) {
+                        $q->where('user_id', auth()->id());
+                    })
+                    ->first();
+
+                if (!$get_data) {
+                    return response()->json([
+                        'message' => 'Physical Tag Code not matched with your order',
+                        'status' => 'failed'
+                    ], 400);
+                }
+
+                // Prevent re-registration: PT code can only be claimed once globally
+                $alreadyRegistered = FamilyTagId::where('family_tag_id', $request->tag_code)
+                                                 ->where('is_deleted', 0)
+                                                 ->exists();
+
+                if ($alreadyRegistered) {
+                    return response()->json([
+                        'message' => 'This Physical Tag has already been registered.',
+                        'status'  => 'failed'
+                    ], 400);
+                }
+
+                $checkInOrder = $get_data;
+            }
+
+            // Duplicate title check (scoped to physical tag or digital tags)
+            if ($checkInOrder) {
+                $checkName = FamilyTagId::where('title', $request->title)
+                                        ->where('user_id', $userId)
+                                        ->where('is_deleted', 0)
+                                        ->first();
+            } else {
+                $checkName = FamilyTagId::where('title', $request->title)
+                                        ->where('user_id', $userId)
+                                        ->where('is_deleted', 0)
+                                        ->first();
+            }
+
+            if ($checkName) {
                 return response()->json([
-                    'message' => 'Tag Name already Exsit.',
+                    'message' => 'Tag Name already exists.',
                     'status'  => 'failed'
                 ], 400);
             }
@@ -337,7 +382,12 @@ class TagsController extends Controller
             $filePath = $this->UploadImage->saveMedia($file, $userId);
 
             // Generate FamilyTag ID
-            $family_tag_id = $this->generateFamilyTagId();
+            if($checkInOrder){
+               $family_tag_id = $checkInOrder->tag_code;
+            }else{
+
+                $family_tag_id = $this->generateFamilyTagId();
+            }
 
             // Create DB row
             $createData = FamilyTagId::create([
@@ -1717,7 +1767,9 @@ class TagsController extends Controller
                 return response()->json([
                     'message' => 'Tags Details not found',
                     'status'  => 'failed',
-                    'is_request_sent' => 3
+                    'is_request_sent' => 3,
+                    'tag_not_register' => 1,//tag not register case
+                    'tag_code' =>$request->family_tag_id
                 ], 404);
             }
 
@@ -1740,6 +1792,8 @@ class TagsController extends Controller
                         'message' => 'You cannot access this tag without access So Please send viewer or collaborator role request',
                         'status'  => 'failed',
                         'is_request_sent' => 0,
+                        'tag_not_register' => 0,
+                        'tag_code'  =>null,
                         'data'    => $get_tag_data
                     ], 200);
                 }
@@ -1749,6 +1803,8 @@ class TagsController extends Controller
                         'message' => 'Your Tag request approval is pending. When request is approved then you can access.',
                         'status'  => 'failed',
                         'is_request_sent' => 1,
+                        'tag_not_register' => 0,
+                        'tag_code' => null,
                         'data'    => $get_tag_data
                     ], 200);
                 }
@@ -1915,7 +1971,9 @@ class TagsController extends Controller
                 'message' => 'Tags fetched successfully',
                 'status'  => 'success',
                 'data'    => $get_tag_data,
-                'is_request_sent' => $get_tag_data->privacy_type === 'Public' ? 3 : 2
+                'is_request_sent' => $get_tag_data->privacy_type === 'Public' ? 3 : 2,
+                'tag_not_register' => 0,
+                'tag_code' => null,
             ], 200);
 
         } catch (\Exception $exception) {
@@ -1923,7 +1981,9 @@ class TagsController extends Controller
             return response()->json([
                 'message' => $exception->getMessage(),
                 'status'  => 'failed',
-                'is_request_sent' => 3
+                'is_request_sent' => 3,
+                'tag_not_register' => 2, //tag Fails case
+                'tag_code' => null, //tag Fails case
             ], 500);
         }
     }
