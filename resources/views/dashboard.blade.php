@@ -172,7 +172,7 @@
                </a>
             </div>
             <div class="col-12 col-md-6 col-lg-3 mb-4 box-height">
-               <a href="javascript:void(0)">
+               <a href="{{ route('admin.order.list') }}">
                   <div class="card" >
                      <div class="card-body d-flex gap-3">
                         <div class="card-title d-flex align-items-start justify-content-between mb-0">
@@ -182,8 +182,10 @@
                         </div>
                         <div>
                            <span class="fw-semibold d-block mb-1" style="font-size: 17px;">Sold Physical Tags</span>
-                           
-                           <h3 class="card-title mb-0" >0</h3>
+                           @php
+                           $order_count = DB::table('orders')->whereIn('last_status_id',[2,3,4,7,8])->count();
+                           @endphp
+                           <h3 class="card-title mb-0" >{{ $order_count  }}</h3>
                         </div>
                      </div>
                   </div>
