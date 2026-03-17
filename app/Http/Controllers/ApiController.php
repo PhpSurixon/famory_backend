@@ -72,7 +72,7 @@ use App\Models\InviteGuestUser;
 use App\Models\Follow;
 use App\Models\FinalWord;
 use App\Models\TrustedUser;
-
+use App\Services\MailchimpService;
 use App\Services\StripeService;
 use App\Services\UploadImage;
 
@@ -102,13 +102,15 @@ class ApiController extends Controller
     
     protected $StripeService;
     protected $storageClient;
+    protected $mailchimp;
 
     
     
-    public function __construct(StripeService $StripeService,UploadImage $UploadImage)
+    public function __construct(StripeService $StripeService,UploadImage $UploadImage,MailchimpService $mailchimp)
     {
         $this->StripeService = $StripeService;
         $this->UploadImage = $UploadImage;
+        $this->mailchimp = $mailchimp;
         
     }
     
@@ -306,15 +308,19 @@ class ApiController extends Controller
             
             $this->addDefaultAlbum($user->id);
             
-            if($user){
-//                $data = User::find($user->id);
-//                $token = JWTAuth::attempt(['email' => $user->email, 'password' => $request->password]);
-//                if($token){
-//                    $data->token = $token;
-//                }
-//                $is_exist = DeviceDetail::where('user_id',$user->id)->first();
-//                $data['is_first_login'] = ($is_exist) ? false : true ;
-        
+            if($user)
+            {
+                //                $data = User::find($user->id);
+                //                $token = JWTAuth::attempt(['email' => $user->email, 'password' => $request->password]);
+                //                if($token){
+                //                    $data->token = $token;
+                //                }
+                //                $is_exist = DeviceDetail::where('user_id',$user->id)->first();
+                //                $data['is_first_login'] = ($is_exist) ? false : true ;
+
+                \App\Jobs\AddMailchimpSubscriberJob::dispatch($user->email);
+               
+
                 return response()->json(["message" => "Welcome to Famory, your account has been created successfully", "status" => "success", "data" => null], 200);
             }else{
                 return response()->json(["message" => "Welcome to Famory, your account has been created successfully", "status" => "success", "data" => $user], 200);
