@@ -206,6 +206,7 @@ class CartController extends Controller
                 'status'          => 'success',
                 'message'         => 'Cart item list',
                 'cart_items'      => $cartItems,
+                'data'            => $cartItems,
                 'subtotal'        => round($subtotal,2),
                 'shipping_amount' => round($shipping_amount,2),
                 'total_amount'    => round($total_amount,2),
