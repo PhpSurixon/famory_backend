@@ -2796,6 +2796,8 @@ class TagsController extends Controller
 
             $is_cart_exist = $cart ? true : false;
 
+            $cart_count = Carts::where('user_id', $authUser->id)->count();
+
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Physical tag details fetched successfully',
@@ -2803,7 +2805,8 @@ class TagsController extends Controller
                     $product->toArray(),
                     [
                         'is_cart_exist' => $is_cart_exist,
-                        'cart_data' => $cart
+                        'cart_data' => $cart,
+                        'cart_count' => $cart_count
                     ]
                 ),
             ], 200);
