@@ -937,6 +937,7 @@ class OrderController extends Controller
                         'product_id' => $od->product_id,
                         'buy_quantity' => $od->buy_quantity,
                         'product_unit_price' => $od->product_unit_price,
+                        'tag_code'           => $od->tag_code,
                         'product_json' => json_decode($od->product_json, true)
                     ];
                 })
