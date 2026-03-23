@@ -178,7 +178,8 @@ class CartController extends Controller
 
                 return response()->json([
                     'status'  => 'failed',
-                    'message' => 'Cart is empty. Please add tags to cart'
+                    'message' => 'Cart is empty. Please add tags to cart',
+                    'data'    => []
                 ], 200);
             }
 

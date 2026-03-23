@@ -2724,9 +2724,53 @@ class TagsController extends Controller
         }
     }
 
+    // public function physicalDetails(Request $request)
+    // {
+    //     try {
+
+    //         $validator = Validator::make($request->all(), [
+    //             'id' => 'required|exists:products,id',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => $validator->errors()->first(),
+    //             ], 400);
+    //         }
+
+    //         $authUser = Auth::user();
+
+    //         $product = Product::find($request->id);
+
+    //         $is_cart_exist = Carts::where('user_id', $authUser->id)
+    //                             ->where('product_id', $product->id)
+    //                             ->exists();
+
+    //         $cart_exist = Carts::where('user_id', $authUser->id)
+    //                             ->where('product_id', $product->id)
+    //                             ->first();
+
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'message' => 'Physical tag details fetched successfully',
+    //             'data'    => array_merge($product->toArray(), [
+    //                 'is_cart_exist' => $is_cart_exist,'cart_data'=>$cart_exist
+    //             ]),
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'status'  => 'failed',
+    //             'message' => $e->getMessage(),
+    //         ], 500);
+    //     }
+    // }
+
     public function physicalDetails(Request $request)
     {
-        try {
+        try 
+        {
 
             $validator = Validator::make($request->all(), [
                 'id' => 'required|exists:products,id',
@@ -2739,23 +2783,42 @@ class TagsController extends Controller
                 ], 400);
             }
 
+            // Auth user check
             $authUser = Auth::user();
+            if (!$authUser) {
+                return response()->json([
+                    'status' => 'failed',
+                    'message' => 'Unauthorized user',
+                ], 401);
+            }
 
-            $product = Product::find($request->id);
+            // Get product
+            $product = Product::findOrFail($request->id);
 
-            $is_cart_exist = Carts::where('user_id', $authUser->id)
-                                ->where('product_id', $product->id)
-                                ->exists();
+            // Get cart data (single query only)
+            $cart = Carts::where('user_id', $authUser->id)
+                        ->where('product_id', $product->id)
+                        ->first();
 
             return response()->json([
                 'status'  => 'success',
                 'message' => 'Physical tag details fetched successfully',
-                'data'    => array_merge($product->toArray(), [
-                    'is_cart_exist' => $is_cart_exist,
-                ]),
+                'data'    => [
+                    'product' => $product,
+                    'is_cart_exist' => $cart ? true : false,
+                    'cart_data'     => $cart
+                ],
             ], 200);
 
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Product not found',
+            ], 404);
+
         } catch (\Exception $e) {
+
             return response()->json([
                 'status'  => 'failed',
                 'message' => $e->getMessage(),
