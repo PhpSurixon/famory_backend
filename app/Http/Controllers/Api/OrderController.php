@@ -929,6 +929,8 @@ class OrderController extends Controller
                 'payment_mode' => $order->payment_mode == 2 ? 'Online' : 'COD',
                 'last_status_id' => $order->last_status_id,
                 'order_status' => $order->order_status,
+                'waybill' => $order->waybill,
+                'tracking_url'=> $order->tracking_url,
                 'address_data' => json_decode($order->address_data, true),
                 'order_items' => $order->orderDetail->map(function($od){
                     return [
