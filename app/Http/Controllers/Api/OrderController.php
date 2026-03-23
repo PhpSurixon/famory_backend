@@ -802,6 +802,8 @@ class OrderController extends Controller
 
             if (!empty($status)) {
                 $query->where('last_status_id', $status);
+            }else{
+                $query->where('last_status_id', '!=', 1);
             }
 
             /*
