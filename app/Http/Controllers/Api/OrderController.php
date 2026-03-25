@@ -815,13 +815,9 @@ class OrderController extends Controller
             $orders = $query->orderBy('order_datetime', 'desc')
                             ->paginate($limit);
 
-            $order_data = $orders->map(function ($order) use ($request) {
+            $timezone = $request->header('timezone', 'UTC');
 
-                $timezone = $request->header('time_zone')
-                    ?? $request->header('timezone')
-                    ?? $request->header('time-zone')
-                    ?? 'UTC';
-                
+            $order_data = $orders->map(function ($order) use ($timezone) {
 
                 $orderDateTime = Carbon::parse($order->order_datetime, 'UTC')
                                         ->setTimezone($timezone)
