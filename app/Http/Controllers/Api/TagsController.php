@@ -249,6 +249,8 @@ class TagsController extends Controller
 
             $FamoryTags = Product::take(8)->get();
 
+            $cart_count = Carts::where('user_id', $authUser->id)->count();
+
             /** ----------------------------------------------------
              * FINAL RESPONSE
              * --------------------------------------------------- */
@@ -264,6 +266,7 @@ class TagsController extends Controller
                 'latest_invitations_received'  => $latest_invitations_received,
                 'my_saved_tag'                 => $my_saved_tag,
                 'FamoryTags'                   => $FamoryTags,
+                'cart_count'                   => $cart_count,
             ];
 
             return response()->json([
@@ -2696,6 +2699,7 @@ class TagsController extends Controller
                                 ->whereIn('product_id', $products->pluck('id'))
                                 ->pluck('product_id')
                                 ->toArray();
+            $cart_count = Carts::where('user_id', $authUser->id)->count();
 
             $productList = $products->map(function ($product) use ($cartProductIds) {
                 return array_merge($product->toArray(), [
@@ -2712,6 +2716,7 @@ class TagsController extends Controller
                     'limit'       => $limit,
                     'total_pages' => ceil($total / $limit),
                     'products'    => $productList,
+                    'cart_count'  => $cart_count,
                 ],
             ], 200);
 

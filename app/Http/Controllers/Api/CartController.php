@@ -97,7 +97,7 @@ class CartController extends Controller
                 }
 
                 $cart->quantity = $newQty;
-                $cart->item_price = $product->reseller_price;
+                $cart->item_price = $product->price;
                 $cart->save();
 
             } else {
@@ -105,7 +105,7 @@ class CartController extends Controller
                 $cart = Carts::create([
                     'user_id'    => $userId,
                     'product_id' => $product->id,
-                    'item_price' => $product->reseller_price,
+                    'item_price' => $product->price,
                     'quantity'   => $request->quantity
                 ]);
             }
