@@ -2682,7 +2682,18 @@ class TagsController extends Controller
             $authUser = Auth::user();
             $offset   = ($page - 1) * $limit;
 
-            $query = Product::query();
+            $query = Product::query()->select(
+                'id',
+                'name',
+                'price',
+                'count',
+                'image',
+                'description',
+                'type_of_tag',
+                'tag_purpose',
+                'color',
+                'is_favourite'
+            );
 
             if (!empty($search)) {
                 $query->where('name', 'LIKE', '%' . $search . '%');
@@ -2792,7 +2803,18 @@ class TagsController extends Controller
                 ], 401);
             }
 
-            $product = Product::find($request->id);
+            $product = Product::select(
+                'id',
+                'name',
+                'price',
+                'count',
+                'image',
+                'description',
+                'type_of_tag',
+                'tag_purpose',
+                'color',
+                'is_favourite'
+            )->find($request->id);
 
             // single query for cart
             $cart = Carts::select('id','quantity')->where('user_id', $authUser->id)

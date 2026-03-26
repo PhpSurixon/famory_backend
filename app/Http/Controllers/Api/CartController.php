@@ -202,6 +202,7 @@ class CartController extends Controller
             }
 
             $total_amount = $subtotal + $shipping_amount;
+            $user_address = UserAddress::where('user_id',$userId)->orderBy('id','desc')->first();
 
             return response()->json([
                 'status'          => 'success',
@@ -209,6 +210,7 @@ class CartController extends Controller
                 'cart_items'      => $cartItems,
                 'data'            => $cartItems,
                 'cart_count'      => count($cartItems),
+                'user_address'    => $user_address,
                 'subtotal'        => round($subtotal,2),
                 'shipping_amount' => round($shipping_amount,2),
                 'total_amount'    => round($total_amount,2),
@@ -309,6 +311,7 @@ class CartController extends Controller
             */
 
             $cart->quantity = $request->quantity;
+            $cart->item_price = $product->price;
             $cart->save();
 
             return response()->json([

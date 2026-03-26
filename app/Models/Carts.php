@@ -31,7 +31,18 @@ class Carts extends Model
      */
     public function product()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class)->select(
+                'id',
+                'name',
+                'price',
+                'count',
+                'image',
+                'description',
+                'type_of_tag',
+                'tag_purpose',
+                'color',
+                'is_favourite'
+            );
     }
 
     /**
