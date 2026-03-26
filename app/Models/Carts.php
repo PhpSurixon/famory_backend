@@ -35,6 +35,7 @@ class Carts extends Model
                 'id',
                 'name',
                 'price',
+                'reseller_price',
                 'count',
                 'image',
                 'description',
