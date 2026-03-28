@@ -252,56 +252,94 @@ class UserReportController extends Controller
     }
 
 
-
     public function blockedUsers(Request $request)
     {
         try {
             $limit  = (int) $request->get('limit', 30);
             $page   = (int) $request->get('page', 1);
             $offset = ($page - 1) * $limit;
-            $search = $request->get('search'); // optional search param
+            $search = $request->get('search');
 
             $authUser = Auth::user();
 
-            // Base query
+            /*
+            |---------------------------------------
+            | Base Query (ONLY NOT-DELETED USERS)
+            |---------------------------------------
+            */
             $query = BlockUser::where('user_id', $authUser->id)
                 ->where('block', 1)
-                ->with('blockedUser:id,first_name,last_name,email,username,image');
+                ->whereHas('blockedUser', function ($q) {
+                    $q->whereNull('deleted_at'); // ✅ exclude deleted users
+                })
+                ->with(['blockedUser' => function ($q) {
+                    $q->select('id', 'first_name', 'last_name', 'email', 'username', 'image')
+                    ->whereNull('deleted_at'); // ✅ ensure eager load also filtered
+                }]);
 
-            // 🔍 Search filter
+            /*
+            |---------------------------------------
+            | Search Filter
+            |---------------------------------------
+            */
             if (!empty($search)) {
                 $query->whereHas('blockedUser', function ($q) use ($search) {
-                    $q->where('first_name', 'like', "%{$search}%")
-                        ->orWhere('last_name', 'like', "%{$search}%")
-                        ->orWhere('username', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%");
+                    $q->where(function ($sub) use ($search) {
+                        $sub->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%")
+                            ->orWhere('username', 'like', "%{$search}%")
+                            ->orWhere('email', 'like', "%{$search}%");
+                    });
                 });
             }
 
+            /*
+            |---------------------------------------
+            | Total Count
+            |---------------------------------------
+            */
             $totalUsers = $query->count();
 
+            /*
+            |---------------------------------------
+            | Get Data
+            |---------------------------------------
+            */
             $blockedUsers = $query->orderBy('id', 'desc')
                 ->skip($offset)
                 ->take($limit)
                 ->get();
 
+            /*
+            |---------------------------------------
+            | Transform Data (SAFE)
+            |---------------------------------------
+            */
             $users = $blockedUsers->map(function ($block) {
+
                 $blocked = $block->blockedUser;
-                $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+                if (!$blocked) {
+                    return null; // extra safety
+                }
 
                 return [
-                    'block_id'     => $block->id,
-                    'user_id'      => $blocked->id,
-                    'first_name'   => $blocked->first_name,
-                    'last_name'    => $blocked->last_name,
-                    'email'        => $blocked->email,
-                    'username'     => $blocked->username,
-                    // 'image'        => $blocked->image ? $s3BaseUrl . $blocked->image : null,
-                    'image'        => $blocked->image ? $blocked->image : null,
-                    'action_button'=> "Unblock" // always unblock option
+                    'block_id'      => $block->id,
+                    'user_id'       => $blocked->id,
+                    'first_name'    => $blocked->first_name,
+                    'last_name'     => $blocked->last_name,
+                    'email'         => $blocked->email,
+                    'username'      => $blocked->username,
+                    'image'         => $blocked->image ?: null,
+                    'action_button' => "Unblock"
                 ];
-            });
+            })->filter()->values(); // ✅ remove nulls
 
+            /*
+            |---------------------------------------
+            | Final Response
+            |---------------------------------------
+            */
             $data = [
                 'user_id'     => $authUser->id,
                 'count'       => $totalUsers,
@@ -324,6 +362,78 @@ class UserReportController extends Controller
             ], 400);
         }
     }
+
+    // public function blockedUsers(Request $request)
+    // {
+    //     try {
+    //         $limit  = (int) $request->get('limit', 30);
+    //         $page   = (int) $request->get('page', 1);
+    //         $offset = ($page - 1) * $limit;
+    //         $search = $request->get('search'); // optional search param
+
+    //         $authUser = Auth::user();
+
+    //         // Base query
+    //         $query = BlockUser::where('user_id', $authUser->id)
+    //             ->where('block', 1)
+    //             ->with('blockedUser:id,first_name,last_name,email,username,image');
+
+    //         // 🔍 Search filter
+    //         if (!empty($search)) {
+    //             $query->whereHas('blockedUser', function ($q) use ($search) {
+    //                 $q->where('first_name', 'like', "%{$search}%")
+    //                     ->orWhere('last_name', 'like', "%{$search}%")
+    //                     ->orWhere('username', 'like', "%{$search}%")
+    //                     ->orWhere('email', 'like', "%{$search}%");
+    //             });
+    //         }
+
+    //         $totalUsers = $query->count();
+
+    //         $blockedUsers = $query->orderBy('id', 'desc')
+    //             ->skip($offset)
+    //             ->take($limit)
+    //             ->get();
+
+    //         $users = $blockedUsers->map(function ($block) {
+    //             $blocked = $block->blockedUser;
+    //             $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
+
+    //             return [
+    //                 'block_id'     => $block->id,
+    //                 'user_id'      => $blocked->id,
+    //                 'first_name'   => $blocked->first_name,
+    //                 'last_name'    => $blocked->last_name,
+    //                 'email'        => $blocked->email,
+    //                 'username'     => $blocked->username,
+    //                 // 'image'        => $blocked->image ? $s3BaseUrl . $blocked->image : null,
+    //                 'image'        => $blocked->image ? $blocked->image : null,
+    //                 'action_button'=> "Unblock" // always unblock option
+    //             ];
+    //         });
+
+    //         $data = [
+    //             'user_id'     => $authUser->id,
+    //             'count'       => $totalUsers,
+    //             'page'        => $page,
+    //             'limit'       => $limit,
+    //             'total_pages' => $limit > 0 ? ceil($totalUsers / $limit) : 0,
+    //             'users'       => $users
+    //         ];
+
+    //         return response()->json([
+    //             'message' => 'Blocked users fetched successfully',
+    //             'status'  => "success",
+    //             'data'    => $data
+    //         ]);
+
+    //     } catch (\Exception $e) {
+    //         return response()->json([
+    //             'message' => "Something Went Wrong! " . $e->getMessage(),
+    //             'status'  => 'failed'
+    //         ], 400);
+    //     }
+    // }
 
 
     private function removeRelations($userA, $userB)
