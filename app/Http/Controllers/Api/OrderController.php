@@ -10,6 +10,7 @@ use App\Models\UserAddress;
 use App\Models\Order;
 use App\Models\OrderDetails;
 use App\Models\OrderPayment;
+use App\Models\FamilyTagId;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 use Stripe\Stripe;
@@ -872,7 +873,6 @@ class OrderController extends Controller
     public function orderDetail(Request $request)
     {
         try {
-
             $authUser = Auth::user();
 
             $validator = Validator::make($request->all(), [
@@ -888,10 +888,15 @@ class OrderController extends Controller
 
             $timezone = $request->header('timezone', 'UTC');
 
+            /*
+            |---------------------------------------
+            | Get Order with Relations
+            |---------------------------------------
+            */
             $order = Order::with(['orderDetail.product'])
-                        ->where('id', $request->order_id)
-                        ->where('user_id', $authUser->id)
-                        ->first();
+                ->where('id', $request->order_id)
+                ->where('user_id', $authUser->id)
+                ->first();
 
             if (!$order) {
                 return response()->json([
@@ -905,17 +910,29 @@ class OrderController extends Controller
             | Convert Order DateTime to User TZ
             |---------------------------------------
             */
+            $orderDateTime = optional($order->order_datetime)
+                ? Carbon::parse($order->order_datetime, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('Y-m-d H:i:s')
+                : null;
 
-            $orderDateTime = Carbon::parse($order->order_datetime, 'UTC')
-                                ->setTimezone($timezone)
-                                ->format('Y-m-d H:i:s');
+            /*
+            |---------------------------------------
+            | Avoid N+1 Query (IMPORTANT FIX)
+            |---------------------------------------
+            */
+            $tagCodes = $order->orderDetail->pluck('tag_code')->filter()->toArray();
+
+            $registeredTags = FamilyTagId::whereIn('family_tag_id', $tagCodes)
+                ->where('created_user_id', $authUser->id)
+                ->pluck('family_tag_id')
+                ->toArray();
 
             /*
             |---------------------------------------
             | Transform Order Data
             |---------------------------------------
             */
-
             $order_data = [
                 'id' => $order->id,
                 'unique_order_id' => $order->unique_order_id,
@@ -926,14 +943,19 @@ class OrderController extends Controller
                 'last_status_id' => $order->last_status_id,
                 'order_status' => $order->order_status,
                 'waybill' => $order->waybill,
-                'tracking_url'=> $order->tracking_url,
+                'tracking_url' => $order->tracking_url,
                 'address_data' => json_decode($order->address_data, true),
-                'order_items' => $order->orderDetail->map(function($od){
+
+                'order_items' => $order->orderDetail->map(function ($od) use ($registeredTags) {
                     return [
                         'product_id' => $od->product_id,
                         'buy_quantity' => $od->buy_quantity,
                         'product_unit_price' => $od->product_unit_price,
-                        'tag_code'           => $od->tag_code,
+                        'tag_code' => $od->tag_code,
+
+                        // optimized check (NO DB HIT)
+                        'tag_register_as_digital' => in_array($od->tag_code, $registeredTags),
+
                         'product_json' => json_decode($od->product_json, true)
                     ];
                 })
@@ -954,6 +976,97 @@ class OrderController extends Controller
             ], 500);
         }
     }
+
+    // public function orderDetail(Request $request)
+    // {
+    //     try {
+
+    //         $authUser = Auth::user();
+
+    //         $validator = Validator::make($request->all(), [
+    //             'order_id' => 'required|exists:orders,id'
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => $validator->errors()->first()
+    //             ], 400);
+    //         }
+
+    //         $timezone = $request->header('timezone', 'UTC');
+
+    //         $order = Order::with(['orderDetail.product'])
+    //                     ->where('id', $request->order_id)
+    //                     ->where('user_id', $authUser->id)
+    //                     ->first();
+
+    //         if (!$order) {
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => 'Order not found'
+    //             ], 404);
+    //         }
+
+    //         /*
+    //         |---------------------------------------
+    //         | Convert Order DateTime to User TZ
+    //         |---------------------------------------
+    //         */
+
+    //         $orderDateTime = Carbon::parse($order->order_datetime, 'UTC')
+    //                             ->setTimezone($timezone)
+    //                             ->format('Y-m-d H:i:s');
+
+    //         /*
+    //         |---------------------------------------
+    //         | Transform Order Data
+    //         |---------------------------------------
+    //         */
+
+    //         $order_data = [
+    //             'id' => $order->id,
+    //             'unique_order_id' => $order->unique_order_id,
+    //             'invoice_no' => $order->invoice_no,
+    //             'order_datetime' => $orderDateTime,
+    //             'payable_amount' => $order->payable_amount,
+    //             'payment_mode' => $order->payment_mode == 2 ? 'Online' : 'COD',
+    //             'last_status_id' => $order->last_status_id,
+    //             'order_status' => $order->order_status,
+    //             'waybill' => $order->waybill,
+    //             'tracking_url'=> $order->tracking_url,
+    //             'address_data' => json_decode($order->address_data, true),
+    //             'order_items' => $order->orderDetail->map(function($od)use($authUser){
+
+    //                 $tag_register_as_digital = FamilyTagId::where('family_tag_id',$od->tag_code)
+    //                                                       ->where('created_user_id',$authUser->id)
+    //                                                       ->exists();
+    //                 return [
+    //                     'product_id' => $od->product_id,
+    //                     'buy_quantity' => $od->buy_quantity,
+    //                     'product_unit_price' => $od->product_unit_price,
+    //                     'tag_code'           => $od->tag_code,
+    //                     'tag_register_as_digital'           => $tag_register_as_digital,
+    //                     'product_json' => json_decode($od->product_json, true)
+    //                 ];
+    //             })
+    //         ];
+
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'message' => 'Order detail fetched successfully',
+    //             'data'    => $order_data
+    //         ], 200);
+
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'status'  => 'failed',
+    //             'message' => 'Something went wrong',
+    //             'error'   => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
 
     public function downloadInvoiceNew(Request $request)
     {

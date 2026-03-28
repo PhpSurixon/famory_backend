@@ -1766,13 +1766,22 @@ class TagsController extends Controller
                 ->where('is_deleted', 0)
                 ->first();
 
-            if (!$get_tag_data) {
+            if (!$get_tag_data) 
+            {
+                $is_tag_owner = OrderDetails::with('order')
+                                            ->where('tag_code', $request->family_tag_id)
+                                            ->whereHas('order', function ($q) use($authUser) {
+                                                $q->where('user_id', $authUser->id);
+                                            })
+                                            ->exists();
+
                 return response()->json([
-                    'message' => 'Tags Details not found',
-                    'status'  => 'failed',
-                    'is_request_sent' => 3,
+                    'message'          => 'Tags Details not found',
+                    'status'           => 'failed',
+                    'is_request_sent'  => 3,
                     'tag_not_register' => 1,//tag not register case
-                    'tag_code' =>$request->family_tag_id
+                    'tag_code'         =>  $request->family_tag_id,
+                    'is_physical_owner_tag' => $is_tag_owner
                 ], 404);
             }
 
@@ -1792,12 +1801,13 @@ class TagsController extends Controller
 
                 if (!$checkTagUserAccess) {
                     return response()->json([
-                        'message' => 'You cannot access this tag without access So Please send viewer or collaborator role request',
-                        'status'  => 'failed',
-                        'is_request_sent' => 0,
+                        'message'          => 'You cannot access this tag without access So Please send viewer or collaborator role request',
+                        'status'           => 'failed',
+                        'is_request_sent'  => 0,
                         'tag_not_register' => 0,
-                        'tag_code'  =>null,
-                        'data'    => $get_tag_data
+                        'tag_code'         => null,
+                        'is_physical_owner_tag'=> null,
+                        'data'                 => $get_tag_data
                     ], 200);
                 }
 
@@ -1808,6 +1818,7 @@ class TagsController extends Controller
                         'is_request_sent' => 1,
                         'tag_not_register' => 0,
                         'tag_code' => null,
+                        'is_physical_owner_tag' => null,
                         'data'    => $get_tag_data
                     ], 200);
                 }
@@ -1977,6 +1988,7 @@ class TagsController extends Controller
                 'is_request_sent' => $get_tag_data->privacy_type === 'Public' ? 3 : 2,
                 'tag_not_register' => 0,
                 'tag_code' => null,
+                'is_physical_owner_tag' => null,
             ], 200);
 
         } catch (\Exception $exception) {
@@ -1987,6 +1999,7 @@ class TagsController extends Controller
                 'is_request_sent' => 3,
                 'tag_not_register' => 2, //tag Fails case
                 'tag_code' => null, //tag Fails case
+                'is_physical_owner_tag' => null, //tag Fails case
             ], 500);
         }
     }
