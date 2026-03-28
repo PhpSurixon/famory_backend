@@ -331,7 +331,8 @@ class UserReportController extends Controller
                     'email'         => $blocked->email,
                     'username'      => $blocked->username,
                     'image'         => $blocked->image ?: null,
-                    'action_button' => "Unblock"
+                    'action_button' => "Unblock",
+                    'is_block'      => true,
                 ];
             })->filter()->values(); // ✅ remove nulls
 
