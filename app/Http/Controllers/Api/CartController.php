@@ -24,7 +24,8 @@ class CartController extends Controller
             $validator = Validator::make($request->all(), [
                 'product_id' => 'required|exists:products,id',
                 'quantity'   => 'required|integer|min:1',
-                'action'     => 'required|in:cart,buy_now'
+                'action'     => 'required|in:cart,buy_now',
+                'tag_code'   => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -98,6 +99,7 @@ class CartController extends Controller
 
                 $cart->quantity = $newQty;
                 $cart->item_price = $product->price;
+                $cart->tag_code = $request->tag_code? $request->tag_code : $cart->tag_code;
                 $cart->save();
 
             } else {
@@ -106,7 +108,8 @@ class CartController extends Controller
                     'user_id'    => $userId,
                     'product_id' => $product->id,
                     'item_price' => $product->price,
-                    'quantity'   => $request->quantity
+                    'quantity'   => $request->quantity,
+                    'tag_code'   => $request->tag_code,
                 ]);
             }
 
@@ -236,7 +239,8 @@ class CartController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'cart_id'  => 'required|exists:carts,id',
-                'quantity' => 'required|integer|min:1'
+                'quantity' => 'required|integer|min:1',
+                'tag_code' => 'nullable|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -312,6 +316,9 @@ class CartController extends Controller
 
             $cart->quantity = $request->quantity;
             $cart->item_price = $product->price;
+            if ($request->has('tag_code')) {
+                $cart->tag_code = $request->tag_code;
+            }
             $cart->save();
 
             return response()->json([
@@ -487,6 +494,7 @@ class CartController extends Controller
                     'product'     => $product_data,
                     'price'       => $item->item_price,
                     'quantity'    => $item->quantity,
+                    'tag_code'    => $item->tag_code,
                     'total'       => $item_total
                 ];
             }

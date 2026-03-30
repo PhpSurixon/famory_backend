@@ -137,6 +137,7 @@ class OrderController extends Controller
                     'product_id'          => $item->product_id,
                     'buy_quantity'        => $item->quantity,
                     'product_unit_price'  => $item->item_price,
+                    'tag_code'            => $item->tag_code ? $item->tag_code : null,
                     'product_json'        => json_encode($item->product)
                 ]);
             }
@@ -644,7 +645,10 @@ class OrderController extends Controller
                 $product->decrement('count', $od->buy_quantity);
 
                 // Assign a unique Physical Tag code per order detail item
-                $od->update(['tag_code' => $this->generatePhysicalTagCode()]);
+                if(!$od->tag_code) 
+                {    
+                    $od->update(['tag_code' => $this->generatePhysicalTagCode()]);
+                }
             }
 
             /*
@@ -824,6 +828,18 @@ class OrderController extends Controller
                                         ->setTimezone($timezone)
                                         ->format('Y-m-d H:i:s');
 
+                $order_created_at = optional($order->created_at)
+                    ? Carbon::parse($order->created_at, 'UTC')
+                        ->setTimezone($timezone)
+                        ->format('d, M Y H:i:s A')
+                    : null;
+
+                $order_updated_at = optional($order->updated_at)
+                    ? Carbon::parse($order->updated_at, 'UTC')
+                        ->setTimezone($timezone)
+                        ->format('d, M Y H:i:s A')
+                    : null;
+
                 return [
                     'id' => $order->id,
                     'unique_order_id' => $order->unique_order_id,
@@ -834,6 +850,8 @@ class OrderController extends Controller
                     'last_status_id' => $order->last_status_id,
                     'order_status' => $order->order_status,
                     'order_status_message' => $order->order_status_message,
+                    'order_created_at' => $order_created_at,
+                    'order_updated_at' => $order_updated_at,
                     'address_data' => json_decode($order->address_data, true),
 
                     'order_items' => $order->orderDetail->map(function ($od) {
@@ -841,6 +859,7 @@ class OrderController extends Controller
                             'product_id' => $od->product_id,
                             'buy_quantity' => $od->buy_quantity,
                             'product_unit_price' => $od->product_unit_price,
+                            'tag_code' => $od->tag_code,
                             'product_json' => json_decode($od->product_json, true)
                         ];
                     })
@@ -915,6 +934,18 @@ class OrderController extends Controller
                     ->setTimezone($timezone)
                     ->format('Y-m-d H:i:s')
                 : null;
+            
+            $order_created_at = optional($order->created_at)
+                ? Carbon::parse($order->created_at, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('d, M Y H:i:s A')
+                : null;
+            
+            $order_updated_at = optional($order->updated_at)
+                ? Carbon::parse($order->updated_at, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('d, M Y H:i:s A')
+                : null;
 
             /*
             |---------------------------------------
@@ -934,18 +965,20 @@ class OrderController extends Controller
             |---------------------------------------
             */
             $order_data = [
-                'id' => $order->id,
-                'unique_order_id' => $order->unique_order_id,
-                'invoice_no' => $order->invoice_no,
-                'order_datetime' => $orderDateTime,
-                'payable_amount' => $order->payable_amount,
-                'payment_mode' => $order->payment_mode == 2 ? 'Online' : 'COD',
-                'last_status_id' => $order->last_status_id,
-                'order_status' => $order->order_status,
-                'waybill' => $order->waybill,
-                'tracking_url' => $order->tracking_url,
-                'address_data' => json_decode($order->address_data, true),
-
+                'id'                => $order->id,
+                'unique_order_id'   => $order->unique_order_id,
+                'invoice_no'        => $order->invoice_no,
+                'order_datetime'    => $orderDateTime,
+                'payable_amount'    => $order->payable_amount,
+                'payment_mode'      => $order->payment_mode == 2 ? 'Online' : 'COD',
+                'last_status_id'    => $order->last_status_id,
+                'order_status'      => $order->order_status,
+                'order_status_message' => $order->order_status_message,
+                'waybill'               => $order->waybill,
+                'tracking_url'          => $order->tracking_url,
+                'address_data'          => json_decode($order->address_data, true),
+                'order_created_at'    => $order_created_at,
+                'order_updated_at'    => $order_updated_at,
                 'order_items' => $order->orderDetail->map(function ($od) use ($registeredTags) {
                     return [
                         'product_id' => $od->product_id,
