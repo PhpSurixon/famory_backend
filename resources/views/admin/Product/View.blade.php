@@ -163,7 +163,10 @@
                                              $s3BaseUrl = 'https://famorys3.s3.amazonaws.com';
                                             @endphp
                                             @if(!empty($data->image))
-                                                <img src="{{ str_contains($data->image, $s3BaseUrl) ? $data->image : $s3BaseUrl . '/' . ltrim($data->image, '/') }}" alt="Tag Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'">
+                                                <!-- <img src="{{ str_contains($data->image, $s3BaseUrl) ? $data->image : $s3BaseUrl . '/' . ltrim($data->image, '/') }}" alt="Tag Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'"> -->
+
+                                                <img src="{{ $data->image }}" alt="Tag Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'">
+                                                
                                             @else
                                                 <img src="{{ asset('assets/img/default_tag.jpg') }}" alt="Default Image" class="img-circle" loading="lazy"onerror="this.src='{{ asset("assets/img/default_tag.jpg") }}'">
                                             @endif
