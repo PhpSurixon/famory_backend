@@ -2722,10 +2722,11 @@ class TagsController extends Controller
 
             // Get all product IDs the user already has in cart — single query
             $cartProductIds = Carts::where('user_id', $authUser->id)
+                                ->where('action_type', 'cart')
                                 ->whereIn('product_id', $products->pluck('id'))
                                 ->pluck('product_id')
                                 ->toArray();
-            $cart_count = Carts::where('user_id', $authUser->id)->count();
+            $cart_count = Carts::where('user_id', $authUser->id)->where('action_type', 'cart')->count();
 
             $productList = $products->map(function ($product) use ($cartProductIds) {
                 return array_merge($product->toArray(), [
@@ -2836,11 +2837,12 @@ class TagsController extends Controller
             // single query for cart
             $cart = Carts::select('id','quantity')->where('user_id', $authUser->id)
                             ->where('product_id', $product->id)
+                            ->where('action_type', 'cart')
                             ->first();
 
             $is_cart_exist = $cart ? true : false;
 
-            $cart_count = Carts::where('user_id', $authUser->id)->count();
+            $cart_count = Carts::where('user_id', $authUser->id)->where('action_type', 'cart')->count();
 
             return response()->json([
                 'status'  => 'success',
