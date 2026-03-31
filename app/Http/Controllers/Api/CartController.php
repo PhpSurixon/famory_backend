@@ -78,39 +78,68 @@ class CartController extends Controller
 
             /*
             |--------------------------------------------------
-            | Check if item already exists in cart
+            | Buy Now: separate entry (like Flipkart)
             |--------------------------------------------------
+            | Buy Now items are independent of cart items.
+            | Old buy_now entries are cleared each time.
             */
 
-            $cart = Carts::where('user_id', $userId)
-                        ->where('product_id', $product->id)
-                        ->first();
+            if ($actionType == 'buy_now') {
 
-            if ($cart) {
+                // Remove any previous buy_now items for this user
+                Carts::where('user_id', $userId)
+                     ->where('action_type', 'buy_now')
+                     ->delete();
 
-                $newQty = $cart->quantity + $request->quantity;
-
-                if ($newQty > $product->count) {
-                    return response()->json([
-                        'status'  => 'failed',
-                        'message' => "Only {$product->count} items available in stock"
-                    ], 400);
-                }
-
-                $cart->quantity = $newQty;
-                $cart->item_price = $product->price;
-                $cart->tag_code = $request->tag_code? $request->tag_code : $cart->tag_code;
-                $cart->save();
+                $cart = Carts::create([
+                    'user_id'     => $userId,
+                    'product_id'  => $product->id,
+                    'item_price'  => $product->price,
+                    'quantity'    => $request->quantity,
+                    'tag_code'    => $request->tag_code,
+                    'action_type' => 'buy_now',
+                ]);
 
             } else {
 
-                $cart = Carts::create([
-                    'user_id'    => $userId,
-                    'product_id' => $product->id,
-                    'item_price' => $product->price,
-                    'quantity'   => $request->quantity,
-                    'tag_code'   => $request->tag_code,
-                ]);
+                /*
+                |--------------------------------------------------
+                | Cart: merge with existing cart item if exists
+                |--------------------------------------------------
+                */
+
+                $cart = Carts::where('user_id', $userId)
+                            ->where('product_id', $product->id)
+                            ->where('action_type', 'cart')
+                            ->first();
+
+                if ($cart) {
+
+                    $newQty = $cart->quantity + $request->quantity;
+
+                    if ($newQty > $product->count) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => "Only {$product->count} items available in stock"
+                        ], 400);
+                    }
+
+                    $cart->quantity = $newQty;
+                    $cart->item_price = $product->price;
+                    $cart->tag_code = $request->tag_code ? $request->tag_code : $cart->tag_code;
+                    $cart->save();
+
+                } else {
+
+                    $cart = Carts::create([
+                        'user_id'     => $userId,
+                        'product_id'  => $product->id,
+                        'item_price'  => $product->price,
+                        'quantity'    => $request->quantity,
+                        'tag_code'    => $request->tag_code,
+                        'action_type' => 'cart',
+                    ]);
+                }
             }
 
             /*
@@ -174,6 +203,7 @@ class CartController extends Controller
 
                 $cartItems = Carts::with('product')
                     ->where('user_id', $userId)
+                    ->where('action_type', 'cart')
                     ->get();
             }
 
@@ -216,6 +246,7 @@ class CartController extends Controller
                 'user_address'    => $user_address,
                 'subtotal'        => round($subtotal,2),
                 'shipping_amount' => round($shipping_amount,2),
+                'shipping_default_amount' => 4.99,
                 'total_amount'    => round($total_amount,2),
             ], 200);
 
@@ -433,6 +464,7 @@ class CartController extends Controller
 
                 $cartItems = Carts::with('product')
                     ->where('user_id', $userId)
+                    ->where('action_type', 'cart')
                     ->get();
 
                 $cart_type = 'cart';
@@ -535,6 +567,7 @@ class CartController extends Controller
                 'user_address'  => $user_address,
                 'subtotal'      => round($subtotal,2),
                 'shipping_fee'  => round($shipping_amount,2),
+                'shipping_default_amount' => 4.99,
                 'total_amount'  => $total_amount
             ],200);
 

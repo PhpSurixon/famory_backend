@@ -74,6 +74,7 @@ class OrderController extends Controller
             } else {
                 $cartItems = Carts::with('product')
                     ->where('user_id', $userId)
+                    ->where('action_type', 'cart')
                     ->get();
                 $cart_type = 'cart';
             }
