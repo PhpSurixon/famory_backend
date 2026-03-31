@@ -249,7 +249,7 @@ class TagsController extends Controller
 
             $FamoryTags = Product::take(8)->get();
 
-            $cart_count = Carts::where('user_id', $authUser->id)->count();
+            $cart_count = Carts::where('user_id', $authUser->id)->where('action_type', 'cart')->count();
 
             /** ----------------------------------------------------
              * FINAL RESPONSE
