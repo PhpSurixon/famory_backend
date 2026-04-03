@@ -58,6 +58,16 @@ class Product extends Model
         // Otherwise, return the original value
         return $value;
     }
+
+    public function getPriceAttribute($value)
+    {
+        return (string) $value;
+    }
+
+    public function getIsFavouriteAttribute($value)
+    {
+        return (string) $value;
+    }
     
 
 }
