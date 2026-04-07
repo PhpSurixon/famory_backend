@@ -16,7 +16,7 @@ class CartController extends Controller
     /**
      * Add product to cart
      */
-    public function addToCart(Request $request)
+    public function addToCartOLD(Request $request)
     {
         try 
         {
@@ -96,7 +96,7 @@ class CartController extends Controller
                     'product_id'  => $product->id,
                     'item_price'  => $product->price,
                     'quantity'    => $request->quantity,
-                    'tag_code'    => $request->tag_code,
+                    'tag_code'    => $request->has('tag_code') ? ($request->tag_code ?: null) : null,
                     'action_type' => 'buy_now',
                 ]);
 
@@ -126,7 +126,10 @@ class CartController extends Controller
 
                     $cart->quantity = $newQty;
                     $cart->item_price = $product->price;
-                    $cart->tag_code = $request->tag_code ? $request->tag_code : $cart->tag_code;
+                    // $cart->tag_code = $request->tag_code ? $request->tag_code : null;
+                    if ($request->has('tag_code')) {
+                        $cart->tag_code = $request->tag_code ?: null;
+                    }
                     $cart->save();
 
                 } else {
@@ -136,7 +139,7 @@ class CartController extends Controller
                         'product_id'  => $product->id,
                         'item_price'  => $product->price,
                         'quantity'    => $request->quantity,
-                        'tag_code'    => $request->tag_code,
+                        'tag_code'    => $request->has('tag_code')  ? ($request->tag_code ?: null): null,
                         'action_type' => 'cart',
                     ]);
                 }
@@ -151,6 +154,165 @@ class CartController extends Controller
             $message = $actionType == 'buy_now'
                 ? 'Tag Buy Now successfully'
                 : 'Tag added to cart successfully';
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => $message,
+                'data'    => [
+                    'cart_id'     => $cart->id,
+                    'action_type' => $actionType
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => "Something went wrong",
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function addToCart(Request $request)
+    {
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'product_id' => 'required|exists:products,id',
+                'quantity'   => 'required|integer|min:1',
+                'action'     => 'required|in:cart,buy_now',
+                'tag_code'   => 'nullable|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first(),
+                ], 400);
+            }
+
+            $userId    = Auth::id();
+            $actionType = $request->action;
+
+            $product = Product::find($request->product_id);
+
+            /*
+            |--------------------------------------------------
+            | Product Not Found
+            |--------------------------------------------------
+            */
+            if (!$product) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => "Product not found. Please select another product"
+                ], 400);
+            }
+
+            /*
+            |--------------------------------------------------
+            | Out of Stock
+            |--------------------------------------------------
+            */
+            if ($product->count <= 0) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => "Product out of stock"
+                ], 400);
+            }
+
+            /*
+            |--------------------------------------------------
+            | Quantity validation
+            |--------------------------------------------------
+            */
+            if ($request->quantity > $product->count) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => "Only {$product->count} items available in stock"
+                ], 400);
+            }
+
+            /*
+            |--------------------------------------------------
+            | BUY NOW FLOW
+            |--------------------------------------------------
+            */
+            if ($actionType == 'buy_now') {
+
+                // Remove previous buy_now items
+                Carts::where('user_id', $userId)
+                    ->where('action_type', 'buy_now')
+                    ->delete();
+
+                $cart = Carts::create([
+                    'user_id'     => $userId,
+                    'product_id'  => $product->id,
+                    'item_price'  => $product->price,
+                    'quantity'    => $request->quantity,
+                    'tag_code'    => $request->has('tag_code')
+                                        ? ($request->tag_code ?: null)
+                                        : null,
+                    'action_type' => 'buy_now',
+                ]);
+
+            } else {
+
+                /*
+                |--------------------------------------------------
+                | CART FLOW
+                |--------------------------------------------------
+                */
+
+                $cart = Carts::where('user_id', $userId)
+                            ->where('product_id', $product->id)
+                            ->where('action_type', 'cart')
+                            ->first();
+
+                if ($cart) {
+
+                    $newQty = $cart->quantity + $request->quantity;
+
+                    if ($newQty > $product->count) {
+                        return response()->json([
+                            'status'  => 'failed',
+                            'message' => "Only {$product->count} items available in stock"
+                        ], 400);
+                    }
+
+                    $cart->quantity   = $newQty;
+                    $cart->item_price = $product->price;
+
+                    // ✅ Add / Update / Remove tag_code
+                    if ($request->has('tag_code')) {
+                        $cart->tag_code = $request->tag_code ?: null;
+                    }
+
+                    $cart->save();
+
+                } else {
+
+                    $cart = Carts::create([
+                        'user_id'     => $userId,
+                        'product_id'  => $product->id,
+                        'item_price'  => $product->price,
+                        'quantity'    => $request->quantity,
+                        'tag_code'    => $request->has('tag_code')
+                                            ? ($request->tag_code ?: null)
+                                            : null,
+                        'action_type' => 'cart',
+                    ]);
+                }
+            }
+
+            /*
+            |--------------------------------------------------
+            | RESPONSE
+            |--------------------------------------------------
+            */
+            $message = $actionType == 'buy_now'
+                ? 'Product Buy Now successfully'
+                : 'Product added to cart successfully';
 
             return response()->json([
                 'status'  => 'success',
@@ -264,9 +426,114 @@ class CartController extends Controller
     /**
      * Update cart quantity
      */
+    // public function updateCart(Request $request)
+    // {
+    //     try {
+
+    //         $validator = Validator::make($request->all(), [
+    //             'cart_id'  => 'required|exists:carts,id',
+    //             'quantity' => 'required|integer|min:1',
+    //             'tag_code' => 'nullable|string|max:255',
+    //         ]);
+
+    //         if ($validator->fails()) {
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => $validator->errors()->first(),
+    //             ], 400);
+    //         }
+
+    //         $userId = Auth::id();
+
+    //         $cart = Carts::where('id', $request->cart_id)
+    //                     ->where('user_id', $userId)
+    //                     ->first();
+
+    //         if (!$cart) {
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => "Cart item not found. Please pass correct cart id"
+    //             ], 400);
+    //         }
+
+    //         $product = Product::find($cart->product_id);
+
+    //         /*
+    //         |---------------------------------------
+    //         | Product Deleted
+    //         |---------------------------------------
+    //         */
+    //         if (!$product) {
+
+    //             $cart->delete();
+
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => "Product not available anymore. Item removed from cart"
+    //             ], 400);
+    //         }
+
+    //         /*
+    //         |---------------------------------------
+    //         | Out of Stock
+    //         |---------------------------------------
+    //         */
+    //         if ($product->count <= 0) {
+
+    //             $cart->delete();
+
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => "Product out of stock. Item removed from cart"
+    //             ], 400);
+    //         }
+
+    //         /*
+    //         |---------------------------------------
+    //         | Quantity greater than stock
+    //         |---------------------------------------
+    //         */
+    //         if ($request->quantity > $product->count) {
+
+    //             return response()->json([
+    //                 'status'  => 'failed',
+    //                 'message' => "Only {$product->count} items available in stock"
+    //             ], 400);
+    //         }
+
+    //         /*
+    //         |---------------------------------------
+    //         | Update Quantity
+    //         |---------------------------------------
+    //         */
+
+    //         $cart->quantity = $request->quantity;
+    //         $cart->item_price = $product->price;
+    //         if ($request->has('tag_code')) {
+    //             // $cart->tag_code = $request->tag_code;
+    //             $cart->tag_code = $request->tag_code ?: null;
+    //         }
+    //         $cart->save();
+
+    //         return response()->json([
+    //             'status'  => 'success',
+    //             'message' => 'Cart updated successfully'
+    //         ]);
+
+    //     } catch (\Exception $e) {
+
+    //         return response()->json([
+    //             'status'  => 'error',
+    //             'message' => 'Something went wrong',
+    //             'error'   => $e->getMessage()
+    //         ], 500);
+    //     }
+    // }
+
     public function updateCart(Request $request)
     {
-        try {
+        try 
+        {
 
             $validator = Validator::make($request->all(), [
                 'cart_id'  => 'required|exists:carts,id',
@@ -296,13 +563,8 @@ class CartController extends Controller
 
             $product = Product::find($cart->product_id);
 
-            /*
-            |---------------------------------------
-            | Product Deleted
-            |---------------------------------------
-            */
+            // Product deleted
             if (!$product) {
-
                 $cart->delete();
 
                 return response()->json([
@@ -311,13 +573,8 @@ class CartController extends Controller
                 ], 400);
             }
 
-            /*
-            |---------------------------------------
-            | Out of Stock
-            |---------------------------------------
-            */
+            // Out of stock
             if ($product->count <= 0) {
-
                 $cart->delete();
 
                 return response()->json([
@@ -326,13 +583,8 @@ class CartController extends Controller
                 ], 400);
             }
 
-            /*
-            |---------------------------------------
-            | Quantity greater than stock
-            |---------------------------------------
-            */
+            // Quantity check
             if ($request->quantity > $product->count) {
-
                 return response()->json([
                     'status'  => 'failed',
                     'message' => "Only {$product->count} items available in stock"
@@ -344,12 +596,25 @@ class CartController extends Controller
             | Update Quantity
             |---------------------------------------
             */
-
-            $cart->quantity = $request->quantity;
+            $cart->quantity   = $request->quantity;
             $cart->item_price = $product->price;
+
+            /*
+            |---------------------------------------
+            | Add / Update / Remove tag_code
+            |---------------------------------------
+            */
             if ($request->has('tag_code')) {
-                $cart->tag_code = $request->tag_code;
+
+                if (!empty($request->tag_code)) {
+                    // ✅ Add / Update
+                    $cart->tag_code = $request->tag_code;
+                } else {
+                    // ❌ Remove (set NULL)
+                    $cart->tag_code = null;
+                }
             }
+
             $cart->save();
 
             return response()->json([
