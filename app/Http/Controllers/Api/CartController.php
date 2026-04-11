@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Carts;
 use App\Models\Product;
 use App\Models\UserAddress;
+use App\Models\FamilyTagId;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
 
@@ -337,7 +338,7 @@ class CartController extends Controller
     /**
      * Cart List
      */
-    public function cartList(Request $request)
+    public function cartListOLD(Request $request)
     {
         try {
 
@@ -383,6 +384,111 @@ class CartController extends Controller
 
             foreach ($cartItems as $item) {
                 $subtotal += $item->item_price * $item->quantity;
+            }
+
+            /*
+            |-----------------------------------------
+            | Shipping Rule
+            |-----------------------------------------
+            | Free shipping above $50
+            */
+
+            if ($subtotal < 50) {
+                $shipping_amount = 4.99;
+            }
+
+            $total_amount = $subtotal + $shipping_amount;
+            $user_address = UserAddress::where('user_id',$userId)->orderBy('id','desc')->first();
+
+            return response()->json([
+                'status'          => 'success',
+                'message'         => 'Cart item list',
+                'cart_items'      => $cartItems,
+                'data'            => $cartItems,
+                'cart_count'      => count($cartItems),
+                'user_address'    => $user_address,
+                'subtotal'        => round($subtotal,2),
+                'shipping_amount' => round($shipping_amount,2),
+                'shipping_default_amount' => 4.99,
+                'total_amount'    => round($total_amount,2),
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    /**
+     * Cart List (with tag_name from FamilyTagId)
+     */
+    public function cartList(Request $request)
+    {
+        try {
+
+            $validator = Validator::make($request->all(), [
+                'cart_id' => 'nullable|exists:carts,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first(),
+                ], 400);
+            }
+
+            $userId = Auth::id();
+
+            if ($request->filled('cart_id')) {
+
+                $cartItems = Carts::with('product')
+                    ->where('id', $request->cart_id)
+                    ->where('user_id', $userId)
+                    ->get();
+
+            } else {
+
+                $cartItems = Carts::with('product')
+                    ->where('user_id', $userId)
+                    ->where('action_type', 'cart')
+                    ->get();
+            }
+
+            if ($cartItems->isEmpty()) {
+
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Cart is empty. Please add tags to cart',
+                    'data'    => []
+                ], 200);
+            }
+
+            $subtotal = 0;
+            $shipping_amount = 0;
+
+            /*
+            |-----------------------------------------
+            | Lookup tag_name from FamilyTagId using tag_code
+            |-----------------------------------------
+            */
+
+            $tagCodes = $cartItems->pluck('tag_code')->filter()->unique()->values()->toArray();
+
+            $familyTags = [];
+            if (!empty($tagCodes)) {
+                $familyTags = FamilyTagId::whereIn('family_tag_id', $tagCodes)
+                    ->pluck('title', 'family_tag_id')
+                    ->toArray();
+            }
+
+            foreach ($cartItems as $item) {
+                $subtotal += $item->item_price * $item->quantity;
+                $item->tag_name = $item->tag_code ? ($familyTags[$item->tag_code] ?? null) : null;
             }
 
             /*

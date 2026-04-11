@@ -890,7 +890,7 @@ class OrderController extends Controller
         }
     }
 
-    public function orderDetail(Request $request)
+    public function orderDetailOLD(Request $request)
     {
         try {
             $authUser = Auth::user();
@@ -935,13 +935,13 @@ class OrderController extends Controller
                     ->setTimezone($timezone)
                     ->format('Y-m-d H:i:s')
                 : null;
-            
+
             $order_created_at = optional($order->created_at)
                 ? Carbon::parse($order->created_at, 'UTC')
                     ->setTimezone($timezone)
                     ->format('d, M Y H:i:s A')
                 : null;
-            
+
             $order_updated_at = optional($order->updated_at)
                 ? Carbon::parse($order->updated_at, 'UTC')
                     ->setTimezone($timezone)
@@ -990,6 +990,139 @@ class OrderController extends Controller
                         // optimized check (NO DB HIT)
                         'tag_register_as_digital' => in_array($od->tag_code, $registeredTags),
 
+                        'product_json' => json_decode($od->product_json, true)
+                    ];
+                })
+            ];
+
+            return response()->json([
+                'status'  => 'success',
+                'message' => 'Order detail fetched successfully',
+                'data'    => $order_data
+            ], 200);
+
+        } catch (\Exception $e) {
+
+            return response()->json([
+                'status'  => 'failed',
+                'message' => 'Something went wrong',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+
+    /**
+     * Order Detail (with tag_name from FamilyTagId)
+     */
+    public function orderDetail(Request $request)
+    {
+        try {
+            $authUser = Auth::user();
+
+            $validator = Validator::make($request->all(), [
+                'order_id' => 'required|exists:orders,id'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => $validator->errors()->first()
+                ], 400);
+            }
+
+            $timezone = $request->header('timezone', 'UTC');
+
+            /*
+            |---------------------------------------
+            | Get Order with Relations
+            |---------------------------------------
+            */
+            $order = Order::with(['orderDetail.product'])
+                ->where('id', $request->order_id)
+                ->where('user_id', $authUser->id)
+                ->first();
+
+            if (!$order) {
+                return response()->json([
+                    'status'  => 'failed',
+                    'message' => 'Order not found'
+                ], 404);
+            }
+
+            /*
+            |---------------------------------------
+            | Convert Order DateTime to User TZ
+            |---------------------------------------
+            */
+            $orderDateTime = optional($order->order_datetime)
+                ? Carbon::parse($order->order_datetime, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('Y-m-d H:i:s')
+                : null;
+
+            $order_created_at = optional($order->created_at)
+                ? Carbon::parse($order->created_at, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('d, M Y H:i:s A')
+                : null;
+
+            $order_updated_at = optional($order->updated_at)
+                ? Carbon::parse($order->updated_at, 'UTC')
+                    ->setTimezone($timezone)
+                    ->format('d, M Y H:i:s A')
+                : null;
+
+            /*
+            |---------------------------------------
+            | Batch lookup: tag_register + tag_name
+            |---------------------------------------
+            */
+            $tagCodes = $order->orderDetail->pluck('tag_code')->filter()->unique()->values()->toArray();
+
+            $registeredTags = [];
+            $familyTags = [];
+
+            if (!empty($tagCodes)) {
+                $familyTagRecords = FamilyTagId::whereIn('family_tag_id', $tagCodes)
+                    ->get(['family_tag_id', 'title', 'created_user_id']);
+
+                foreach ($familyTagRecords as $ft) {
+                    $familyTags[$ft->family_tag_id] = $ft->title;
+                    if ($ft->created_user_id == $authUser->id) {
+                        $registeredTags[] = $ft->family_tag_id;
+                    }
+                }
+            }
+
+            /*
+            |---------------------------------------
+            | Transform Order Data
+            |---------------------------------------
+            */
+            $order_data = [
+                'id'                => $order->id,
+                'unique_order_id'   => $order->unique_order_id,
+                'invoice_no'        => $order->invoice_no,
+                'order_datetime'    => $orderDateTime,
+                'payable_amount'    => $order->payable_amount,
+                'payment_mode'      => $order->payment_mode == 2 ? 'Online' : 'COD',
+                'last_status_id'    => $order->last_status_id,
+                'order_status'      => $order->order_status,
+                'order_status_message' => $order->order_status_message,
+                'waybill'               => $order->waybill,
+                'tracking_url'          => $order->tracking_url,
+                'address_data'          => json_decode($order->address_data, true),
+                'order_created_at'    => $order_created_at,
+                'order_updated_at'    => $order_updated_at,
+                'order_items' => $order->orderDetail->map(function ($od) use ($registeredTags, $familyTags) {
+                    return [
+                        'product_id' => $od->product_id,
+                        'buy_quantity' => $od->buy_quantity,
+                        'product_unit_price' => $od->product_unit_price,
+                        'tag_code' => $od->tag_code,
+                        'tag_name' => $od->tag_code ? ($familyTags[$od->tag_code] ?? null) : null,
+                        'tag_register_as_digital' => in_array($od->tag_code, $registeredTags),
                         'product_json' => json_decode($od->product_json, true)
                     ];
                 })
