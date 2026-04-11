@@ -1105,6 +1105,8 @@ class OrderController extends Controller
                 'unique_order_id'   => $order->unique_order_id,
                 'invoice_no'        => $order->invoice_no,
                 'order_datetime'    => $orderDateTime,
+                'subtotal_amount'    => $order->subtotal_amount,
+                'shipping_amount'    => $order->shipping_amount,
                 'payable_amount'    => $order->payable_amount,
                 'payment_mode'      => $order->payment_mode == 2 ? 'Online' : 'COD',
                 'last_status_id'    => $order->last_status_id,
