@@ -61,8 +61,8 @@ class Product extends Model
 
     public function getPriceAttribute($value)
     {
-        // return (int) $value;
-         return (double) $value;
+        return (int) $value;
+        //  return (double) $value;
     }
 
     public function getIsFavouriteAttribute($value)
