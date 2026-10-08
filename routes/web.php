@@ -10,6 +10,9 @@ use App\Http\Controllers\AdvertiserController;
 use App\Http\Controllers\AdminUserController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\Admin\AdminOrderController;
+use App\Http\Controllers\Admin\BusinessController;
+use App\Http\Controllers\Admin\BusinessTagController;
+use App\Http\Controllers\Admin\BusinessInvoiceController;
 use Illuminate\Http\Request;
 
 Route::get('/test-ffmpeg', function () {
@@ -149,6 +152,46 @@ Route::resource('info-pages', PageInfoController::class);
         Route::post('/destroy-product/{id}', [AdminController::class, "destroyProduct"])->name('destroy-product');
         Route::get('/purchase-history', [AdminController::class, 'viewPurchaseHistory'])->name('purchase-history');
         Route::get('/get-user-detail-with-order/{id}', [AdminController::class, 'getUserDetailsWithOrders'])->name('get-user-detail-with-order');
+
+        // Business
+        Route::get('/business', [BusinessController::class, 'index'])->name('business');
+        Route::get('/create-business', [BusinessController::class, 'create'])->name('create-business');
+        Route::post('/store-business', [BusinessController::class, 'store'])->name('store-business');
+        Route::get('/edit-business/{id}', [BusinessController::class, 'edit'])->name('edit-business');
+        Route::post('/update-business/{id}', [BusinessController::class, 'update'])->name('update-business');
+        Route::post('/destroy-business/{id}', [BusinessController::class, 'destroy'])->name('destroy-business');
+        Route::get('/business/{id}/assign-tags', [BusinessController::class, 'assignTags'])->name('business.assign-tags');
+        Route::get('/business/{id}/assign-tags/codes', [BusinessController::class, 'getTagCodes'])->name('business.assign-tags.codes');
+        Route::post('/business/{id}/assign-tags', [BusinessController::class, 'saveTagCodes'])->name('business.assign-tags.save');
+        Route::get('/business/{id}/sold-tags', [BusinessController::class, 'soldReport'])->name('business.sold-tags');
+        Route::post('/business/{id}/sold-tags/mark', [BusinessController::class, 'markSold'])->name('business.sold-tags.mark');
+        Route::post('/business/{id}/sold-tags/unmark', [BusinessController::class, 'unmarkSold'])->name('business.sold-tags.unmark');
+
+        // Business Invoices (static routes first, then the {id} ones)
+        Route::get('/business-invoices', [BusinessInvoiceController::class, 'index'])->name('business-invoices');
+        Route::get('/business-invoices/create', [BusinessInvoiceController::class, 'create'])->name('business-invoices.create');
+        Route::get('/business-invoices/eligible-tags', [BusinessInvoiceController::class, 'eligibleTags'])->name('business-invoices.eligible-tags');
+        Route::get('/business-invoices/eligible-codes', [BusinessInvoiceController::class, 'eligibleCodesList'])->name('business-invoices.eligible-codes');
+        Route::post('/business-invoices', [BusinessInvoiceController::class, 'store'])->name('business-invoices.store');
+        Route::get('/business-invoices/{id}', [BusinessInvoiceController::class, 'show'])->whereNumber('id')->name('business-invoices.show');
+        Route::get('/business-invoices/{id}/edit', [BusinessInvoiceController::class, 'edit'])->whereNumber('id')->name('business-invoices.edit');
+        Route::post('/business-invoices/{id}/update', [BusinessInvoiceController::class, 'update'])->whereNumber('id')->name('business-invoices.update');
+        Route::post('/business-invoices/{id}/issue', [BusinessInvoiceController::class, 'issue'])->whereNumber('id')->name('business-invoices.issue');
+        Route::post('/business-invoices/{id}/paid', [BusinessInvoiceController::class, 'markPaid'])->whereNumber('id')->name('business-invoices.paid');
+        Route::post('/business-invoices/{id}/cancel', [BusinessInvoiceController::class, 'cancel'])->whereNumber('id')->name('business-invoices.cancel');
+        Route::get('/business-invoices/{id}/pdf', [BusinessInvoiceController::class, 'pdf'])->whereNumber('id')->name('business-invoices.pdf');
+
+        // Business Tag
+        Route::get('/business-tag', [BusinessTagController::class, 'index'])->name('business-tag');
+        Route::get('/create-business-tag', [BusinessTagController::class, 'create'])->name('create-business-tag');
+        Route::post('/store-business-tag', [BusinessTagController::class, 'store'])->name('store-business-tag');
+        Route::get('/edit-business-tag/{id}', [BusinessTagController::class, 'edit'])->name('edit-business-tag');
+        Route::post('/update-business-tag/{id}', [BusinessTagController::class, 'update'])->name('update-business-tag');
+        Route::post('/destroy-business-tag/{id}', [BusinessTagController::class, 'destroy'])->name('destroy-business-tag');
+        Route::post('/business-tag/{id}/generate-codes', [BusinessTagController::class, 'generateCodes'])->name('business-tag.generate-codes');
+        Route::get('/business-tag/{id}/codes', [BusinessTagController::class, 'codes'])->name('business-tag.codes');
+        Route::get('/business-tag/{id}/codes/export', [BusinessTagController::class, 'exportCodes'])->name('business-tag.codes.export');
+        Route::post('/business-tag/{id}/codes/download-qr', [BusinessTagController::class, 'downloadQr'])->name('business-tag.codes.download-qr');
 
         Route::get('/trusted-company', [AdminController::class, 'viewTrustedPartners'])->name('trusted-company');
         Route::get('/create-trusted-company', [AdminController::class, 'createTrustedCompany'])->name('create-trusted-company');

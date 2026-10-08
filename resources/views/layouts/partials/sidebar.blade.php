@@ -90,6 +90,24 @@
                 <div data-i18n="Layouts">Famory Tags</div>
             </a>
         </li>
+        <li class="menu-item {{ request()->is('business', 'create-business', 'edit-business/*') ? 'active' : '' }}">
+            <a href="{{ route('business') }}" class="menu-link">
+                <i class='menu-icon tf-icons bx bxs-business'></i>
+                <div data-i18n="Layouts">Business</div>
+            </a>
+        </li>
+        <li class="menu-item {{ request()->is('business-tag', 'create-business-tag', 'edit-business-tag/*', 'business-tag/*') ? 'active' : '' }}">
+            <a href="{{ route('business-tag') }}" class="menu-link">
+                <i class='menu-icon tf-icons bx bxs-purchase-tag-alt'></i>
+                <div data-i18n="Layouts">Business Tags</div>
+            </a>
+        </li>
+        <li class="menu-item {{ request()->is('business-invoices', 'business-invoices/*') ? 'active' : '' }}">
+            <a href="{{ route('business-invoices') }}" class="menu-link">
+                <i class='menu-icon tf-icons bx bx-receipt'></i>
+                <div data-i18n="Layouts">Business Invoices</div>
+            </a>
+        </li>
          <li class="menu-item {{ request()->is('order-list') ? 'active' : '' }}">
             <a href="{{ route('admin.order.list') }}" class="menu-link">
                 

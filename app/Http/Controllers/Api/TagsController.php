@@ -27,6 +27,7 @@ use App\Models\Follow;
 use App\Models\Product;
 use App\Models\TagsPurchaseHistory;
 use App\Models\Notification;
+use App\Models\BusinessTagCode;
 
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
@@ -40,6 +41,22 @@ class TagsController extends Controller
     public function __construct(UploadImage $UploadImage)
     {
         $this->UploadImage = $UploadImage;
+    }
+
+    /**
+     * Accept either a bare tag code ("BT12345678") or the full QR URL
+     * ("https://admin.famoryapp.com/tag-view/BT12345678") and return the code.
+     */
+    protected function normalizeTagCode($value): string
+    {
+        $value = trim((string) $value);
+
+        if (strpos($value, '/') !== false) {
+            $path = parse_url($value, PHP_URL_PATH) ?: $value;
+            $value = basename(rtrim($path, '/'));
+        }
+
+        return $value;
     }
 
     // public function index(Request $request)
@@ -308,7 +325,18 @@ class TagsController extends Controller
             $userId   = $authUser->id;
             $remaining_tag_count   = $authUser->remaining_tag_count;
 
+            // The app may send the bare code or the full QR URL (.../tag-view/BT12345678)
+            if ($request->filled('tag_code')) {
+                $request->merge(['tag_code' => $this->normalizeTagCode($request->tag_code)]);
+            }
+
             DB::beginTransaction();
+
+            // Business (offline-sale) tag: bought in a shop, so it is not in order_details
+            // and does not use a package credit.
+            $businessCode = $request->filled('tag_code')
+                ? BusinessTagCode::where('tag_code', $request->tag_code)->first()
+                : null;
 
             // Upload image
             if (!$request->hasFile('image') || !$request->file('image')->isValid()) 
@@ -319,7 +347,7 @@ class TagsController extends Controller
                 ], 400);
             }
 
-            if($remaining_tag_count == 0)
+            if(!$businessCode && $remaining_tag_count == 0)
             {
                 return response()->json([
                     'status' => 'failed',
@@ -329,7 +357,7 @@ class TagsController extends Controller
 
             // Check PhysicalTag
             $checkInOrder = null;
-            if ($request->filled('tag_code'))
+            if ($request->filled('tag_code') && !$businessCode)
             {
                 // Verify the PT code belongs to THIS user's order
                 $get_data = OrderDetails::with('order')
@@ -361,6 +389,31 @@ class TagsController extends Controller
                 $checkInOrder = $get_data;
             }
 
+            if ($businessCode) {
+                // Lock the code row so two users cannot register the same tag at once
+                $businessCode = BusinessTagCode::where('id', $businessCode->id)->lockForUpdate()->first();
+
+                if (!$businessCode->business_id) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'This tag is not available yet.',
+                        'status'  => 'failed'
+                    ], 400);
+                }
+
+                $alreadyRegistered = FamilyTagId::where('family_tag_id', $businessCode->tag_code)
+                                                ->where('is_deleted', 0)
+                                                ->exists();
+
+                if ($alreadyRegistered) {
+                    DB::rollBack();
+                    return response()->json([
+                        'message' => 'This Tag has already been registered.',
+                        'status'  => 'failed'
+                    ], 400);
+                }
+            }
+
             // Duplicate title check (scoped to physical tag or digital tags)
             if ($checkInOrder) {
                 $checkName = FamilyTagId::where('title', $request->title)
@@ -385,7 +438,9 @@ class TagsController extends Controller
             $filePath = $this->UploadImage->saveMedia($file, $userId);
 
             // Generate FamilyTag ID
-            if($checkInOrder){
+            if($businessCode){
+               $family_tag_id = $businessCode->tag_code;
+            }elseif($checkInOrder){
                $family_tag_id = $checkInOrder->tag_code;
             }else{
 
@@ -403,8 +458,19 @@ class TagsController extends Controller
                 'image'            => $filePath,
             ]);
 
-            $authUser->remaining_tag_count -= 1;
-            $authUser->save();
+            if ($businessCode) {
+                // Offline sale: the user registered the tag in the app. A registered tag also counts as
+                // sold, so keep the date an admin already marked it sold, or set it now. No package credit used.
+                $businessCode->update([
+                    'registered_user_id' => $userId,
+                    'registered_at'      => now(),
+                    'family_tag_id_ref'  => $createData->id,
+                    'sold_at'            => $businessCode->sold_at ?? now(),
+                ]);
+            } else {
+                $authUser->remaining_tag_count -= 1;
+                $authUser->save();
+            }
 
             DB::commit();
 
@@ -1761,6 +1827,9 @@ class TagsController extends Controller
              * FETCH TAG
              * ==============================
              */
+            // The app may send the bare code or the full QR URL (.../tag-view/BT12345678)
+            $request->merge(['family_tag_id' => $this->normalizeTagCode($request->family_tag_id)]);
+            
             $get_tag_data = FamilyTagId::with('createdUser:id,first_name,last_name,image')
                 ->where('family_tag_id', $request->family_tag_id)
                 ->where('is_deleted', 0)
@@ -1768,6 +1837,43 @@ class TagsController extends Controller
 
             if (!$get_tag_data) 
             {
+                /**
+                 * Business (offline-sale) tag: bought in a shop, registered in the app.
+                 * Registrable only when the code is assigned to a business.
+                 */
+                $businessCode = BusinessTagCode::with('businessTag:id,name,image,type_of_tag')
+                                               ->where('tag_code', $request->family_tag_id)
+                                               ->first();
+
+                if ($businessCode) {
+                    if (!$businessCode->business_id) {
+                        return response()->json([
+                            'message'          => 'This tag is not available yet.',
+                            'status'           => 'failed',
+                            'is_request_sent'  => 3,
+                            'tag_not_register' => 2,
+                            'tag_code'         => null,
+                            'is_physical_owner_tag' => null,
+                            'is_business_tag'  => 1,
+                        ], 404);
+                    }
+
+                    return response()->json([
+                        'message'          => 'Tags Details not found',
+                        'status'           => 'failed',
+                        'is_request_sent'  => 3,
+                        'tag_not_register' => 1, // tag not register case
+                        'tag_code'         => $businessCode->tag_code,
+                        'is_physical_owner_tag' => true, // bought offline, no order to match
+                        'is_business_tag'  => 1,
+                        'business_tag'     => [
+                            'name'        => $businessCode->businessTag->name ?? null,
+                            'image'       => $businessCode->businessTag->image ?? null,
+                            'type_of_tag' => $businessCode->businessTag->type_of_tag ?? null,
+                        ],
+                    ], 404);
+                }
+
                 $is_tag_owner = OrderDetails::with('order')
                                             ->where('tag_code', $request->family_tag_id)
                                             ->whereHas('order', function ($q) use($authUser) {
