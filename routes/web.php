@@ -190,7 +190,7 @@ Route::resource('info-pages', PageInfoController::class);
         Route::post('/destroy-business-tag/{id}', [BusinessTagController::class, 'destroy'])->name('destroy-business-tag');
         Route::post('/business-tag/{id}/generate-codes', [BusinessTagController::class, 'generateCodes'])->name('business-tag.generate-codes');
         Route::get('/business-tag/{id}/codes', [BusinessTagController::class, 'codes'])->name('business-tag.codes');
-        Route::get('/business-tag/{id}/codes/export', [BusinessTagController::class, 'exportCodes'])->name('business-tag.codes.export');
+        Route::post('/business-tag/{id}/codes/export', [BusinessTagController::class, 'exportCodes'])->name('business-tag.codes.export');
         Route::post('/business-tag/{id}/codes/download-qr', [BusinessTagController::class, 'downloadQr'])->name('business-tag.codes.download-qr');
 
         Route::get('/trusted-company', [AdminController::class, 'viewTrustedPartners'])->name('trusted-company');

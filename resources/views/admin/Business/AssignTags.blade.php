@@ -77,7 +77,7 @@
                     <div id="codes-section" style="display:none;">
                         <div class="row mb-3">
                             <div class="col-md-3 col-sm-6">
-                                <label class="form-label" for="business_price">Business Price ($)</label>
+                                <label class="form-label" for="business_price">B2B Price ($)</label>
                                 <input type="number" step="0.01" min="0" class="form-control" id="business_price" placeholder="0.00">
                                 <small class="text-muted" id="price-hint"></small>
                             </div>
@@ -124,7 +124,7 @@
                                     {{ $group->first()->businessTag->name ?? 'Deleted Tag' }}
                                     <span class="badge bg-label-primary ms-1">{{ $group->count() }}</span>
                                     @if ($businessPrice !== null)
-                                        <span class="badge bg-label-success ms-1">Business Price: ${{ number_format((float) $businessPrice, 2) }}</span>
+                                        <span class="badge bg-label-success ms-1">B2B Price: ${{ number_format((float) $businessPrice, 2) }}</span>
                                         @if ($sellingPrice !== null)
                                             <small class="text-muted ms-1">Selling price ${{ number_format((float) $sellingPrice, 2) }}</small>
                                         @endif
@@ -160,7 +160,7 @@
 
     // Unsold codes can be ticked (assign) or unticked (release). Sold codes are locked.
     // Each checkbox remembers its saved state in data-initial so only real changes are counted.
-    // Business price the page loaded with (saved price, or the tag's selling price as the default).
+    // B2B Price the page loaded with (saved price, or the tag's selling price as the default).
     let initialPrice = null;
 
     function priceValue() {
@@ -228,7 +228,7 @@
                 }
                 grid.append(item);
             });
-            // Business price defaults to the tag's selling price until one is saved for this business
+            // B2B Price defaults to the tag's selling price until one is saved for this business
             const sellingPrice = parseFloat(res.selling_price);
             const savedPrice = res.business_price !== null ? parseFloat(res.business_price) : null;
             initialPrice = savedPrice !== null ? savedPrice : sellingPrice;
@@ -270,7 +270,7 @@
 
         const price = priceValue();
         if (price === null || price < 0) {
-            Swal.fire({ icon: 'error', title: 'Oops...', text: 'Enter a valid business price (0 or more).' });
+            Swal.fire({ icon: 'error', title: 'Oops...', text: 'Enter a valid B2B Price (0 or more).' });
             return;
         }
 

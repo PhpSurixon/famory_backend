@@ -146,7 +146,7 @@ class BusinessController extends Controller
             ->orderBy('id')
             ->get();
 
-        // Business price saved for each tag (tag id => price)
+        // B2B Price saved for each tag (tag id => price)
         $prices = BusinessTagPrice::where('business_id', $business->id)->pluck('business_price', 'business_tag_id');
 
         return view('admin.Business.AssignTags', compact('business', 'tags', 'assignedCodes', 'prices'));
@@ -219,7 +219,7 @@ class BusinessController extends Controller
             $selected = array_map('intval', $request->input('code_ids', []));
 
             [$assigned, $released] = DB::transaction(function () use ($business, $request, $selected) {
-                // Business price for this tag: the value sent, else the price already saved,
+                // B2B Price for this tag: the value sent, else the price already saved,
                 // else the tag's selling price.
                 $existing = BusinessTagPrice::where('business_id', $business->id)
                     ->where('business_tag_id', $request->business_tag_id)

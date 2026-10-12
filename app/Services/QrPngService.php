@@ -33,9 +33,16 @@ class QrPngService
         $qrSize = ($modules + 2 * self::QUIET) * self::SCALE;
         $img = imagecreatetruecolor($qrSize, $qrSize + self::LABEL_H);
 
-        $white = imagecolorallocate($img, 255, 255, 255);
+        // Transparent background: fill with a fully transparent colour and keep the alpha channel
+        // when saving. Alpha blending is switched back on afterwards so the anti-aliased edges of
+        // the reference text blend onto the transparency instead of leaving a halo.
+        imagealphablending($img, false);
+        imagesavealpha($img, true);
+        $transparent = imagecolorallocatealpha($img, 255, 255, 255, 127);
+        imagefill($img, 0, 0, $transparent);
+        imagealphablending($img, true);
+
         $black = imagecolorallocate($img, 0, 0, 0);
-        imagefill($img, 0, 0, $white);
 
         for ($y = 0; $y < $modules; $y++) {
             for ($x = 0; $x < $modules; $x++) {

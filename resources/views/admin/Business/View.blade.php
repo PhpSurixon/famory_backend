@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Business'])
+@extends('layouts.admin-master', ['title' => 'Offline Business'])
 
 @section('content')
 <style>
@@ -163,4 +163,5 @@
         }
     }
 </script>
+@include('admin._table_dropdown_fix')
 @endsection

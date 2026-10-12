@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Business'])
+@extends('layouts.admin-master', ['title' => 'Offline Business'])
 
 @section('content')
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -6,7 +6,7 @@
             <div class="col-xl">
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Edit Business</h5>
+                        <h5 class="mb-0">Edit Offline Business</h5>
                     </div>
                     <div class="card-body">
                         <form action="{{ route('update-business', $data->id) }}" method="post" enctype="multipart/form-data">

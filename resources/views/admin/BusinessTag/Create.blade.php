@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Business Tags'])
+@extends('layouts.admin-master', ['title' => 'Offline Business Tags'])
 
 @section('content')
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -6,7 +6,7 @@
             <div class="col-xl">
                 <div class="card mb-4">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0">Create Business Tag</h5>
+                        <h5 class="mb-0">Create Offline Business Tag</h5>
                     </div>
                     <div class="card-body">
                         @if (session('error'))
@@ -17,7 +17,7 @@
                             <div class="mb-3">
                                 <div class="row">
                                     <div class="col-6">
-                                        <label class="form-label" for="name">Name</label>
+                                        <label class="form-label" for="name">Tag Name</label>
                                         <input type="text" class="form-control @error('name') is-invalid @enderror"
                                             value="{{ old('name') }}" id="name" placeholder="Enter Name..." name="name" autofocus />
                                         @error('name')
@@ -40,15 +40,23 @@
                             </div>
                             <div class="mb-3">
                                 <div class="row">
-                                    <div class="col-6">
-                                        <label class="form-label" for="origin_price">Origin Price</label>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="cost_price">Cost Price</label>
+                                        <input type="number" step="0.01" min="0" class="form-control @error('cost_price') is-invalid @enderror"
+                                            value="{{ old('cost_price') }}" id="cost_price" placeholder="Enter cost price..." name="cost_price" />
+                                        @error('cost_price')
+                                            <span class="help-block invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
+                                        @enderror
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="origin_price">MSR Price</label>
                                         <input type="number" step="0.01" min="0" class="form-control @error('origin_price') is-invalid @enderror"
                                             value="{{ old('origin_price') }}" id="origin_price" placeholder="Enter origin price..." name="origin_price" />
                                         @error('origin_price')
                                             <span class="help-block invalid-feedback" role="alert"><strong>{{ $message }}</strong></span>
                                         @enderror
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-md-4">
                                         <label class="form-label" for="selling_price">Selling Price</label>
                                         <input type="number" step="0.01" min="0" class="form-control @error('selling_price') is-invalid @enderror"
                                             value="{{ old('selling_price') }}" id="selling_price" placeholder="Enter selling price..." name="selling_price" />

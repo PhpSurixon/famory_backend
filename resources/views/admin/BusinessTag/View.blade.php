@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Business Tags'])
+@extends('layouts.admin-master', ['title' => 'Offline Business Tags'])
 
 @section('content')
 <style>
@@ -50,10 +50,11 @@
                                 <th>Image</th>
                                 <th>Name</th>
                                 <th>Type</th>
-                                <th>Origin Price</th>
+                                <th>Cost Price</th>
+                                <th>MSRP</th>
                                 <th>Selling Price</th>
                                 <th>Description</th>
-                                <th>Codes</th>
+                                <th>TagsCodes</th>
                                 <th>Active</th>
                                 <th>Action</th>
                             </tr>
@@ -69,6 +70,7 @@
                                     </td>
                                     <td>{{ $data->name }}</td>
                                     <td>{{ ucfirst($data->type_of_tag) }}</td>
+                                    <td>${{ number_format($data->cost_price, 2) }}</td>
                                     <td>${{ number_format($data->origin_price, 2) }}</td>
                                     <td>${{ number_format($data->selling_price, 2) }}</td>
                                     <td><div id="td-scroll">{{ $data->description ?? '-' }}</div></td>
@@ -191,4 +193,5 @@
         }
     }
 </script>
+@include('admin._table_dropdown_fix')
 @endsection

@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Business Invoices'])
+@extends('layouts.admin-master', ['title' => 'Offline Business Invoices'])
 
 @section('content')
 <style>
@@ -155,4 +155,5 @@
     });
 </script>
 @include('admin.BusinessInvoice._actions')
+@include('admin._table_dropdown_fix')
 @endsection

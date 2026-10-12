@@ -1,4 +1,4 @@
-@extends('layouts.admin-master', ['title' => 'Business Tag Codes'])
+@extends('layouts.admin-master', ['title' => 'Offline Business Tag Codes'])
 
 @section('content')
 @php
@@ -44,7 +44,7 @@
                     <span>{{ $tag->name }} &mdash; Tag Codes ({{ $codes->count() }})</span>
                     <span class="d-flex flex-wrap gap-2">
                         <a href="{{ route('business-tag') }}" class="user-btn">Back</a>
-                        <a href="{{ route('business-tag.codes.export', $tag->id) }}" class="user-btn">Export CSV</a>
+                        <button type="button" id="btn-export" class="user-btn" disabled title="Tick the rows you want to export">Export CSV (<span id="export-count">0</span>)</button>
                         <button type="button" id="btn-selected" class="user-btn" disabled>Download Selected (<span id="selected-count">0</span>)</button>
                         <button type="button" id="btn-all" class="user-btn" {{ $pendingCount ? '' : 'disabled' }}>Download All Pending ({{ $pendingCount }})</button>
                     </span>
@@ -54,7 +54,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>
-                                    <input class="form-check-input border-dark" type="checkbox" id="select-all" title="Select all pending">
+                                    <input class="form-check-input border-dark" type="checkbox" id="select-all" title="Select all">
                                 </th>
                                 <th>S.No.</th>
                                 <th>QR</th>
@@ -76,9 +76,10 @@
                                 @php $done = !is_null($code->qr_downloaded_at); @endphp
                                 <tr class="{{ $done ? 'qr-done' : '' }}">
                                     <td>
+                                        {{-- Any row can be ticked for the CSV export; only rows whose QR is still pending can be downloaded --}}
                                         <input type="checkbox" class="form-check-input border-dark row-check"
-                                            value="{{ $code->id }}" {{ $done ? 'disabled' : '' }}
-                                            title="{{ $done ? 'QR already downloaded' : 'Select to download QR' }}">
+                                            value="{{ $code->id }}" data-done="{{ $done ? 1 : 0 }}"
+                                            title="{{ $done ? 'Select for CSV export (QR already downloaded)' : 'Select for CSV export or QR download' }}">
                                     </td>
                                     <td>{{ $key + 1 }}</td>
                                     <td class="qr-cell">{!! QrCode::size(60)->margin(0)->generate(\App\Services\QrPngService::tagUrl($code->tag_code)) !!}</td>
@@ -147,6 +148,7 @@
 <script type="text/javascript">
     const csrfToken = $('meta[name="csrf-token"]').attr('content');
     const downloadUrl = "{{ route('business-tag.codes.download-qr', $tag->id) }}";
+    const exportUrl = "{{ route('business-tag.codes.export', $tag->id) }}";
     let dataTable;
 
     $(document).ready(function() {
@@ -165,7 +167,7 @@
         // Checkboxes live in all pages, so use the DataTables API rather than the DOM.
         $('#select-all').on('change', function() {
             const checked = this.checked;
-            dataTable.rows({ search: 'applied' }).nodes().to$().find('.row-check:not(:disabled)').prop('checked', checked);
+            dataTable.rows({ search: 'applied' }).nodes().to$().find('.row-check').prop('checked', checked);
             updateSelection();
         });
         $('#data-table').on('change', '.row-check', updateSelection);
@@ -180,19 +182,33 @@
             if (ids.length) downloadQr(ids);
         });
         $('#btn-all').on('click', function() { downloadQr(null); });
+        $('#btn-export').on('click', exportCsv);
 
         updateSelection();
     });
 
+    // Every ticked row (any row can be exported)
+    function checkedIds() {
+        return dataTable.$('.row-check:checked').map(function() { return this.value; }).get();
+    }
+
+    // Ticked rows whose QR can still be downloaded
     function selectedIds() {
-        return dataTable.$('.row-check:checked:not(:disabled)').map(function() { return this.value; }).get();
+        return dataTable.$('.row-check:checked')
+            .filter(function() { return Number($(this).data('done')) === 0; })
+            .map(function() { return this.value; }).get();
     }
 
     function updateSelection() {
-        const all = dataTable.$('.row-check:not(:disabled)');
+        const all = dataTable.$('.row-check');
         const checked = all.filter(':checked').length;
-        $('#selected-count').text(checked);
-        $('#btn-selected').prop('disabled', checked === 0);
+        const pendingChecked = selectedIds().length;
+
+        $('#export-count').text(checked);
+        $('#btn-export').prop('disabled', checked === 0);
+        $('#selected-count').text(pendingChecked);
+        $('#btn-selected').prop('disabled', pendingChecked === 0);
+
         const box = document.getElementById('select-all');
         box.checked = all.length > 0 && checked === all.length;
         box.indeterminate = checked > 0 && checked < all.length;
@@ -256,6 +272,42 @@
                     .then(() => window.location.reload());
             }
         });
+    }
+
+    // Export only the ticked rows to CSV (nothing changes on the page, so no reload).
+    function exportCsv() {
+        const ids = checkedIds();
+        if (!ids.length) return;
+
+        $('#btn-export').prop('disabled', true);
+        fetch(exportUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'text/csv, application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: ids })
+        }).then(async (res) => {
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || 'Export failed');
+            }
+            const disposition = res.headers.get('Content-Disposition') || '';
+            const match = /filename="?([^";]+)"?/.exec(disposition);
+            const blob = await res.blob();
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = match ? match[1] : 'tag_codes.csv';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 5000);
+        }).catch((err) => {
+            Swal.fire({ icon: 'error', title: 'Oops...', text: err.message });
+        }).finally(updateSelection);
     }
 </script>
 @endsection

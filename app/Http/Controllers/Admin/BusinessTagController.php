@@ -137,15 +137,37 @@ class BusinessTagController extends Controller
         return view('admin.BusinessTag.Codes', compact('tag', 'codes'));
     }
 
-    public function exportCodes($id)
+    /**
+     * CSV of the codes the admin ticked on the Tag Codes page (not the whole tag).
+     */
+    public function exportCodes($id, Request $request)
     {
         $tag = BusinessTag::findOrFail($id);
-        $filename = 'business_tag_' . $tag->id . '_codes.csv';
 
-        return response()->streamDownload(function () use ($tag) {
+        $validator = Validator::make($request->all(), [
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ], [
+            'ids.required' => 'Select at least one tag code to export.',
+            'ids.min' => 'Select at least one tag code to export.',
+        ]);
+        if ($validator->fails()) {
+            return response()->json(['status' => 'failed', 'message' => $validator->errors()->first()], 422);
+        }
+
+        // Only this tag's codes, in a stable order, whatever ids were sent
+        $selected = $tag->codes()->whereIn('id', array_map('intval', $request->ids));
+        $count = (clone $selected)->count();
+        if ($count === 0) {
+            return response()->json(['status' => 'failed', 'message' => 'None of the selected tag codes were found.'], 422);
+        }
+
+        $filename = 'business_tag_' . $tag->id . '_selected_codes_' . $count . '.csv';
+
+        return response()->streamDownload(function () use ($tag, $selected) {
             $out = fopen('php://output', 'w');
             fputcsv($out, ['Tag Name', 'Reference No', 'Tag Code', 'Printable Tag Link', 'Created At']);
-            $tag->codes()->orderBy('id')->chunk(1000, function ($codes) use ($out, $tag) {
+            $selected->orderBy('id')->chunk(1000, function ($codes) use ($out, $tag) {
                 foreach ($codes as $code) {
                     fputcsv($out, [
                         $tag->name,
@@ -249,6 +271,7 @@ class BusinessTagController extends Controller
         return [
             'name' => ['required', 'max:255', Rule::unique('business_tags', 'name')->ignore($ignoreId)],
             'origin_price' => 'required|numeric|min:0',
+            'cost_price' => 'required|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
             'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
             'description' => 'nullable|string',
@@ -261,6 +284,7 @@ class BusinessTagController extends Controller
     {
         $tag->name = $request->name;
         $tag->origin_price = $request->origin_price;
+        $tag->cost_price = $request->cost_price;
         $tag->selling_price = $request->selling_price;
         $tag->description = $request->description;
         $tag->type_of_tag = $request->type_of_tag;

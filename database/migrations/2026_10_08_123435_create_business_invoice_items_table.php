@@ -10,7 +10,7 @@ return new class extends Migration
      * Run the migrations.
      *
      * One line per Business Tag on an invoice. The tag name and the price per code are copied
-     * here, so an issued invoice never changes if the tag or its Business Price is edited later.
+     * here, so an issued invoice never changes if the tag or its B2B Price is edited later.
      */
     public function up(): void
     {

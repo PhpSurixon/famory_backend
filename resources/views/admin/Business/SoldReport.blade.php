@@ -66,7 +66,7 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th>Tag</th>
-                                        <th class="text-end">Business Price</th>
+                                        <th class="text-end">B2B Price</th>
                                         <th class="text-end">Assigned</th>
                                         <th class="text-end">Sold</th>
                                         <th class="text-end">Registered</th>

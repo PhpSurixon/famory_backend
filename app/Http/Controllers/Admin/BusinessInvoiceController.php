@@ -408,7 +408,7 @@ class BusinessInvoiceController extends Controller
 
     /**
      * Check the chosen codes and work out the invoice lines from the database, never from the
-     * browser. Quantity = number of codes, price = the business's saved Business Price for the tag
+     * browser. Quantity = number of codes, price = the business's saved B2B Price for the tag
      * (the tag's selling price if none was saved).
      *
      * @throws \DomainException when a code cannot be billed

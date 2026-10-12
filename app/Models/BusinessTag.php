@@ -9,6 +9,7 @@ class BusinessTag extends Model
     protected $fillable = [
         'name',
         'origin_price',
+        'cost_price',
         'selling_price',
         'image',
         'description',
@@ -18,6 +19,7 @@ class BusinessTag extends Model
 
     protected $casts = [
         'origin_price' => 'decimal:2',
+        'cost_price' => 'decimal:2',
         'selling_price' => 'decimal:2',
         'active' => 'boolean',
     ];
